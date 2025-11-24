@@ -1,0 +1,27 @@
+[package]
+name = "core_api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+dotenvy = "0.15"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+reqwest = { version = "0.12", features = ["json"] }
+
+# --- 确保下面这两行存在 ---
+tower-http = { version = "0.5", features = ["trace", "cors"] }
+uuid = { version = "1.8", features = ["v4", "serde"] }
+
+# --- 新增: 用于 JWT (JSON Web Tokens) ---
+jsonwebtoken = "9.3"
+
+chrono = { version = "0.4", features = ["serde"] } # (chrono 应该已存在, 确保它有 "serde")
+
+sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-rustls", "macros", "uuid", "chrono", "json"] }
+futures = "0.3"
+bcrypt = "0.15.1"

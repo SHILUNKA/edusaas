@@ -1,0 +1,79 @@
+services:
+  # 1. 数据库服务 (PostgreSQL)
+  db:
+    image: postgres:15
+    container_name: edusaas_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: edusaas_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  # 2. 核心服务 (Rust - axum)
+  core_api:
+    container_name: edusaas_core_api
+    build:
+      context: ./core_api
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: "postgres://admin:password123@db:5432/edusaas_dev"
+      AI_API_URL: "http://ai_api:8001"
+      RUST_LOG: "info"
+      JWT_SECRET: "my_super_secret_key_for_dev_v1"
+
+    volumes:
+      - ./core_api:/app
+      - /app/target
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  # 3. AI 服务 (Python - FastAPI)
+  ai_api:
+    container_name: edusaas_ai_api
+    build:
+      context: ./ai_api
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      PYTHONPATH: "/app"
+    volumes:
+      - ./ai_api:/app
+    restart: unless-stopped
+
+  # 4. B端后台 (Next.js) - (★ 已修复 YAML 语法 ★)
+  web_admin:
+    container_name: edusaas_web_admin
+    build:
+      context: ./web_admin
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      # --- (★ 关键修复 ★) ---
+      NEXTAUTH_URL: "http://localhost:3000"
+      NEXTAUTH_SECRET: "z/B8b/H+vW9xK3jF6E+NqD/A5rG+L9pWqJ/C8tUeB/Y="
+      CORE_API_URL: "http://core_api:8000/api/v1"
+      
+      # --- (★ 语法已修复: 移除 '-' 并改为 'key: value') ---
+      NODE_ENV: "development"
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - ./web_admin:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on: 
+      - db
+      - core_api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

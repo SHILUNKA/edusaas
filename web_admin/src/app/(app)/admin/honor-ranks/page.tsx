@@ -1,17 +1,17 @@
 /*
  * B端后台: 荣誉军衔管理页面
  * 路径: /admin/honor-ranks
+ * 修复: 添加 NextAuth 认证，解决 401 Unauthorized 错误
  */
-
-// 这是一个交互式页面, 所以我们使用 "use client"
 'use client'; 
 
 import { useState, useEffect, FormEvent } from 'react';
+// 1. 引入 Session 钩子
+import { useSession } from 'next-auth/react';
 
 // 1. 定义 "军衔" 的 TypeScript 类型
-// (这必须与我们的 Rust 'HonorRank' 结构体 100% 匹配)
 interface HonorRank {
-    id: string; // uuid 在 TypeScript 中就是 string
+    id: string;
     tenant_id: string;
     name_key: string;
     rank_level: number;
@@ -23,29 +23,37 @@ interface HonorRank {
 export default function HonorRanksPage() {
     
     // --- 状态管理 ---
-    
-    // 列表状态 (用于 'GET' 接口)
-    const [ranks, setRanks] = useState<HonorRank[]>([]); // 军衔列表
-    const [isLoading, setIsLoading] = useState(true); // 加载状态
-    const [error, setError] = useState<string | null>(null); // 错误信息
+    const { data: session } = useSession();
+    const token = session?.user?.rawToken; // 2. 获取 Token
 
-    // 表单状态 (用于 'POST' 接口)
+    const [ranks, setRanks] = useState<HonorRank[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // 表单状态
     const [nameKey, setNameKey] = useState("");
     const [rankLevel, setRankLevel] = useState("0");
     const [points, setPoints] = useState("0");
     const [iconUrl, setIconUrl] = useState("");
 
-    // Rust API 的地址
     const API_URL = 'http://localhost:8000/api/v1/honor-ranks';
 
     // --- 核心逻辑 ---
 
     // 3. 'GET' 数据获取函数
     const fetchRanks = async () => {
+        if (!token) return; // 如果没有 Token，不发送请求
+
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(API_URL);
+            // 3. 添加 Authorization Header
+            const response = await fetch(API_URL, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -58,16 +66,21 @@ export default function HonorRanksPage() {
         }
     };
 
-    // 4. 页面加载时自动获取数据 (useEffect)
+    // 4. 页面加载时自动获取数据
     useEffect(() => {
-        fetchRanks();
-    }, []); // 空数组 [] 意味着 "只在页面第一次加载时运行"
+        if (token) {
+            fetchRanks();
+        }
+    }, [token]); // 依赖项加入 token
 
     // 5. 'POST' 表单提交函数
     const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault(); // 阻止浏览器默认的表单刷新
+        e.preventDefault();
+        if (!token) {
+            alert("认证失效，请重新登录");
+            return;
+        }
 
-        // 准备要发送的 JSON payload
         const payload = {
             name_key: nameKey,
             rank_level: parseInt(rankLevel, 10),
@@ -76,10 +89,12 @@ export default function HonorRanksPage() {
         };
 
         try {
+            // 4. POST 请求也添加 Header
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}` // <--- 关键修复
                 },
                 body: JSON.stringify(payload),
             });
@@ -88,14 +103,13 @@ export default function HonorRanksPage() {
                 throw new Error(`Failed to create rank. Status: ${response.status}`);
             }
 
-            // 创建成功!
             alert('军衔创建成功!');
-            setNameKey(''); // 清空表单
+            setNameKey('');
             setRankLevel('0');
             setPoints('0');
             setIconUrl('');
             
-            fetchRanks(); // 6. (关键) 自动刷新列表!
+            fetchRanks(); 
 
         } catch (e) {
             setError((e as Error).message);

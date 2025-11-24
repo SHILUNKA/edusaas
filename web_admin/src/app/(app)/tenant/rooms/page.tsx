@@ -1,20 +1,18 @@
 /*
  * B端后台: 教室 (Rooms) 管理页面
  * 路径: /tenant/rooms
+ * 修复: 替换 useAuthStore 为 useSession
  */
 'use client'; 
 
 import { useState, useEffect, FormEvent } from 'react';
-import { useAuthStore } from '@/store/authStore';
+// 1. 修改导入
+import { useSession } from 'next-auth/react';
 
-// --- 1. 定义 TypeScript 类型 ---
-
-// (来自 /api/v1/bases)
 interface Base {
     id: string;
     name: string;
 }
-// (来自 /api/v1/tenant/rooms)
 interface Room {
     id: string;
     base_id: string;
@@ -22,34 +20,30 @@ interface Room {
     capacity: number | null;
 }
 
-// 2. 定义我们的 React 页面组件
 export default function RoomsPage() {
     
-    // --- 状态管理 ---
-    const [rooms, setRooms] = useState<Room[]>([]); // 教室列表
-    const [bases, setBases] = useState<Base[]>([]); // (★ 新增) 基地列表
+    const [rooms, setRooms] = useState<Room[]>([]); 
+    const [bases, setBases] = useState<Base[]>([]); 
     
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // --- 表单状态 ---
     const [name, setName] = useState("");
     const [capacity, setCapacity] = useState("");
-    const [selectedBaseId, setSelectedBaseId] = useState(""); // (★ 新增) 选中的基地ID
+    const [selectedBaseId, setSelectedBaseId] = useState(""); 
     
-    const token = useAuthStore((state) => state.token);
+    // 2. 修改 Token 获取
+    const { data: session } = useSession();
+    const token = session?.user?.rawToken;
+
     const API_URL_ROOMS = 'http://localhost:8000/api/v1/tenant/rooms';
-    const API_URL_BASES = 'http://localhost:8000/api/v1/bases'; // (★ 新增)
+    const API_URL_BASES = 'http://localhost:8000/api/v1/bases'; 
 
-    // --- 核心逻辑 ---
-
-    // 3. 'GET' 数据获取函数
     const fetchData = async () => {
         if (!token) return; 
         setIsLoading(true);
         setError(null);
         try {
-            // (★ 关键 ★) 我们现在使用 Promise.all 并行获取 "教室" 和 "基地"
             const [roomsRes, basesRes] = await Promise.all([
                 fetch(API_URL_ROOMS, {
                     headers: { 'Authorization': `Bearer ${token}` },
@@ -68,7 +62,6 @@ export default function RoomsPage() {
             setRooms(roomsData);
             setBases(basesData);
             
-            // (★ 关键 ★) 自动将下拉菜单默认选中 "第一个" 基地
             if (basesData.length > 0) {
                 setSelectedBaseId(basesData[0].id);
             }
@@ -80,14 +73,12 @@ export default function RoomsPage() {
         }
     };
 
-    // 4. 页面加载时自动获取数据
     useEffect(() => {
         if (token) {
             fetchData();
         }
     }, [token]); 
 
-    // 5. 'POST' 表单提交函数
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!token || !selectedBaseId) {
@@ -102,7 +93,7 @@ export default function RoomsPage() {
         };
 
         try {
-            const response = await fetch(API_URL_ROOMS, { // (POST 到 /rooms)
+            const response = await fetch(API_URL_ROOMS, { 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -116,10 +107,10 @@ export default function RoomsPage() {
             }
 
             alert('教室创建成功!');
-            setName(''); // 清空表单
+            setName(''); 
             setCapacity('');
             
-            fetchData(); // (★ 关键 ★) 重新获取 "所有" 数据 (包括新的教室)
+            fetchData(); 
 
         } catch (e) {
             setError((e as Error).message);
@@ -127,22 +118,18 @@ export default function RoomsPage() {
         }
     };
 
-    // (辅助函数, 用于在列表中显示基地名称)
     const getBaseName = (baseId: string) => {
         return bases.find(b => b.id === baseId)?.name || '未知基地';
     };
 
-    // --- 7. 页面渲染 (JSX) ---
     return (
         <div className="p-8 max-w-4xl mx-auto">
             <h1 className="text-3xl font-bold mb-6">总部管理: 教室/场地</h1>
             
-            {/* --- (A) 创建新教室的表单 --- */}
             <div className="bg-white p-6 rounded-lg shadow-md mb-8">
                 <h2 className="text-xl font-semibold mb-4">创建新教室</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     
-                    {/* (★ 关键 ★) 基地选择下拉菜单 */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
                             归属基地 (分店)
@@ -197,7 +184,6 @@ export default function RoomsPage() {
                 </form>
             </div>
 
-            {/* --- (B) 已有教室的列表 --- */}
             <div className="bg-white p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-semibold mb-4">教室列表 (按基地)</h2>
                 {isLoading && <p>正在加载列表...</p>}
@@ -213,7 +199,6 @@ export default function RoomsPage() {
                                     <div className="flex justify-between items-center">
                                         <p className="text-lg font-medium text-indigo-600">{room.name}</p>
                                         <p className="text-sm font-semibold text-gray-700">
-                                            {/* (★ 关键 ★) 显示所属基地名称 */}
                                             {getBaseName(room.base_id)}
                                         </p>
                                     </div>

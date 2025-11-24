@@ -71,3 +71,7 @@ pub use enrollment::*;
 // --- 【新增】基地库存模块 ---
 pub mod stock;
 pub use stock::*;
+
+// --- 【新增】员工管理模块 (必须添加这两行) ---
+pub mod user;
+pub use user::*;

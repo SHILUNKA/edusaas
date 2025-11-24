@@ -1,0 +1,5 @@
+# core_api/.gitignore
+/target/
+**/*.rs.bk
+Cargo.lock # (注意：如果是库项目通常不提交lock，但因为这是应用/服务，保留 Cargo.lock 是对的，所以不要忽略它)
+.env       # 包含密钥，绝对不能提交！

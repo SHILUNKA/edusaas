@@ -1,0 +1,9 @@
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+*.swp
+*.log
+
+# Docker Volumes (防止本地挂载的数据被提交)
+postgres_data/

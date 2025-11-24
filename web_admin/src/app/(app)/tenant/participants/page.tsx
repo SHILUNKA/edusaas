@@ -1,18 +1,18 @@
 /*
  * B端后台: 总部学员总览 (Participants) 页面
  * 路径: /tenant/participants
+ * 修复: 替换 useAuthStore 为 useSession
  */
 'use client'; 
 
 import { useState, useEffect } from 'react';
-import { useAuthStore } from '@/store/authStore';
+// 1. 修改导入
+import { useSession } from 'next-auth/react';
 
-// 1. 定义 "学员详情" 的 TypeScript 类型
-// (必须与 Rust 'ParticipantDetail' 结构体匹配)
 interface ParticipantDetail {
     id: string;
     name: string;
-    date_of_birth: string | null; // (日期会作为字符串传来)
+    date_of_birth: string | null; 
     gender: string | null;
     customer_name: string | null;
     customer_phone: string;
@@ -20,17 +20,18 @@ interface ParticipantDetail {
     rank_name_key: string | null;
 }
 
-// 2. 我们的 React 页面组件
 export default function TenantParticipantsPage() {
     
     const [participants, setParticipants] = useState<ParticipantDetail[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     
-    const token = useAuthStore((state) => state.token);
+    // 2. 修改 Token 获取
+    const { data: session } = useSession();
+    const token = session?.user?.rawToken;
+
     const API_URL = 'http://localhost:8000/api/v1/tenant/participants';
 
-    // 3. 'GET' 数据获取函数
     const fetchParticipants = async () => {
         if (!token) return; 
         setIsLoading(true);
@@ -53,19 +54,16 @@ export default function TenantParticipantsPage() {
         }
     };
 
-    // 4. 页面加载时自动获取数据
     useEffect(() => {
         if (token) {
             fetchParticipants();
         }
     }, [token]); 
 
-    // 5. 页面渲染 (JSX)
     return (
         <div className="p-8 max-w-7xl mx-auto">
             <h1 className="text-3xl font-bold mb-6">总部 · 学员总览</h1>
             
-            {/* --- 学员列表 (使用 "表格" 来展示) --- */}
             <div className="bg-white p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-semibold mb-4">所有基地的学员</h2>
                 {isLoading && <p>正在加载学员列表...</p>}

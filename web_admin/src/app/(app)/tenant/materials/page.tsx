@@ -1,14 +1,14 @@
 /*
  * B端后台: 中央物料库 (Materials) 管理页面
  * 路径: /tenant/materials
+ * 修复: 替换 useAuthStore 为 useSession
  */
 'use client'; 
 
 import { useState, useEffect, FormEvent } from 'react';
-import { useAuthStore } from '@/store/authStore'; // 导入我们的认证 "管家"
+// 1. 修改导入
+import { useSession } from 'next-auth/react'; 
 
-// 1. 定义 "物料" 的 TypeScript 类型
-// (必须与 Rust 'Material' 结构体匹配)
 interface Material {
     id: string;
     tenant_id: string;
@@ -18,26 +18,23 @@ interface Material {
     unit_of_measure: string | null;
 }
 
-// 2. 定义我们的 React 页面组件
 export default function MaterialsPage() {
     
-    // --- 状态管理 ---
-    const [materials, setMaterials] = useState<Material[]>([]); // 物料列表
+    const [materials, setMaterials] = useState<Material[]>([]); 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // 表单状态
     const [nameKey, setNameKey] = useState("");
     const [descriptionKey, setDescriptionKey] = useState("");
     const [sku, setSku] = useState("");
     const [unit, setUnit] = useState("");
     
-    const token = useAuthStore((state) => state.token);
+    // 2. 修改 Token 获取
+    const { data: session } = useSession();
+    const token = session?.user?.rawToken;
+
     const API_URL = 'http://localhost:8000/api/v1/materials';
 
-    // --- 核心逻辑 ---
-
-    // 3. 'GET' 数据获取函数
     const fetchMaterials = async () => {
         if (!token) return; 
 
@@ -61,14 +58,12 @@ export default function MaterialsPage() {
         }
     };
 
-    // 4. 页面加载时自动获取数据
     useEffect(() => {
         if (token) {
             fetchMaterials();
         }
     }, [token]); 
 
-    // 5. 'POST' 表单提交函数
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!token) {
@@ -98,12 +93,12 @@ export default function MaterialsPage() {
             }
 
             alert('物料定义创建成功!');
-            setNameKey(''); // 清空表单
+            setNameKey('');
             setDescriptionKey('');
             setSku('');
             setUnit('');
             
-            fetchMaterials(); // 自动刷新列表!
+            fetchMaterials(); 
 
         } catch (e) {
             setError((e as Error).message);
@@ -111,12 +106,10 @@ export default function MaterialsPage() {
         }
     };
 
-    // --- 7. 页面渲染 (JSX) ---
     return (
         <div className="p-8 max-w-4xl mx-auto">
             <h1 className="text-3xl font-bold mb-6">总部管理: 中央物料库</h1>
             
-            {/* --- (A) 创建新物料的表单 --- */}
             <div className="bg-white p-6 rounded-lg shadow-md mb-8">
                 <h2 className="text-xl font-semibold mb-4">定义新物料</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -179,7 +172,6 @@ export default function MaterialsPage() {
                 </form>
             </div>
 
-            {/* --- (B) 已有物料的列表 --- */}
             <div className="bg-white p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-semibold mb-4">物料列表</h2>
                 {isLoading && <p>正在加载列表...</p>}

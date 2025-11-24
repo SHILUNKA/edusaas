@@ -303,7 +303,6 @@ pub struct UpdateEnrollmentPayload {
     pub teacher_feedback: Option<String>,
 }
 
-
 // --- 【新增】Phase 1: 客户会员卡 (CustomerMembership) Models ---
 
 // 对应 'customer_memberships' 数据库表
@@ -370,4 +369,41 @@ pub struct ClassDetail {
     pub course_name_key: String, // (来自 courses.name_key)
     pub teacher_name: Option<String>, // (来自 users.full_name)
     pub room_name: String,    // (来自 rooms.name)
+}
+
+// 用于列表展示的员工详情
+/ 1. 更新读取模型
+#[derive(Debug, Serialize, FromRow)]
+pub struct UserDetail {
+    pub id: Uuid,
+    pub email: String,
+    pub full_name: Option<String>,
+    // --- 新增字段 ---
+    pub phone_number: Option<String>,
+    pub gender: Option<String>,
+    pub blood_type: Option<String>,
+    pub date_of_birth: Option<NaiveDate>,
+    pub address: Option<String>,
+    // ----------------
+    pub is_active: bool,
+    pub base_name: Option<String>,
+    pub role_name: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+// 2. 更新创建请求模型
+#[derive(Debug, Deserialize)]
+pub struct CreateUserPayload {
+    pub email: String,
+    pub password: String,
+    pub full_name: String,
+    // --- 新增字段 ---
+    pub phone_number: Option<String>,
+    pub gender: Option<String>,
+    pub blood_type: Option<String>,
+    pub date_of_birth: Option<NaiveDate>,
+    pub address: Option<String>,
+    // ----------------
+    pub role_key: String,
+    pub base_id: Option<Uuid>,
 }

@@ -1,0 +1,6 @@
+# ai_api/.gitignore
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env

@@ -1,14 +1,15 @@
 /*
  * B端后台: 基地 (分店) 管理页面
  * 路径: /tenant/bases
+ * 修复: 移除 useAuthStore, 改为 useSession
  */
 'use client'; 
 
 import { useState, useEffect, FormEvent } from 'react';
-import { useAuthStore } from '@/store/authStore'; // 导入我们的认证 "管家"
+// 1. 修改导入：使用 next-auth/react
+import { useSession } from 'next-auth/react'; 
 
 // 1. 定义 "基地" 的 TypeScript 类型
-// (必须与 Rust 'Base' 结构体匹配)
 interface Base {
     id: string;
     tenant_id: string;
@@ -20,7 +21,7 @@ interface Base {
 export default function BasesPage() {
     
     // --- 状态管理 ---
-    const [bases, setBases] = useState<Base[]>([]); // 基地列表
+    const [bases, setBases] = useState<Base[]>([]); 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -28,8 +29,9 @@ export default function BasesPage() {
     const [name, setName] = useState("");
     const [address, setAddress] = useState("");
     
-    // (关键) 从 "管家" 获取 Token
-    const token = useAuthStore((state) => state.token);
+    // 2. 修改 Token 获取方式
+    const { data: session } = useSession();
+    const token = session?.user?.rawToken;
 
     const API_URL = 'http://localhost:8000/api/v1/bases';
 
@@ -45,7 +47,6 @@ export default function BasesPage() {
             const response = await fetch(API_URL, {
                 method: 'GET',
                 headers: {
-                    // (关键!) 我们现在必须发送认证 Token
                     'Authorization': `Bearer ${token}`, 
                 },
             });
@@ -62,14 +63,12 @@ export default function BasesPage() {
         }
     };
 
-    // 4. 页面加载时自动获取数据 (useEffect)
-    // (注意: 依赖项中加入了 'token')
+    // 4. 页面加载时自动获取数据
     useEffect(() => {
-        // 只有当我们获得了 token (即登录成功) 后, 才去获取数据
         if (token) {
             fetchBases();
         }
-    }, [token]); // 当 token 变化时 (例如从 null -> 'ey...') 触发
+    }, [token]); 
 
     // 5. 'POST' 表单提交函数
     const handleSubmit = async (e: FormEvent) => {
@@ -89,7 +88,7 @@ export default function BasesPage() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`, // (关键!) POST 也需要 Token
+                    'Authorization': `Bearer ${token}`, 
                 },
                 body: JSON.stringify(payload),
             });
@@ -127,7 +126,7 @@ export default function BasesPage() {
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm outline-none focus:ring-2 focus:ring-indigo-500"
                             required
                         />
                     </div>
@@ -140,13 +139,13 @@ export default function BasesPage() {
                             type="text"
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                     </div>
 
                     <button 
                         type="submit" 
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
                     >
                         创建基地
                     </button>

@@ -15,7 +15,7 @@ use tower_http::trace::TraceLayer;
 use tracing::Level;
 
 // --- 导入 CorsLayer (CORS 修复) ---
-use tower_http::cors::{CorsLayer, Any};
+use tower_http::cors::{CorsLayer};
 use axum::http::header;
 
 // --- 模块 ---
@@ -59,6 +59,8 @@ use handlers::{
     assign_membership_handler,
     get_base_dashboard_stats,
     get_stock_alerts_handler,
+    get_tenant_users,
+    create_tenant_user,
 };
 
 #[tokio::main]
@@ -207,6 +209,9 @@ async fn main() {
         
         // 基地库存警报路由
         .route("/api/v1/base/stock/alerts", get(get_stock_alerts_handler))
+
+        .route("/api/v1/tenant/users", get(get_tenant_users))
+        .route("/api/v1/tenant/users", post(create_tenant_user))    
 
         // --- 应用中间件层 ---
         // 注意：Layer 的顺序很重要，CORS 应该在 Trace 之前

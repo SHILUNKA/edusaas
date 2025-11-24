@@ -1,14 +1,15 @@
 /*
  * B端后台: 中央资产库 (Asset Types) 管理页面
  * 路径: /tenant/assets
+ * 修复: 替换 useAuthStore 为 useSession
  */
 'use client'; 
 
 import { useState, useEffect, FormEvent } from 'react';
-import { useAuthStore } from '@/store/authStore'; // 导入我们的认证 "管家"
+// 1. 修改导入
+import { useSession } from 'next-auth/react';
 
 // 1. 定义 "资产类型" 的 TypeScript 类型
-// (必须与 Rust 'AssetType' 结构体匹配)
 interface AssetType {
     id: string;
     tenant_id: string;
@@ -20,7 +21,7 @@ interface AssetType {
 export default function AssetTypesPage() {
     
     // --- 状态管理 ---
-    const [assetTypes, setAssetTypes] = useState<AssetType[]>([]); // 资产类型列表
+    const [assetTypes, setAssetTypes] = useState<AssetType[]>([]); 
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -28,8 +29,11 @@ export default function AssetTypesPage() {
     const [nameKey, setNameKey] = useState("");
     const [descriptionKey, setDescriptionKey] = useState("");
     
-    const token = useAuthStore((state) => state.token);
-    const API_URL = 'http://localhost:8000/api/v1/asset-types'; // <-- (注意: API URL 已更改)
+    // 2. 修改 Token 获取
+    const { data: session } = useSession();
+    const token = session?.user?.rawToken;
+
+    const API_URL = 'http://localhost:8000/api/v1/asset-types';
 
     // --- 核心逻辑 ---
 
@@ -108,7 +112,6 @@ export default function AssetTypesPage() {
         <div className="p-8 max-w-4xl mx-auto">
             <h1 className="text-3xl font-bold mb-6">总部管理: 中央资产库 (类型)</h1>
             
-            {/* --- (A) 创建新资产类型的表单 --- */}
             <div className="bg-white p-6 rounded-lg shadow-md mb-8">
                 <h2 className="text-xl font-semibold mb-4">定义新资产类型</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -146,7 +149,6 @@ export default function AssetTypesPage() {
                 </form>
             </div>
 
-            {/* --- (B) 已有资产类型的列表 --- */}
             <div className="bg-white p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-semibold mb-4">资产类型列表</h2>
                 {isLoading && <p>正在加载列表...</p>}

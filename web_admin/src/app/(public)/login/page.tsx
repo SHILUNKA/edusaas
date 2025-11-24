@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation'; // (★ 修复: 我们仍然需要 
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('admin@base1.com'); // (保留默认值)
+  const [email, setEmail] = useState('base1@admin.com'); // (保留默认值)
   const [password, setPassword] = useState('password123');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);

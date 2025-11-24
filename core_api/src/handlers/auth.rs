@@ -11,7 +11,7 @@ use axum::{
     Json,
     async_trait,
 };
-use sqlx::{PgPool, FromRow, Row};
+use sqlx::{FromRow, Row};
 use uuid::Uuid;
 use bcrypt::{hash, verify, DEFAULT_COST, BcryptError};
 use jsonwebtoken::{encode, decode, Header, EncodingKey, Validation, DecodingKey};

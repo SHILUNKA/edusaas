@@ -1,14 +1,14 @@
 /*
  * B端后台: 中央课程库 (Courses) 管理页面
  * 路径: /tenant/courses
+ * 修复: 替换 useAuthStore 为 useSession
  */
 'use client'; 
 
 import { useState, useEffect, FormEvent } from 'react';
-import { useAuthStore } from '@/store/authStore';
+// 1. 修改导入
+import { useSession } from 'next-auth/react';
 
-// 1. 定义 "课程" 的 TypeScript 类型
-// (必须与 Rust 'Course' 结构体匹配)
 interface Course {
     id: string;
     tenant_id: string;
@@ -21,27 +21,23 @@ interface Course {
     is_active: boolean;
 }
 
-// 2. 定义我们的 React 页面组件
 export default function CoursesPage() {
     
-    // --- 状态管理 ---
-    const [courses, setCourses] = useState<Course[]>([]); // 课程列表
+    const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // --- 表单状态 ---
-    // (我们只实现了简化版的表单)
     const [nameKey, setNameKey] = useState("");
     const [descriptionKey, setDescriptionKey] = useState("");
     const [duration, setDuration] = useState("60");
     const [points, setPoints] = useState("0");
     
-    const token = useAuthStore((state) => state.token);
-    const API_URL = 'http://localhost:8000/api/v1/courses'; // <-- (注意: API URL 已更改)
+    // 2. 修改 Token 获取
+    const { data: session } = useSession();
+    const token = session?.user?.rawToken;
 
-    // --- 核心逻辑 ---
+    const API_URL = 'http://localhost:8000/api/v1/courses';
 
-    // 3. 'GET' 数据获取函数
     const fetchCourses = async () => {
         if (!token) return; 
 
@@ -65,14 +61,12 @@ export default function CoursesPage() {
         }
     };
 
-    // 4. 页面加载时自动获取数据
     useEffect(() => {
         if (token) {
             fetchCourses();
         }
     }, [token]); 
 
-    // 5. 'POST' 表单提交函数
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!token) {
@@ -85,7 +79,6 @@ export default function CoursesPage() {
             description_key: descriptionKey || null,
             default_duration_minutes: parseInt(duration, 10),
             points_awarded: parseInt(points, 10),
-            // (我们暂时不支持在 UI 上选择 "前置课程")
             prerequisite_course_id: null, 
             target_audience_key: null,
         };
@@ -105,12 +98,12 @@ export default function CoursesPage() {
             }
 
             alert('课程创建成功!');
-            setNameKey(''); // 清空表单
+            setNameKey('');
             setDescriptionKey('');
             setDuration('60');
             setPoints('0');
             
-            fetchCourses(); // 自动刷新列表!
+            fetchCourses();
 
         } catch (e) {
             setError((e as Error).message);
@@ -118,12 +111,10 @@ export default function CoursesPage() {
         }
     };
 
-    // --- 7. 页面渲染 (JSX) ---
     return (
         <div className="p-8 max-w-4xl mx-auto">
             <h1 className="text-3xl font-bold mb-6">总部管理: 中央课程库</h1>
             
-            {/* --- (A) 创建新课程的表单 --- */}
             <div className="bg-white p-6 rounded-lg shadow-md mb-8">
                 <h2 className="text-xl font-semibold mb-4">定义新课程</h2>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -186,7 +177,6 @@ export default function CoursesPage() {
                 </form>
             </div>
 
-            {/* --- (B) 已有课程的列表 --- */}
             <div className="bg-white p-6 rounded-lg shadow-md">
                 <h2 className="text-xl font-semibold mb-4">课程列表</h2>
                 {isLoading && <p>正在加载列表...</p>}

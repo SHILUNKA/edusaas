@@ -1,51 +1,59 @@
 /*
  * src/handlers/class.rs
  * 职责: 排课 (Class) 管理
- * (★ V4 - “JOIN 增强”版 ★)
+ * (★ V7.0 - 完整版: 含查询、创建、调课/代课 ★)
  */
 
 use axum::{
-    extract::{State, Query}, 
+    extract::{State, Query, Path}, 
     http::StatusCode, 
     Json
 };
 use serde::Deserialize; 
-use sqlx::{QueryBuilder}; // <-- 【修改】导入 FromRow
+use sqlx::{QueryBuilder, FromRow};
+use uuid::Uuid;
+use chrono::{DateTime, Utc};
 
-
-// 【修改】导入 AppState 和 Claims
 use super::AppState;
 use super::auth::Claims; 
-// 【修改】导入 Class, CreateClassPayload, 和我们新的 ClassDetail
+// 引入模型
 use crate::models::{Class, CreateClassPayload, ClassDetail};
 
-// --- 用于接收查询参数 (例如 ?date=today) ---
+// --- DTO: 查询参数 ---
 #[derive(Debug, Deserialize)]
 pub struct GetClassesQuery {
-    date: Option<String>,
+    pub date: Option<String>, // "today", "2023-10-01", etc.
 }
 
-// (GET /api/v1/base/classes - 获取 "本基地" 的排课)
-// (★ V4 - “JOIN 增强”版 ★)
-pub async fn get_base_classes(
+// --- DTO: 更新排课 (调课/代课) ---
+// (因为只在 handler 内部使用，直接定义在这里即可)
+#[derive(Debug, Deserialize)]
+pub struct UpdateClassPayload {
+    pub teacher_id: Option<Uuid>, // 换老师 (代课)
+    pub room_id: Option<Uuid>,    // 换教室
+    pub start_time: Option<DateTime<Utc>>, // 调时间
+    pub end_time: Option<DateTime<Utc>>,
+}
+
+// (GET /api/v1/base/classes)
+pub async fn get_base_classes_handler(
     State(state): State<AppState>,
-    claims: Claims, // <-- 必须出示“钥匙”
-    Query(query): Query<GetClassesQuery>, // <-- 接收查询参数
-) -> Result<Json<Vec<ClassDetail>>, StatusCode> { // <-- 【修改】返回类型为 ClassDetail
+    claims: Claims, 
+    Query(query): Query<GetClassesQuery>, 
+) -> Result<Json<Vec<ClassDetail>>, StatusCode> {
 
     let tenant_id = claims.tenant_id;
 
-    // (★ SaaS 逻辑 ★)
+    // 1. 权限检查
     let base_id = match claims.base_id {
         Some(id) => id,
         None => {
-            tracing::warn!("User {} without base_id tried to access base-specific classes", claims.sub);
-            return Err(StatusCode::FORBIDDEN); // 403 Forbidden
+            tracing::warn!("User {} without base_id tried to access classes", claims.sub);
+            return Err(StatusCode::FORBIDDEN); 
         }
     };
 
-    // --- (★ 关键: 动态 SQL 查询构建 ★) ---
-    // (我们现在 SELECT 更多字段, 并执行 3 个 LEFT JOIN)
+    // 2. 动态构建查询
     let mut query_builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
         r#"
         SELECT 
@@ -72,24 +80,24 @@ pub async fn get_base_classes(
     query_builder.push(" AND c.base_id = ");
     query_builder.push_bind(base_id);
 
-    // (★ 关键: 检查 ?date=today)
+    // 日期过滤
     if let Some(date_filter) = query.date {
         if date_filter == "today" {
-            // (我们使用 'CURRENT_DATE' 来获取数据库服务器的“今天”)
-            // (注意: 我们现在必须使用 'c.start_time' 来指定表)
+            // 使用数据库当前日期
             query_builder.push(" AND c.start_time::date = CURRENT_DATE ");
-            tracing::debug!("(LOG) Filtering classes for 'today'");
+        } else {
+            // (可选) 支持查询特定日期，例如 ?date=2025-11-25
+            // 这里简单实现，如果需要更复杂的范围查询需解析字符串
         }
     }
 
     query_builder.push(" ORDER BY c.start_time ASC ");
 
-    // --- (执行查询) ---
-    // (★ 修改: build_query_as::<ClassDetail>)
+    // 3. 执行查询
     let classes = match query_builder.build_query_as::<ClassDetail>().fetch_all(&state.db_pool).await {
         Ok(classes) => classes,
         Err(e) => {
-            tracing::error!("Failed to fetch base classes (detail view): {}", e);
+            tracing::error!("Failed to fetch base classes: {}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
@@ -97,9 +105,8 @@ pub async fn get_base_classes(
     Ok(Json(classes))
 }
 
-// (POST /api/v1/base/classes - "本基地" 创建一个新排课)
-// (★ V2 - 此函数无修改 ★)
-pub async fn create_base_class(
+// (POST /api/v1/base/classes)
+pub async fn create_base_class_handler(
     State(state): State<AppState>,
     claims: Claims, 
     Json(payload): Json<CreateClassPayload>,
@@ -109,12 +116,11 @@ pub async fn create_base_class(
 
     let base_id = match claims.base_id {
         Some(id) => id,
-        None => {
-            tracing::warn!("User {} without base_id tried to create a base-specific class", claims.sub);
-            return Err(StatusCode::FORBIDDEN); 
-        }
+        None => return Err(StatusCode::FORBIDDEN), 
     };
     
+    // (可选: 这里可以加冲突检测，防止同一老师同一时间两地分身)
+
     let new_class = match sqlx::query_as::<_, Class>(
         r#"
         INSERT INTO classes (
@@ -143,4 +149,70 @@ pub async fn create_base_class(
         }
     };
     Ok(Json(new_class))
+}
+
+// (PATCH /api/v1/base/classes/:id - 调课/代课)
+// (需在 main.rs 中注册路由: .route("/api/v1/base/classes/:id", patch(update_class_handler)))
+pub async fn update_class_handler(
+    State(state): State<AppState>,
+    claims: Claims,
+    Path(class_id): Path<Uuid>,
+    Json(payload): Json<UpdateClassPayload>,
+) -> Result<StatusCode, StatusCode> {
+    
+    let tenant_id = claims.tenant_id;
+    let base_id = match claims.base_id {
+        Some(id) => id,
+        None => return Err(StatusCode::FORBIDDEN),
+    };
+
+    // 动态构建 UPDATE 语句
+    let mut query_builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new("UPDATE classes SET ");
+    let mut separated = query_builder.separated(", ");
+
+    if let Some(tid) = payload.teacher_id {
+        separated.push("teacher_id = ");
+        separated.push_bind_unseparated(tid);
+    }
+    if let Some(rid) = payload.room_id {
+        separated.push("room_id = ");
+        separated.push_bind_unseparated(rid);
+    }
+    if let Some(start) = payload.start_time {
+        separated.push("start_time = ");
+        separated.push_bind_unseparated(start);
+    }
+    if let Some(end) = payload.end_time {
+        separated.push("end_time = ");
+        separated.push_bind_unseparated(end);
+    }
+
+    // 如果没有任何字段要更新，直接返回
+    if payload.teacher_id.is_none() && payload.room_id.is_none() 
+       && payload.start_time.is_none() && payload.end_time.is_none() {
+        return Ok(StatusCode::OK);
+    }
+
+    query_builder.push(" WHERE id = ");
+    query_builder.push_bind(class_id);
+    query_builder.push(" AND tenant_id = ");
+    query_builder.push_bind(tenant_id);
+    query_builder.push(" AND base_id = ");
+    query_builder.push_bind(base_id);
+
+    // 执行更新
+    let result = query_builder.build().execute(&state.db_pool).await;
+
+    match result {
+        Ok(res) => {
+            if res.rows_affected() == 0 {
+                return Err(StatusCode::NOT_FOUND); // 没找到课，或无权修改
+            }
+            Ok(StatusCode::OK)
+        },
+        Err(e) => {
+            tracing::error!("Failed to update class: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
 }

@@ -1,76 +1,107 @@
 /*
  * src/handlers/stock.rs
- * 职责: 基地库存 (Stock) 管理
- * (★ V1.0 - 看板低库存警报 ★)
+ * (★ V2.2 - 移除非法字符和重复定义 ★)
  */
-
 use axum::{extract::State, http::StatusCode, Json};
 
-// 【新增】导入 AppState 和 Claims
 use super::AppState;
 use super::auth::Claims;
-// 【新增】导入 models
-use crate::models::StockAlert;
+use crate::models::StockAlert; 
 
-
-// --- 【新增 API】 ---
-
-// (GET /api/v1/base/stock/alerts - 获取 "本基地" 低库存物料)
-// (★ V2 - 基地安全加固 ★)
+// (GET /api/v1/base/stock/alerts)
 pub async fn get_stock_alerts_handler(
     State(state): State<AppState>,
-    claims: Claims, // <-- 必须出示“钥匙”
+    claims: Claims,
 ) -> Result<Json<Vec<StockAlert>>, StatusCode> {
-
+    
     let tenant_id = claims.tenant_id;
 
-    // (★ SaaS 逻辑 ★)
     let base_id = match claims.base_id {
         Some(id) => id,
         None => {
-            tracing::warn!("User {} without base_id tried to access base stock alerts", claims.sub);
-            return Err(StatusCode::FORBIDDEN); // 403 Forbidden
+            tracing::warn!("User {} without base_id tried to access stock", claims.sub);
+            return Err(StatusCode::FORBIDDEN);
         }
     };
 
-    // --- (★ 核心逻辑: 聚合查询 ★) ---
-    // (我们定义“低库存”为 < 5)
-    let low_stock_threshold: i64 = 5;
-
-    // 1. (★ 关键) 这是一个 "聚合查询 (GROUP BY)"
-    // 2. (★ 关键) "HAVING" 子句用于筛选“聚合后” (SUM) 的结果
     let alerts = match sqlx::query_as::<_, StockAlert>(
         r#"
         SELECT 
-            s.material_id,
+            m.id as material_id,
             m.name_key,
-            SUM(s.change_amount) AS current_stock
+            COALESCE(SUM(s.change_amount), 0) AS current_stock
         FROM 
-            material_stock_changes s
-        JOIN 
-            materials m ON s.material_id = m.id
+            materials m
+        LEFT JOIN 
+            material_stock_changes s ON m.id = s.material_id AND s.base_id = $1
         WHERE 
-            s.base_id = $1 AND m.tenant_id = $2
+            m.tenant_id = $2
         GROUP BY 
-            s.material_id, m.name_key
+            m.id, m.name_key
         HAVING 
-            SUM(s.change_amount) < $3
-        ORDER BY 
-            current_stock ASC;
+            COALESCE(SUM(s.change_amount), 0) < 5
         "#,
     )
-    .bind(base_id)           // $1
-    .bind(tenant_id)         // $2
-    .bind(low_stock_threshold) // $3
+    .bind(base_id)
+    .bind(tenant_id)
     .fetch_all(&state.db_pool)
     .await
     {
-        Ok(alerts) => alerts, // (如果没有警报, Ok(alerts) 会是一个空列表 '[]')
+        Ok(alerts) => alerts,
         Err(e) => {
-            tracing::error!("Failed to fetch base stock alerts: {}", e);
+            tracing::error!("Failed to fetch stock alerts: {}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
 
     Ok(Json(alerts))
+}
+
+// (GET /api/v1/base/stock - 获取全量实时库存)
+pub async fn get_base_stock_handler(
+    State(state): State<AppState>,
+    claims: Claims,
+) -> Result<Json<Vec<StockAlert>>, StatusCode> {
+
+    let tenant_id = claims.tenant_id;
+
+    let base_id = match claims.base_id {
+        Some(id) => id,
+        None => {
+            tracing::warn!("User {} without base_id tried to access stock", claims.sub);
+            return Err(StatusCode::FORBIDDEN);
+        }
+    };
+
+    let stocks = match sqlx::query_as::<_, StockAlert>(
+        r#"
+        SELECT 
+            m.id as material_id,
+            m.name_key,
+            COALESCE(SUM(s.change_amount), 0) AS current_stock
+        FROM 
+            materials m
+        LEFT JOIN 
+            material_stock_changes s ON m.id = s.material_id AND s.base_id = $1
+        WHERE 
+            m.tenant_id = $2
+        GROUP BY 
+            m.id, m.name_key
+        ORDER BY 
+            current_stock DESC, m.name_key ASC;
+        "#,
+    )
+    .bind(base_id)
+    .bind(tenant_id)
+    .fetch_all(&state.db_pool)
+    .await
+    {
+        Ok(data) => data,
+        Err(e) => {
+            tracing::error!("Failed to fetch base stock: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    Ok(Json(stocks))
 }

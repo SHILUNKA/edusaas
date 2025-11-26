@@ -25,3 +25,5 @@ chrono = { version = "0.4", features = ["serde"] } # (chrono 应该已存在, �
 sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-rustls", "macros", "uuid", "chrono", "json"] }
 futures = "0.3"
 bcrypt = "0.15.1"
+
+rand = "0.8"

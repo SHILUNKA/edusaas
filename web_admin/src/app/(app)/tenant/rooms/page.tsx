@@ -5,6 +5,8 @@
  */
 'use client'; 
 
+import { API_BASE_URL } from '@/lib/config';
+
 import { useState, useEffect, FormEvent } from 'react';
 // 1. 修改导入
 import { useSession } from 'next-auth/react';
@@ -36,19 +38,16 @@ export default function RoomsPage() {
     const { data: session } = useSession();
     const token = session?.user?.rawToken;
 
-    const API_URL_ROOMS = 'http://localhost:8000/api/v1/tenant/rooms';
-    const API_URL_BASES = 'http://localhost:8000/api/v1/bases'; 
-
     const fetchData = async () => {
         if (!token) return; 
         setIsLoading(true);
         setError(null);
         try {
             const [roomsRes, basesRes] = await Promise.all([
-                fetch(API_URL_ROOMS, {
+                fetch(`${API_BASE_URL}/tenant/rooms`, {
                     headers: { 'Authorization': `Bearer ${token}` },
                 }),
-                fetch(API_URL_BASES, {
+                fetch(`${API_BASE_URL}/bases`, {
                     headers: { 'Authorization': `Bearer ${token}` },
                 })
             ]);
@@ -93,7 +92,7 @@ export default function RoomsPage() {
         };
 
         try {
-            const response = await fetch(API_URL_ROOMS, { 
+            const response = await fetch(`${API_BASE_URL}/tenant/rooms`, { 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

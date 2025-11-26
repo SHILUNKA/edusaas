@@ -3,7 +3,9 @@
  * 路径: /tenant/assets
  * 修复: 替换 useAuthStore 为 useSession
  */
-'use client'; 
+'use client';
+
+import { API_BASE_URL } from '@/lib/config';
 
 import { useState, useEffect, FormEvent } from 'react';
 // 1. 修改导入
@@ -33,8 +35,6 @@ export default function AssetTypesPage() {
     const { data: session } = useSession();
     const token = session?.user?.rawToken;
 
-    const API_URL = 'http://localhost:8000/api/v1/asset-types';
-
     // --- 核心逻辑 ---
 
     // 3. 'GET' 数据获取函数
@@ -44,7 +44,7 @@ export default function AssetTypesPage() {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(`${API_BASE_URL}/asset-types`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${token}` },
             });

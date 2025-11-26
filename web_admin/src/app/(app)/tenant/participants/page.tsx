@@ -3,7 +3,9 @@
  * 路径: /tenant/participants
  * 修复: 替换 useAuthStore 为 useSession
  */
-'use client'; 
+'use client';
+
+import { API_BASE_URL } from '@/lib/config';
 
 import { useState, useEffect } from 'react';
 // 1. 修改导入
@@ -30,14 +32,12 @@ export default function TenantParticipantsPage() {
     const { data: session } = useSession();
     const token = session?.user?.rawToken;
 
-    const API_URL = 'http://localhost:8000/api/v1/tenant/participants';
-
     const fetchParticipants = async () => {
         if (!token) return; 
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(`${API_BASE_URL}/tenant/participants`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${token}` },
             });

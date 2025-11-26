@@ -1,9 +1,7 @@
 /*
  * src/handlers/auth.rs
- * 职责: 登录, 注册, 和 Token (Claims) 提取。
- * (★ V2 - 已使用 spawn_blocking 修复阻塞 Bug ★)
+ * 职责: 登录认证 (V3.0 - 包含密码过期检查)
  */
-
 use axum::{
     extract::{FromRequestParts, State, FromRef},
     http::{StatusCode, request::Parts},
@@ -16,10 +14,9 @@ use uuid::Uuid;
 use bcrypt::{hash, verify, DEFAULT_COST, BcryptError};
 use jsonwebtoken::{encode, decode, Header, EncodingKey, Validation, DecodingKey};
 use serde::{Deserialize, Serialize};
-use chrono::{Utc, Duration};
-use tokio::task; // (★ 关键)
+use chrono::{Utc, Duration, DateTime};
+use tokio::task; 
 
-// 导入在 mod.rs 中定义的 AppState
 use super::AppState;
 
 // Token Claims
@@ -32,7 +29,6 @@ pub struct Claims {
     pub exp: usize,
 }
 
-// 自定义认证错误
 #[derive(Debug)]
 pub enum CustomAuthError {
     TokenMissing,
@@ -51,7 +47,6 @@ impl IntoResponse for CustomAuthError {
     }
 }
 
-// Token 提取器
 #[async_trait]
 impl<S> FromRequestParts<S> for Claims
 where
@@ -86,20 +81,17 @@ where
     }
 }
 
-// Auth JSON Body
 #[derive(Debug, Deserialize)]
 pub struct AuthBody {
     email: String,
     password: String,
 }
 
-// Auth JSON Response
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
     token: String,
 }
 
-// (Temporary) Register Response
 #[derive(Debug, Serialize, FromRow)]
 pub struct User { 
     id: Uuid,
@@ -107,13 +99,11 @@ pub struct User {
     tenant_id: Uuid,
 }
 
-// (Temporary register API)
-// (★ V2 - 修复 bcrypt 阻塞 ★)
+// (注册接口 - 保持原样，仅用于初始化)
 pub async fn register_handler(
     State(state): State<AppState>,
     Json(payload): Json<AuthBody>,
 ) -> Result<Json<User>, StatusCode> {
-    
     let tenant_id = match sqlx::query_scalar::<_, Uuid>("SELECT id FROM tenants LIMIT 1")
         .fetch_one(&state.db_pool)
         .await {
@@ -121,23 +111,13 @@ pub async fn register_handler(
         Err(_e) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
-    // --- (★ 关键修复: 异步执行 CPU 密集型 HASH 操作) ---
     let password_to_hash = payload.password.clone();
     let password_hash = task::spawn_blocking(move || {
         hash(&password_to_hash, DEFAULT_COST)
     })
     .await
-    .map_err(|e| {
-        // (JoinError)
-        tracing::error!("Failed to join hash task: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?
-    .map_err(|e: BcryptError| {
-        // (BcryptError)
-        tracing::error!("Failed to hash password: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
-    // --- (修复结束) ---
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let new_user = match sqlx::query_as::<_, User>(
         r#"
@@ -153,30 +133,24 @@ pub async fn register_handler(
     .await
     {
         Ok(user) => user,
-        Err(e) => {
-            if let Some(db_err) = e.as_database_error() {
-                if db_err.constraint() == Some("users_email_key") {
-                    tracing::warn!("Failed to create user, email already exists: {}", payload.email);
-                    return Err(StatusCode::CONFLICT);
-                }
-            }
-            tracing::error!("Failed to create user: {}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
     Ok(Json(new_user))
 }
 
-// (SaaS 强化的 login_handler)
-// (★ V2 - 修复 bcrypt 阻塞 ★)
+// (登录接口 - 增强版)
 pub async fn login_handler(
     State(state): State<AppState>,
     Json(payload): Json<AuthBody>,
 ) -> Result<Json<AuthResponse>, StatusCode> {
     
+    // 1. 查询用户 (包含密码修改时间)
     let user_query = sqlx::query(
-        "SELECT id, password_hash, tenant_id, base_id, is_active FROM users WHERE email = $1"
+        r#"
+        SELECT id, password_hash, tenant_id, base_id, is_active, password_changed_at 
+        FROM users WHERE email = $1
+        "#
     )
     .bind(&payload.email)
     .fetch_optional(&state.db_pool)
@@ -188,15 +162,9 @@ pub async fn login_handler(
         Ok(Some(row)) => row,
         Ok(None) => {
             tracing::warn!("Login attempt failed (user not found): {}", payload.email);
-            let _ = sqlx::query(r#"INSERT INTO user_login_history (email_attempted, status, failure_reason_key) VALUES ($1, 'failed', 'auth.error.user_not_found')"#)
-                .bind(&payload.email)
-                .execute(&state.db_pool).await;
             return Err(StatusCode::UNAUTHORIZED);
         },
-        Err(e) => {
-            tracing::error!("DB error during login: {}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
 
     let user_id: Uuid = user_row.get("id");
@@ -204,37 +172,38 @@ pub async fn login_handler(
     let tenant_id: Uuid = user_row.get("tenant_id");
     let base_id: Option<Uuid> = user_row.get("base_id");
     let is_active: bool = user_row.get("is_active");
+    let password_changed_at: Option<DateTime<Utc>> = user_row.get("password_changed_at");
 
-    // --- (★ 关键修复: 异步执行 CPU 密集型 VERIFY 操作) ---
+    // 2. 验证密码 (异步)
     let password_to_verify = payload.password.clone();
     let valid_password = task::spawn_blocking(move || {
         verify(&password_to_verify, &password_hash)
     })
     .await
-    .map_err(|e| {
-        // (JoinError)
-        tracing::error!("Failed to join verify task: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
     .unwrap_or(false);
-    // --- (修复结束) ---
 
     if !valid_password {
-        tracing::warn!("Login attempt failed (wrong password): {}", payload.email);
-        let _ = sqlx::query(r#"INSERT INTO user_login_history (email_attempted, user_id, tenant_id, status, failure_reason_key) VALUES ($1, $2, $3, 'failed', 'auth.error.wrong_password')"#)
-            .bind(&payload.email).bind(user_id).bind(tenant_id)
-            .execute(&state.db_pool).await;
+        tracing::warn!("Login failed (wrong password): {}", payload.email);
         return Err(StatusCode::UNAUTHORIZED);
     }
 
     if !is_active {
-        tracing::warn!("Login attempt failed (account inactive): {}", payload.email);
-        let _ = sqlx::query(r#"INSERT INTO user_login_history (email_attempted, user_id, tenant_id, status, failure_reason_key) VALUES ($1, $2, $3, 'failed', 'auth.error.inactive_account')"#)
-            .bind(&payload.email).bind(user_id).bind(tenant_id)
-            .execute(&state.db_pool).await;
+        tracing::warn!("Login failed (inactive): {}", payload.email);
         return Err(StatusCode::FORBIDDEN);
     }
 
+    // 3. (★ 新增) 检查密码有效期 (180天)
+    if let Some(changed_at) = password_changed_at {
+        let days_since_change = (Utc::now() - changed_at).num_days();
+        if days_since_change > 180 {
+            tracing::warn!("Login failed: password expired for {} ({} days)", payload.email, days_since_change);
+            // 这里返回 FORBIDDEN，前端可以据此提示联系管理员
+            return Err(StatusCode::FORBIDDEN); 
+        }
+    }
+
+    // 4. 获取角色并生成 Token
     let roles: Vec<String> = match sqlx::query_scalar(
         r#"
         SELECT r.name_key 
@@ -248,33 +217,31 @@ pub async fn login_handler(
     .fetch_all(&state.db_pool)
     .await
     {
-        Ok(roles_vec) => roles_vec,
-        Err(e) => {
-            tracing::error!("Failed to fetch roles for user {}: {}", user_id, e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
+        Ok(r) => r,
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
+
     let now = Utc::now();
     let expires_in = Duration::days(1);
     let exp = (now + expires_in).timestamp() as usize;
     let claims = Claims {
         sub: user_id.to_string(),
-        tenant_id: tenant_id,
-        base_id: base_id,
-        roles: roles,
+        tenant_id,
+        base_id,
+        roles,
         exp,
     };
+    
     let token = match encode(
         &Header::default(), 
         &claims, 
         &EncodingKey::from_secret(state.jwt_secret.as_ref())
     ) {
         Ok(t) => t,
-        Err(e) => {
-            tracing::error!("Failed to create token: {}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
+        Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR),
     };
+
+    // 记录成功日志
     let _ = sqlx::query(
         r#"INSERT INTO user_login_history (email_attempted, user_id, tenant_id, status) VALUES ($1, $2, $3, 'success')"#
     )

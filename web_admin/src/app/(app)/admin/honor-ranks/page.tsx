@@ -1,217 +1,148 @@
 /*
- * B端后台: 荣誉军衔管理页面
+ * B端后台: 荣誉军衔管理 (V2.0 - 积分调整版)
  * 路径: /admin/honor-ranks
- * 修复: 添加 NextAuth 认证，解决 401 Unauthorized 错误
  */
 'use client'; 
 
-import { useState, useEffect, FormEvent } from 'react';
-// 1. 引入 Session 钩子
+import { API_BASE_URL } from '@/lib/config';
+
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 
-// 1. 定义 "军衔" 的 TypeScript 类型
 interface HonorRank {
     id: string;
-    tenant_id: string;
     name_key: string;
     rank_level: number;
     points_required: number;
-    badge_icon_url: string | null;
 }
 
-// 2. 定义我们的 React 页面组件
 export default function HonorRanksPage() {
-    
-    // --- 状态管理 ---
     const { data: session } = useSession();
-    const token = session?.user?.rawToken; // 2. 获取 Token
+    const token = session?.user?.rawToken;
 
     const [ranks, setRanks] = useState<HonorRank[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    
+    // 编辑状态
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editPoints, setEditPoints] = useState<number>(0);
 
-    // 表单状态
-    const [nameKey, setNameKey] = useState("");
-    const [rankLevel, setRankLevel] = useState("0");
-    const [points, setPoints] = useState("0");
-    const [iconUrl, setIconUrl] = useState("");
-
-    const API_URL = 'http://localhost:8000/api/v1/honor-ranks';
-
-    // --- 核心逻辑 ---
-
-    // 3. 'GET' 数据获取函数
+    // 获取列表
     const fetchRanks = async () => {
-        if (!token) return; // 如果没有 Token，不发送请求
-
-        setIsLoading(true);
-        setError(null);
+        if (!token) return;
         try {
-            // 3. 添加 Authorization Header
-            const response = await fetch(API_URL, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data: HonorRank[] = await response.json();
-            setRanks(data);
-        } catch (e) {
-            setError((e as Error).message);
-        } finally {
-            setIsLoading(false);
-        }
+            const res = await fetch(`${API_BASE_URL}/honor-ranks`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) setRanks(await res.json());
+        } catch (e) { console.error(e); } 
+        finally { setIsLoading(false); }
     };
 
-    // 4. 页面加载时自动获取数据
-    useEffect(() => {
-        if (token) {
-            fetchRanks();
-        }
-    }, [token]); // 依赖项加入 token
+    useEffect(() => { fetchRanks(); }, [token]);
 
-    // 5. 'POST' 表单提交函数
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-        if (!token) {
-            alert("认证失效，请重新登录");
-            return;
-        }
+    // 开始编辑
+    const handleEditClick = (rank: HonorRank) => {
+        setEditingId(rank.id);
+        setEditPoints(rank.points_required);
+    };
 
-        const payload = {
-            name_key: nameKey,
-            rank_level: parseInt(rankLevel, 10),
-            points_required: parseInt(points, 10),
-            badge_icon_url: iconUrl || null
-        };
-
+    // 保存修改
+    const handleSave = async (id: string) => {
+        if (!token) return;
         try {
-            // 4. POST 请求也添加 Header
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: {
+            const res = await fetch(`${API_BASE_URL}/honor-ranks/${id}`, {
+                method: 'PUT',
+                headers: { 
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}` // <--- 关键修复
+                    'Authorization': `Bearer ${token}` 
                 },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ points_required: editPoints })
             });
 
-            if (!response.ok) {
-                throw new Error(`Failed to create rank. Status: ${response.status}`);
-            }
-
-            alert('军衔创建成功!');
-            setNameKey('');
-            setRankLevel('0');
-            setPoints('0');
-            setIconUrl('');
+            if (!res.ok) throw new Error("Update failed");
             
-            fetchRanks(); 
-
+            alert("积分规则已更新");
+            setEditingId(null);
+            fetchRanks(); // 刷新列表
         } catch (e) {
-            setError((e as Error).message);
-            alert(`创建失败: ${(e as Error).message}`);
+            alert("更新失败，请重试");
         }
     };
 
-    // --- 7. 页面渲染 (JSX) ---
     return (
-        <div className="p-8 max-w-4xl mx-auto">
-            <h1 className="text-3xl font-bold mb-6">总部管理: 荣誉军衔</h1>
-            
-            {/* --- (A) 创建新军衔的表单 --- */}
-            <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-                <h2 className="text-xl font-semibold mb-4">创建新军衔</h2>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                            名称 (Key) (例如: "rank.level.1.newbie")
-                        </label>
-                        <input
-                            type="text"
-                            value={nameKey}
-                            onChange={(e) => setNameKey(e.target.value)}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                            required
-                        />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                                等级 (例如: 1)
-                            </label>
-                            <input
-                                type="number"
-                                value={rankLevel}
-                                onChange={(e) => setRankLevel(e.target.value)}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">
-                                所需积分 (例如: 0)
-                            </label>
-                            <input
-                                type="number"
-                                value={points}
-                                onChange={(e) => setPoints(e.target.value)}
-                                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                                required
-                            />
-                        </div>
-                    </div>
-                    
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700">
-                            徽章图标 (URL) (可选)
-                        </label>
-                        <input
-                            type="text"
-                            value={iconUrl}
-                            onChange={(e) => setIconUrl(e.target.value)}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"
-                        />
-                    </div>
-
-                    <button 
-                        type="submit" 
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                        创建
-                    </button>
-                </form>
+        <div className="p-8 max-w-5xl mx-auto">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold">荣誉军衔体系</h1>
+                <div className="text-sm text-gray-500">
+                    * 仅支持调整晋升所需积分，等级结构由系统预设
+                </div>
             </div>
-
-            {/* --- (B) 已有军衔的列表 --- */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-semibold mb-4">军衔列表</h2>
-                {isLoading && <p>正在加载列表...</p>}
-                {error && <p className="text-red-500">加载失败: {error}</p>}
-                
-                {!isLoading && !error && (
-                    <ul className="divide-y divide-gray-200">
-                        {ranks.length === 0 ? (
-                            <p>还没有创建任何军衔。</p>
-                        ) : (
-                            ranks.map(rank => (
-                                <li key={rank.id} className="py-4 flex justify-between items-center">
-                                    <div>
-                                        <p className="text-lg font-medium text-indigo-600">{rank.name_key}</p>
-                                        <p className="text-sm text-gray-500">
-                                            等级: {rank.rank_level} | 所需积分: {rank.points_required}
-                                        </p>
-                                    </div>
-                                    <span className="text-xs text-gray-400">ID: {rank.id.substring(0, 8)}...</span>
-                                </li>
-                            ))
+            
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+                <table className="w-full text-left">
+                    <thead className="bg-gray-50 border-b">
+                        <tr>
+                            <th className="p-4 font-semibold text-gray-600">等级</th>
+                            <th className="p-4 font-semibold text-gray-600">军衔名称</th>
+                            <th className="p-4 font-semibold text-gray-600">晋升所需积分</th>
+                            <th className="p-4 font-semibold text-gray-600">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                        {ranks.map((rank) => (
+                            <tr key={rank.id} className="hover:bg-gray-50 transition-colors">
+                                <td className="p-4">
+                                    <span className="inline-block w-8 h-8 text-center leading-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm">
+                                        Lv.{rank.rank_level}
+                                    </span>
+                                </td>
+                                <td className="p-4 font-medium text-gray-900 text-lg">
+                                    {rank.name_key}
+                                </td>
+                                <td className="p-4">
+                                    {editingId === rank.id ? (
+                                        <input 
+                                            type="number" 
+                                            value={editPoints}
+                                            onChange={(e) => setEditPoints(parseInt(e.target.value) || 0)}
+                                            className="border p-1 rounded w-24 text-right"
+                                            autoFocus
+                                        />
+                                    ) : (
+                                        <span className="font-mono text-gray-600">{rank.points_required} 分</span>
+                                    )}
+                                </td>
+                                <td className="p-4">
+                                    {editingId === rank.id ? (
+                                        <div className="space-x-2">
+                                            <button 
+                                                onClick={() => handleSave(rank.id)}
+                                                className="text-green-600 hover:text-green-800 font-medium"
+                                            >
+                                                保存
+                                            </button>
+                                            <button 
+                                                onClick={() => setEditingId(null)}
+                                                className="text-gray-500 hover:text-gray-700"
+                                            >
+                                                取消
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button 
+                                            onClick={() => handleEditClick(rank)}
+                                            className="text-indigo-600 hover:text-indigo-800 font-medium"
+                                        >
+                                            调整积分
+                                        </button>
+                                    )}
+                                </td>
+                            </tr>
+                        ))}
+                        {ranks.length === 0 && !isLoading && (
+                            <tr><td colSpan={4} className="p-8 text-center text-gray-500">暂无军衔数据，请先进行初始化。</td></tr>
                         )}
-                    </ul>
-                )}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

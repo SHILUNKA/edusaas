@@ -1,174 +1,208 @@
 /*
- * B端后台: 总部全局看板 (V3.1 - 客户端 Fetch 修复版)
+ * 总部端: 全局看板 (Dashboard) - V3.0 决策增强版
  * 路径: /tenant/dashboard
- * 修复: 客户端 ('use client') 必须 fetch 'localhost:8000' 
- * 而不是 'edusaas_core_api:8000'
  */
-'use client'; 
+'use client';
 
-console.log("✅ (Tenant Dashboard) 正在加载: /tenant/dashboard/page.tsx (V3.1)");
+import { API_BASE_URL } from '@/lib/config';
+import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import Link from 'next/link';
+// 引入图表组件
+import ActivityChart from './ActivityChart';
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react'; 
-import { 
-    LineChart, Line, XAxis, YAxis, CartesianGrid, 
-    Tooltip, Legend, ResponsiveContainer 
-} from 'recharts';
+// 定义数据接口
+interface DashboardData {
+    baseCount: number;
+    courseCount: number;
+    materialCount: number;
+    assetTypeCount: number;
+    membershipTierCount: number;
+    rankCount: number;
+    totalParticipantCount: number;
+    pendingProcurementCount: number; 
+}
 
-// --- (接口类型定义... 保持不变) ---
-interface DashboardStats { total_bases: number; }
-interface Course { id: string; }
-interface HonorRank { id: string; }
-interface MembershipTier { id: string; }
-interface Material { id: string; }
-interface AssetType { id: string; }
-const mockParticipantActivity = [
-    { month: '6月', active: 120 }, { month: '7月', active: 180 },
-    { month: '8月', active: 160 }, { month: '9月', active: 250 },
-    { month: '10月', active: 320 }, { month: '11月', active: 290 },
-];
-
-// --- 2. 页面组件 (★ 已修复) ---
 export default function TenantDashboardPage() {
-    
     const { data: session } = useSession();
-    const token = session?.user?.rawToken; //
+    const token = session?.user?.rawToken;
 
-    const [stats, setStats] = useState<DashboardStats | null>(null);
-    const [counts, setCounts] = useState({
-        courses: 0, ranks: 0, tiers: 0, materials: 0, assetTypes: 0,
+    const [data, setData] = useState<DashboardData>({
+        baseCount: 0, courseCount: 0, materialCount: 0, 
+        assetTypeCount: 0, membershipTierCount: 0, rankCount: 0,
+        totalParticipantCount: 0, pendingProcurementCount: 0
     });
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
-    // (数据获取函数... ★ 已修复)
-    const fetchAllDashboardData = async () => {
-        if (!token) return; 
+    useEffect(() => {
+        if (token) fetchAllData();
+    }, [token]);
+
+    const fetchAllData = async () => {
         setIsLoading(true);
-        setError(null);
-        try {
-            // (★ 关键修复!)
-            // 浏览器 (客户端) 只能访问 localhost 上的映射端口
-            const apiUrlBase = "http://localhost:8000"; //
+        const headers = { 'Authorization': `Bearer ${token}` };
 
-            const [
-                statsRes, coursesRes, ranksRes, tiersRes, materialsRes, assetTypesRes
-            ] = await Promise.all([
-                fetch(`${apiUrlBase}/api/v1/dashboard/stats`, { headers: { 'Authorization': `Bearer ${token}` }}),
-                fetch(`${apiUrlBase}/api/v1/courses`, { headers: { 'Authorization': `Bearer ${token}` }}),
-                fetch(`${apiUrlBase}/api/v1/honor-ranks`, { headers: { 'Authorization': `Bearer ${token}` }}),
-                fetch(`${apiUrlBase}/api/v1/membership-tiers`, { headers: { 'Authorization': `Bearer ${token}` }}),
-                fetch(`${apiUrlBase}/api/v1/materials`, { headers: { 'Authorization': `Bearer ${token}` }}),
-                fetch(`${apiUrlBase}/api/v1/asset-types`, { headers: { 'Authorization': `Bearer ${token}` }}),
+        try {
+            // 并行请求所有核心数据
+            const results = await Promise.all([
+                fetch(`${API_BASE_URL}/dashboard/stats`, { headers }),       // 1. 基地统计
+                fetch(`${API_BASE_URL}/courses`, { headers }),               // 2. 课程
+                fetch(`${API_BASE_URL}/materials`, { headers }),             // 3. 物料
+                fetch(`${API_BASE_URL}/asset-types`, { headers }),           // 4. 资产类型
+                fetch(`${API_BASE_URL}/membership-tiers`, { headers }),      // 5. 卡种
+                fetch(`${API_BASE_URL}/honor-ranks`, { headers }),           // 6. 军衔
+                fetch(`${API_BASE_URL}/tenant/participants`, { headers }),   // 7. 全网学员
+                fetch(`${API_BASE_URL}/procurements`, { headers }),          // 8. 采购单
             ]);
 
-            // (★ 关键) 检查所有响应是否都 OK
-            const responses = [statsRes, coursesRes, ranksRes, tiersRes, materialsRes, assetTypesRes];
-            for (const res of responses) {
-                if (!res.ok) {
-                    throw new Error(`API 请求失败: ${res.status} ${res.url}`);
-                }
-            }
-            
-            const statsData: DashboardStats = await statsRes.json();
-            const coursesData: Course[] = await coursesRes.json();
-            const ranksData: HonorRank[] = await ranksRes.json();
-            const tiersData: MembershipTier[] = await tiersRes.json();
-            const materialsData: Material[] = await materialsRes.json();
-            const assetTypesData: AssetType[] = await assetTypesRes.json();
+            const [
+                statsRes, coursesRes, materialsRes, assetsRes, 
+                tiersRes, ranksRes, partsRes, procsRes
+            ] = results;
 
-            setStats(statsData);
-            setCounts({
-                courses: coursesData.length, ranks: ranksData.length,
-                tiers: tiersData.length, materials: materialsData.length,
-                assetTypes: assetTypesData.length,
+            const stats = statsRes.ok ? await statsRes.json() : { total_bases: 0 };
+            const courses = coursesRes.ok ? await coursesRes.json() : [];
+            const materials = materialsRes.ok ? await materialsRes.json() : [];
+            const assets = assetsRes.ok ? await assetsRes.json() : [];
+            const tiers = tiersRes.ok ? await tiersRes.json() : [];
+            const ranks = ranksRes.ok ? await ranksRes.json() : [];
+            const participants = partsRes.ok ? await partsRes.json() : [];
+            const procurements = procsRes.ok ? await procsRes.json() : [];
+
+            // 计算待审批数量
+            const pendingCount = procurements.filter((p: any) => p.status === 'pending').length;
+
+            setData({
+                baseCount: stats.total_bases,
+                courseCount: courses.length,
+                materialCount: materials.length,
+                assetTypeCount: assets.length,
+                membershipTierCount: tiers.length,
+                rankCount: ranks.length,
+                totalParticipantCount: participants.length,
+                pendingProcurementCount: pendingCount,
             });
+
         } catch (e) {
-            console.error("Fetch data error:", e);
-            setError((e as Error).message);
+            console.error("Dashboard error:", e);
         } finally {
             setIsLoading(false);
         }
     };
 
-    // (页面加载 hook... 保持不变)
-    useEffect(() => {
-        if (token) {
-            fetchAllDashboardData();
-        } else if (session) { 
-             console.warn("Session 存在, 但 rawToken 缺失!");
-             setError("Session 错误: 无法获取 API Token");
-             setIsLoading(false);
-        }
-    }, [token, session]); 
-
-
-    // --- 7. 页面渲染 (保持不变) ---
-    if (isLoading) {
-        return <div className="p-8">正在加载总部看板数据... (V3.1)</div>
-    }
-    if (error) {
-        return <div className="p-8 text-red-500">加载失败: {error}</div>
-    }
-
     return (
-        <div className="p-8">
-            <h1 className="text-3xl font-bold mb-6">总部 · 全局看板</h1>
-            
-            {/* (KPI 卡片... 保持不变) */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-                <KpiCard title="基地总数" value={stats?.total_bases ?? 0} />
-                <KpiCard title="课程总数" value={counts.courses} />
-                <KpiCard title="总学员数" value="320" subtitle=" (模拟数据)" />
-                <KpiCard title="总销售额" value="¥ 85,200" subtitle="(模拟数据)" />
+        <div className="p-8 max-w-7xl mx-auto space-y-8">
+            {/* 头部 */}
+            <div className="flex justify-between items-end">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900">👋 总部驾驶舱</h1>
+                    <p className="text-gray-500 mt-2">全网运营数据实时监控。</p>
+                </div>
+                <div className="text-sm text-gray-400">
+                    {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
+                </div>
             </div>
 
-            {/* (图表和状态... G) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
-                    <h2 className="text-xl font-semibold mb-4">月活学员 (MAU) 趋势 (模拟数据)</h2>
-                    <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={mockParticipantActivity}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="month" />
-                                <YAxis />
-                                <Tooltip />
-                                <Legend />
-                                <Line type="monotone" dataKey="active" name="月活学员数" stroke="#4f46e5" strokeWidth={2} activeDot={{ r: 8 }} />
-                            </LineChart>
-                        </ResponsiveContainer>
+            {/* 1. 核心指标卡片 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* 运营规模 */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-medium text-gray-500 mb-1">运营分店 (基地)</p>
+                        <h2 className="text-4xl font-bold text-gray-900">{data.baseCount}</h2>
+                    </div>
+                    <div className="p-4 bg-blue-50 rounded-full text-blue-600 text-2xl">🏢</div>
+                </div>
+
+                {/* 用户规模 */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-medium text-gray-500 mb-1">全网学员总数</p>
+                        <h2 className="text-4xl font-bold text-gray-900">{data.totalParticipantCount}</h2>
+                    </div>
+                    <div className="p-4 bg-green-50 rounded-full text-green-600 text-2xl">🎓</div>
+                </div>
+
+                {/* 待办事项: 采购审批 */}
+                <Link href="/tenant/procurement" className="block group">
+                    <div className={`h-full p-6 rounded-xl shadow-sm border transition-all flex items-center justify-between cursor-pointer
+                        ${data.pendingProcurementCount > 0 
+                            ? 'bg-red-50 border-red-200 hover:border-red-300' 
+                            : 'bg-white border-gray-200 hover:border-indigo-300'}`
+                    }>
+                        <div>
+                            <p className={`text-sm font-medium mb-1 ${data.pendingProcurementCount > 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                                供应链待审批
+                            </p>
+                            <h2 className={`text-4xl font-bold ${data.pendingProcurementCount > 0 ? 'text-red-700' : 'text-gray-900'}`}>
+                                {data.pendingProcurementCount}
+                            </h2>
+                            {data.pendingProcurementCount > 0 && (
+                                <span className="text-xs text-red-600 font-medium mt-1 block animate-pulse">
+                                    ● 有新申请需处理
+                                </span>
+                            )}
+                        </div>
+                        <div className={`p-4 rounded-full text-2xl ${data.pendingProcurementCount > 0 ? 'bg-red-100 text-red-600' : 'bg-gray-50 text-gray-400'}`}>
+                            📦
+                        </div>
+                    </div>
+                </Link>
+            </div>
+
+            {/* 2. 图表与资源分布 */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* 左侧: 活跃度图表 */}
+                <div className="lg:col-span-2">
+                    <ActivityChart />
+                </div>
+                
+                {/* 右侧: 资源库概览 */}
+                <div className="space-y-4">
+                    <h3 className="text-lg font-bold text-gray-800">中央资源库</h3>
+                    <div className="grid grid-cols-1 gap-4">
+                        <ResourceRow label="标准课程 (门)" value={data.courseCount} href="/tenant/courses" color="bg-purple-100 text-purple-700" />
+                        <ResourceRow label="物料 SKU (种)" value={data.materialCount} href="/tenant/materials" color="bg-orange-100 text-orange-700" />
+                        <ResourceRow label="固定资产类型" value={data.assetTypeCount} href="/tenant/assets" color="bg-indigo-100 text-indigo-700" />
+                        <ResourceRow label="会员卡种" value={data.membershipTierCount} href="/tenant/membership-tiers" color="bg-teal-100 text-teal-700" />
                     </div>
                 </div>
-                <div className="bg-white p-6 rounded-lg shadow-md">
-                    <h2 className="text-xl font-semibold mb-4">系统配置总览</h2>
-                    <ul className="space-y-4 mt-6">
-                        <StatusItem label="荣誉军衔" value={counts.ranks} />
-                        <StatusItem label="会员卡种" value={counts.tiers} />
-                        <StatusItem label="物料定义" value={counts.materials} />
-                        <StatusItem label="资产类型" value={counts.assetTypes} />
-                    </ul>
+            </div>
+
+            {/* 3. 快捷入口 */}
+            <div>
+                <h3 className="text-lg font-bold text-gray-800 mb-4">管理快捷入口</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <QuickAction href="/tenant/bases" icon="➕" label="新开分店" desc="创建新基地并配置管理员" />
+                    <QuickAction href="/tenant/users" icon="👥" label="人事管理" desc="员工账号与权限分配" />
+                    <QuickAction href="/admin/honor-ranks" icon="🎖️" label="军衔体系" desc="调整晋升积分规则" />
+                    <QuickAction href="/tenant/rooms" icon="🏫" label="场地管理" desc="查看各分店教室资源" />
                 </div>
             </div>
         </div>
     );
 }
 
-// --- (子组件 - KpiCard & StatusItem 保持不变) ---
-function KpiCard({ title, value, subtitle }: { title: string, value: string | number, subtitle?: string }) {
+// --- 子组件 ---
+
+function ResourceRow({ label, value, href, color }: any) {
     return (
-        <div className="bg-white p-6 rounded-lg shadow-md">
-            <h3 className="text-sm font-medium text-gray-500">{title}</h3>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{value}</p>
-            {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
-        </div>
+        <Link href={href} className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all group">
+            <div className="flex items-center gap-3">
+                <span className={`w-2 h-8 rounded-full ${color.split(' ')[0]}`}></span>
+                <span className="text-gray-600 font-medium group-hover:text-gray-900">{label}</span>
+            </div>
+            <span className={`text-xl font-bold ${color.split(' ')[1]}`}>{value}</span>
+        </Link>
     );
 }
-function StatusItem({ label, value }: { label: string, value: string | number }) {
+
+function QuickAction({ href, icon, label, desc }: any) {
     return (
-        <li className="flex justify-between items-center">
-            <span className="text-gray-600">{label}:</span>
-            <span className="text-lg font-semibold text-indigo-600">{value}</span>
-        </li>
+        <Link href={href} className="flex flex-col p-4 bg-white rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-sm transition-all group">
+            <div className="text-2xl mb-2">{icon}</div>
+            <div className="font-semibold text-gray-900">{label}</div>
+            <div className="text-xs text-gray-500 mt-1">{desc}</div>
+        </Link>
     );
 }

@@ -1,28 +1,26 @@
 /*
  * src/handlers/honor.rs
- * 职责: 荣誉/等级 (HonorRank) 管理
- * (★ V3 - 角色安全加固版 ★)
+ * 职责: 荣誉/等级 (HonorRank) 管理 (V4.1 - 修复版)
  */
 
-use axum::{extract::State, http::StatusCode, Json};
+use axum::{
+    extract::{State, Path}, 
+    http::StatusCode, 
+    Json
+};
+use uuid::Uuid; 
 
-
-// 【修改】导入 AppState 和 Claims
 use super::AppState;
-use super::auth::Claims; // <-- 我们需要“钥匙”
-// 导入 models
-use crate::models::{HonorRank, CreateHonorRankPayload};
-
+use super::auth::Claims; 
+use crate::models::{HonorRank, CreateHonorRankPayload, UpdateHonorRankPayload};
 
 // (GET /api/v1/honor-ranks)
-// (★ V2 - SaaS 安全加固 ★)
 pub async fn get_honor_ranks(
     State(state): State<AppState>,
-    claims: Claims, // <-- 【修改】必须出示“钥匙”
+    claims: Claims, 
 ) -> Result<Json<Vec<HonorRank>>, StatusCode> {
     
-    // (HACK 已移除!)
-    let tenant_id = claims.tenant_id; // <-- 【修改】使用“钥匙”中的租户ID
+    let tenant_id = claims.tenant_id; 
 
     let ranks = match sqlx::query_as::<_, HonorRank>(
         r#"
@@ -31,7 +29,7 @@ pub async fn get_honor_ranks(
         ORDER BY rank_level ASC
         "#,
     )
-    .bind(tenant_id) // <-- 【修改】绑定“钥匙”中的ID
+    .bind(tenant_id) 
     .fetch_all(&state.db_pool)
     .await
     {
@@ -45,15 +43,14 @@ pub async fn get_honor_ranks(
     Ok(Json(ranks))
 }
 
-// (POST /api/v1/honor-ranks)
-// (★ V3 - 角色安全加固 ★)
+// (POST /api/v1/honor-ranks - 核心修复：恢复完整逻辑)
 pub async fn create_honor_rank(
     State(state): State<AppState>,
-    claims: Claims, // <-- 【修改】必须出示“钥匙”
+    claims: Claims,
     Json(payload): Json<CreateHonorRankPayload>,
 ) -> Result<Json<HonorRank>, StatusCode> {
     
-    // --- (★ 新增：角色安全守卫 ★) ---
+    // 1. 权限检查
     let is_authorized = claims.roles.iter().any(|role| 
         role == "role.tenant.admin"
     );
@@ -64,13 +61,12 @@ pub async fn create_honor_rank(
             claims.sub,
             claims.roles
         );
-        return Err(StatusCode::FORBIDDEN); // 403 Forbidden
+        return Err(StatusCode::FORBIDDEN); 
     }
-    // --- (守卫结束) ---
     
-    // (HACK 已移除!)
-    let tenant_id = claims.tenant_id; // <-- 【修改】使用“钥匙”中的租户ID
+    let tenant_id = claims.tenant_id; 
 
+    // 2. 插入数据
     let new_rank = match sqlx::query_as::<_, HonorRank>(
         r#"
         INSERT INTO honor_ranks (tenant_id, name_key, rank_level, points_required, badge_icon_url)
@@ -78,7 +74,7 @@ pub async fn create_honor_rank(
         RETURNING *
         "#,
     )
-    .bind(tenant_id) // <-- 【修改】绑定“钥匙”中的ID
+    .bind(tenant_id)
     .bind(&payload.name_key)
     .bind(payload.rank_level)
     .bind(payload.points_required)
@@ -88,10 +84,55 @@ pub async fn create_honor_rank(
     {
         Ok(rank) => rank,
         Err(e) => {
+            // 捕获重复错误
+            if let Some(db_err) = e.as_database_error() {
+                if db_err.is_unique_violation() {
+                    tracing::warn!("Failed to create honor rank: duplicate level {} or name {}", payload.rank_level, payload.name_key);
+                    return Err(StatusCode::CONFLICT); // 409
+                }
+            }
             tracing::error!("Failed to create honor rank: {}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
 
     Ok(Json(new_rank))
+}
+
+// (PUT /api/v1/honor-ranks/:id - 更新积分)
+pub async fn update_honor_rank(
+    State(state): State<AppState>,
+    claims: Claims,
+    Path(rank_id): Path<Uuid>, 
+    Json(payload): Json<UpdateHonorRankPayload>,
+) -> Result<Json<HonorRank>, StatusCode> {
+    
+    // 1. 权限检查
+    let is_authorized = claims.roles.iter().any(|role| role == "role.tenant.admin");
+    if !is_authorized { return Err(StatusCode::FORBIDDEN); }
+
+    // 2. 执行更新
+    let updated_rank = match sqlx::query_as::<_, HonorRank>(
+        r#"
+        UPDATE honor_ranks 
+        SET points_required = $1
+        WHERE id = $2 AND tenant_id = $3
+        RETURNING *
+        "#,
+    )
+    .bind(payload.points_required)
+    .bind(rank_id)
+    .bind(claims.tenant_id)
+    .fetch_optional(&state.db_pool) 
+    .await
+    {
+        Ok(Some(rank)) => rank,
+        Ok(None) => return Err(StatusCode::NOT_FOUND), // 找不到记录
+        Err(e) => {
+            tracing::error!("Failed to update honor rank: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
+
+    Ok(Json(updated_rank))
 }

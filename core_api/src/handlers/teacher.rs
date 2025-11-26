@@ -15,7 +15,7 @@ use crate::models::Teacher;
 
 // (GET /api/v1/base/teachers - 获取 "本基地" 可用的教师列表)
 // (★ V2 - 基地安全加固 ★)
-pub async fn get_base_teachers(
+pub async fn get_base_teachers_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 【修改】必须出示“钥匙”
 ) -> Result<Json<Vec<Teacher>>, StatusCode> {

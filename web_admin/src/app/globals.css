@@ -120,3 +120,75 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ==============================================
+   FullCalendar 自定义现代样式 (V3.0 Pro)
+==============================================
+*/
+
+/* 1. 整体容器去噪：弱化边框颜色 */
+.fc-theme-standard td, 
+.fc-theme-standard th,
+.fc-theme-standard .fc-scrollgrid {
+    border-color: #f1f5f9 !important; /* Tailwind gray-100 */
+}
+
+/* 2. 表头优化：增加高度，加粗字体 */
+.fc-col-header-cell-cushion {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+    color: #334155; /* gray-700 */
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+/* 3. 时间轴优化：文字颜色变淡 */
+.fc-timegrid-axis-cushion,
+.fc-timegrid-slot-label-cushion {
+    color: #94a3b8; /* gray-400 */
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* 4. "今天"高亮背景色优化 */
+.fc-day-today {
+    background-color: #f8fafc !important; /* slate-50, 极淡的背景 */
+}
+
+/* 5. 去掉默认事件的丑陋边框和背景，交由 React 组件自行渲染 */
+.fc-v-event {
+    border: none !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
+/* 6. 顶部按钮组 (今天/上周/下周) 现代化改造 */
+.fc .fc-button-primary {
+    background-color: white;
+    border: 1px solid #e2e8f0; /* gray-200 */
+    color: #475569; /* slate-600 */
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s;
+}
+
+.fc .fc-button-primary:hover {
+    background-color: #f8fafc; /* slate-50 */
+    border-color: #cbd5e1; /* gray-300 */
+    color: #1e293b; /* slate-800 */
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active, 
+.fc .fc-button-primary:not(:disabled):active {
+    background-color: #eff6ff !important; /* blue-50 */
+    border-color: #bfdbfe !important; /* blue-200 */
+    color: #2563eb !important; /* blue-600 */
+    box-shadow: none;
+}
+
+.fc .fc-toolbar-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1e293b;
+}

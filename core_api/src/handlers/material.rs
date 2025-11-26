@@ -16,7 +16,7 @@ use crate::models::{Material, CreateMaterialPayload};
 
 // (GET /api/v1/materials - 获取所有物料定义)
 // (★ V2 - SaaS 安全加固 ★)
-pub async fn get_materials(
+pub async fn get_materials_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 【修改】必须出示“钥匙”
 ) -> Result<Json<Vec<Material>>, StatusCode> {
@@ -48,7 +48,7 @@ pub async fn get_materials(
 
 // (POST /api/v1/materials - 创建一个新物料定义)
 // (★ V3 - 角色安全加固 ★)
-pub async fn create_material(
+pub async fn create_material_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 【修改】必须出示“钥匙”
     Json(payload): Json<CreateMaterialPayload>,

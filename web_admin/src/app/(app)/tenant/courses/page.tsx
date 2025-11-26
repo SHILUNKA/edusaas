@@ -5,6 +5,8 @@
  */
 'use client'; 
 
+import { API_BASE_URL } from '@/lib/config';
+
 import { useState, useEffect, FormEvent } from 'react';
 // 1. 修改导入
 import { useSession } from 'next-auth/react';
@@ -36,15 +38,13 @@ export default function CoursesPage() {
     const { data: session } = useSession();
     const token = session?.user?.rawToken;
 
-    const API_URL = 'http://localhost:8000/api/v1/courses';
-
     const fetchCourses = async () => {
         if (!token) return; 
 
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(`${API_BASE_URL}/courses`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${token}` },
             });

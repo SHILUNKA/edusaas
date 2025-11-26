@@ -27,6 +27,7 @@ services:
       AI_API_URL: "http://ai_api:8001"
       RUST_LOG: "info"
       JWT_SECRET: "my_super_secret_key_for_dev_v1"
+      CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://192.168.10.59:3000"
 
     volumes:
       - ./core_api:/app
@@ -59,13 +60,19 @@ services:
       - "3000:3000"
     environment:
       # --- (★ 关键修复 ★) ---
-      NEXTAUTH_URL: "http://localhost:3000"
+      NEXT_PUBLIC_API_URL: "http://192.168.10.59:8000/api/v1"
+      
+      # NextAuth 的 URL (用于回调)
+      NEXTAUTH_URL: "http://192.168.10.59:3000"
       NEXTAUTH_SECRET: "z/B8b/H+vW9xK3jF6E+NqD/A5rG+L9pWqJ/C8tUeB/Y="
-      CORE_API_URL: "http://core_api:8000/api/v1"
       
       # --- (★ 语法已修复: 移除 '-' 并改为 'key: value') ---
       NODE_ENV: "development"
       NEXT_TELEMETRY_DISABLED: "1"
+
+      # Docker 内部通信用容器名
+      CORE_API_URL: "http://core_api:8000/api/v1"
+      
     volumes:
       - ./web_admin:/app
       - /app/node_modules

@@ -1,6 +1,7 @@
 /*
 ====================================================================
---- 数据库初始化脚本 (V3.0 - 策略B "i18n" 国际化版) ---
+--- 数据库初始化脚本 (V5.0 - 完整功能版) ---
+--- 包含: 员工档案增强、集采流程、19级军衔体系 ---
 ====================================================================
 */
 
@@ -15,7 +16,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE tenants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL, -- 品牌名 (例如 "星澜天物") 是实体名称, 不是 "Key"
+    name VARCHAR(255) NOT NULL, -- 品牌名 (例如 "星澜天物")
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -23,7 +24,7 @@ CREATE TABLE tenants (
 CREATE TABLE bases (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL, -- 基地名 (例如 "北京朝阳基地") 是实体名称, 不是 "Key"
+    name VARCHAR(255) NOT NULL, -- 基地名 (例如 "北京朝阳基地")
     address TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -35,8 +36,17 @@ CREATE TABLE users (
     base_id UUID REFERENCES bases(id),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    full_name VARCHAR(100), -- 员工真实姓名, 不是 "Key"
+    full_name VARCHAR(100),
     is_active BOOLEAN DEFAULT true,
+    
+    -- (★ V5.0 新增: 详细档案字段)
+    phone_number VARCHAR(50),
+    gender VARCHAR(20),
+    blood_type VARCHAR(10),
+    date_of_birth DATE,
+    address TEXT,
+    password_changed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP, -- (密码过期策略)
+
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -44,8 +54,8 @@ CREATE TABLE users (
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name_key VARCHAR(100) NOT NULL, -- 【策略B】例如 "role.admin.global"
-    description_key TEXT, -- 【策略B】例如 "role.admin.global.desc"
+    name_key VARCHAR(100) NOT NULL, -- 例如 "role.tenant.admin"
+    description_key TEXT, 
     UNIQUE(tenant_id, name_key)
 );
 
@@ -54,8 +64,6 @@ CREATE TABLE user_roles (
     role_id UUID NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, role_id)
 );
-
-INSERT INTO tenants (name) VALUES ('默认测试品牌');
 
 /*
 ====================================================================
@@ -70,8 +78,8 @@ CREATE TYPE asset_status AS ENUM (
 CREATE TABLE asset_types (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name_key VARCHAR(255) NOT NULL, -- 【策略B】例如 "asset.type.vr_goggle"
-    description_key TEXT, -- 【策略B】
+    name_key VARCHAR(255) NOT NULL, 
+    description_key TEXT,
     UNIQUE(tenant_id, name_key)
 );
 
@@ -80,7 +88,7 @@ CREATE TABLE assets (
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     base_id UUID REFERENCES bases(id),
     asset_type_id UUID REFERENCES asset_types(id) ON DELETE SET NULL,
-    name VARCHAR(255) NOT NULL, -- 资产实例名 (例如 "VR头盔-001号") 是唯一标识, 不是 "Key"
+    name VARCHAR(255) NOT NULL, 
     model_number VARCHAR(100),
     status asset_status DEFAULT 'in_stock',
     purchase_date DATE,
@@ -91,10 +99,10 @@ CREATE TABLE assets (
 CREATE TABLE materials (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name_key VARCHAR(255) NOT NULL, -- 【策略B】例如 "material.rocket_kit"
-    description_key TEXT, -- 【策略B】
+    name_key VARCHAR(255) NOT NULL, 
+    description_key TEXT, 
     sku VARCHAR(100),
-    unit_of_measure VARCHAR(50) DEFAULT '个', -- "个", "套" 等, 也可以改为 key
+    unit_of_measure VARCHAR(50) DEFAULT '个', 
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -104,15 +112,13 @@ CREATE TABLE material_stock_changes (
     material_id UUID NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
     base_id UUID NOT NULL REFERENCES bases(id),
     change_amount INT NOT NULL,
-    reason_key VARCHAR(255) NOT NULL, -- 【策略B】例如 "stock.reason.course_consumption"
+    reason_key VARCHAR(255) NOT NULL, 
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-/* ... (索引省略, 但已包含在完整SQL中) ... */
-
 /*
 ====================================================================
---- Phase 1: 会员 (Customer) 系统 (家长-学员 + 荣誉等级) ---
+--- Phase 1: 会员 (Customer) 系统 ---
 ====================================================================
 */
 
@@ -120,7 +126,7 @@ CREATE TABLE customers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     base_id UUID REFERENCES bases(id),
-    name VARCHAR(255), -- 家长真实姓名, 不是 "Key"
+    name VARCHAR(255), 
     phone_number VARCHAR(50) NOT NULL,
     wechat_openid VARCHAR(255),
     avatar_url TEXT,
@@ -133,7 +139,7 @@ CREATE TABLE participants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL, -- 学员真实姓名, 不是 "Key"
+    name VARCHAR(255) NOT NULL, 
     date_of_birth DATE,
     gender VARCHAR(50),
     school_name VARCHAR(255),
@@ -149,8 +155,8 @@ CREATE TYPE membership_tier_type AS ENUM (
 CREATE TABLE membership_tiers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name_key VARCHAR(255) NOT NULL, -- 【策略B】例如 "membership.tier.gold"
-    description_key TEXT, -- 【策略B】
+    name_key VARCHAR(255) NOT NULL, 
+    description_key TEXT, 
     tier_type membership_tier_type NOT NULL DEFAULT 'time_based',
     price_in_cents INT NOT NULL DEFAULT 0,
     duration_days INT,
@@ -176,7 +182,7 @@ CREATE TABLE customer_memberships (
 CREATE TABLE honor_ranks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name_key VARCHAR(100) NOT NULL, -- 【策略B】例如 "honor.rank.newbie"
+    name_key VARCHAR(100) NOT NULL, 
     rank_level INT NOT NULL,
     points_required INT NOT NULL DEFAULT 0,
     badge_icon_url TEXT,
@@ -197,9 +203,7 @@ CREATE TABLE point_transactions (
     participant_id UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     points_change INT NOT NULL,
-    reason_key VARCHAR(255) NOT NULL, -- 【策略B】例如 "tx.reason.course_complete"
-    -- 最好再加一个 context 字段来存储 "变量"
-    -- context_json JSONB, -- 例如 {"course_name_key": "course.rocket.101"}
+    reason_key VARCHAR(255) NOT NULL, 
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -213,9 +217,9 @@ CREATE TABLE teachers (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     base_id UUID REFERENCES bases(id),
-    bio TEXT, -- 教师简介 (自由文本), 不是 "Key"
-    specialization TEXT, -- 擅长领域 (自由文本), 不是 "Key"
-    qualifications TEXT, -- 资历 (自由文本), 不是 "Key"
+    bio TEXT, 
+    specialization TEXT, 
+    qualifications TEXT, 
     is_active BOOLEAN DEFAULT true
 );
 
@@ -223,7 +227,7 @@ CREATE TABLE rooms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     base_id UUID NOT NULL REFERENCES bases(id),
-    name VARCHAR(100) NOT NULL, -- 教室名 (例如 "化学实验室A"), 是实体名称, 不是 "Key"
+    name VARCHAR(100) NOT NULL, 
     capacity INT DEFAULT 10,
     is_schedulable BOOLEAN DEFAULT true
 );
@@ -231,9 +235,9 @@ CREATE TABLE rooms (
 CREATE TABLE courses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    name_key VARCHAR(255) NOT NULL, -- 【策略B】例如 "course.rocket.101"
-    description_key TEXT, -- 【策略B】
-    target_audience_key VARCHAR(100), -- 【策略B】例如 "age.range.8_10"
+    name_key VARCHAR(255) NOT NULL, 
+    description_key TEXT, 
+    target_audience_key VARCHAR(100), 
     default_duration_minutes INT NOT NULL DEFAULT 60,
     points_awarded INT NOT NULL DEFAULT 0,
     prerequisite_course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
@@ -281,7 +285,35 @@ CREATE TABLE class_enrollments (
 
 /*
 ====================================================================
---- Phase 1: B端员工 登录日志 (新增) ---
+--- Phase 5: 采购与供应链 (Procurement) - (★ 新增模块) ---
+====================================================================
+*/
+
+CREATE TYPE procurement_status AS ENUM ('pending', 'approved', 'rejected', 'shipped', 'received');
+
+CREATE TABLE procurement_orders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    base_id UUID NOT NULL REFERENCES bases(id) ON DELETE CASCADE,
+    applicant_id UUID REFERENCES users(id),
+    status procurement_status DEFAULT 'pending',
+    submit_note TEXT, 
+    reject_reason TEXT, 
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE procurement_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    order_id UUID NOT NULL REFERENCES procurement_orders(id) ON DELETE CASCADE,
+    material_id UUID NOT NULL REFERENCES materials(id),
+    quantity INT NOT NULL, 
+    check (quantity > 0)
+);
+
+/*
+====================================================================
+--- Phase 1: B端员工 登录日志 ---
 ====================================================================
 */
 
@@ -299,7 +331,7 @@ CREATE TABLE user_login_history (
     ip_address VARCHAR(100),
     user_agent TEXT,
     status login_status NOT NULL,
-    failure_reason_key VARCHAR(255) -- 【策略B】例如 "auth.error.wrong_password"
+    failure_reason_key VARCHAR(255) 
 );
 
 /*
@@ -332,12 +364,94 @@ CREATE INDEX idx_classes_time_teacher_room ON classes (start_time, end_time, tea
 CREATE INDEX idx_class_enrollments_class ON class_enrollments (class_id);
 CREATE INDEX idx_class_enrollments_participant ON class_enrollments (participant_id);
 
+-- Phase 5 采购索引 (★ 新增)
+CREATE INDEX idx_procurement_orders_tenant ON procurement_orders(tenant_id);
+CREATE INDEX idx_procurement_orders_base ON procurement_orders(base_id);
+CREATE INDEX idx_procurement_orders_status ON procurement_orders(status);
+
 -- 登录日志索引
 CREATE INDEX idx_user_login_history_user_id ON user_login_history (user_id);
 CREATE INDEX idx_user_login_history_tenant_id ON user_login_history (tenant_id);
 CREATE INDEX idx_user_login_history_email ON user_login_history (email_attempted);
 CREATE INDEX idx_user_login_history_timestamp ON user_login_history (login_timestamp);
 
+/*
+====================================================================
+--- Seed Data: 初始数据预设 (★ 关键更新) ---
+====================================================================
+*/
+
+-- 1. 创建默认测试租户 (如果不存在)
+INSERT INTO tenants (name) VALUES ('默认测试品牌') ON CONFLICT DO NOTHING;
+
+-- 2. 预设核心角色 (总部管理员, 基地校长, 普通教师)
+INSERT INTO roles (tenant_id, name_key, description_key)
+SELECT id, 'role.tenant.admin', '总部超级管理员' FROM tenants LIMIT 1
+ON CONFLICT DO NOTHING;
+
+INSERT INTO roles (tenant_id, name_key, description_key)
+SELECT id, 'role.base.admin', '分基地/校区管理员' FROM tenants LIMIT 1
+ON CONFLICT DO NOTHING;
+
+INSERT INTO roles (tenant_id, name_key, description_key)
+SELECT id, 'role.teacher', '普通教师/员工' FROM tenants LIMIT 1
+ON CONFLICT DO NOTHING;
+
+-- 3. 预设 19 级军衔体系
+INSERT INTO honor_ranks (tenant_id, name_key, rank_level, points_required, badge_icon_url)
+VALUES 
+-- 士兵 & 士官
+((SELECT id FROM tenants LIMIT 1), '列兵', 1, 0, NULL),
+((SELECT id FROM tenants LIMIT 1), '上等兵', 2, 100, NULL),
+((SELECT id FROM tenants LIMIT 1), '下士', 3, 300, NULL),
+((SELECT id FROM tenants LIMIT 1), '中士', 4, 600, NULL),
+((SELECT id FROM tenants LIMIT 1), '二级上士', 5, 1200, NULL),
+((SELECT id FROM tenants LIMIT 1), '一级上士', 6, 2000, NULL),
+((SELECT id FROM tenants LIMIT 1), '三级军士长', 7, 3500, NULL),
+((SELECT id FROM tenants LIMIT 1), '二级军士长', 8, 6000, NULL),
+((SELECT id FROM tenants LIMIT 1), '一级军士长', 9, 10000, NULL),
+-- 尉官
+((SELECT id FROM tenants LIMIT 1), '少尉', 10, 15000, NULL),
+((SELECT id FROM tenants LIMIT 1), '中尉', 11, 22000, NULL),
+((SELECT id FROM tenants LIMIT 1), '上尉', 12, 30000, NULL),
+-- 校官
+((SELECT id FROM tenants LIMIT 1), '少校', 13, 45000, NULL),
+((SELECT id FROM tenants LIMIT 1), '中校', 14, 65000, NULL),
+((SELECT id FROM tenants LIMIT 1), '上校', 15, 90000, NULL),
+((SELECT id FROM tenants LIMIT 1), '大校', 16, 120000, NULL),
+-- 将官
+((SELECT id FROM tenants LIMIT 1), '少将', 17, 160000, NULL),
+((SELECT id FROM tenants LIMIT 1), '中将', 18, 220000, NULL),
+((SELECT id FROM tenants LIMIT 1), '上将', 19, 300000, NULL)
+ON CONFLICT DO NOTHING;
+
+
+/*
+====================================================================
+--- Phase 6: 智能排课基础 (AI Scheduling) - (★ V7.0 新增) ---
+====================================================================
+*/
+
+-- 1. 老师技能表：记录老师能教哪些课 (多对多)
+CREATE TABLE teacher_qualified_courses (
+    teacher_id UUID NOT NULL REFERENCES teachers(user_id) ON DELETE CASCADE,
+    course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    PRIMARY KEY (teacher_id, course_id)
+);
+
+-- 2. 老师可用时间表：记录每周哪些时间段有空
+-- day_of_week: 1 (周一) - 7 (周日)
+CREATE TABLE teacher_availability (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    teacher_id UUID NOT NULL REFERENCES teachers(user_id) ON DELETE CASCADE,
+    day_of_week INT NOT NULL CHECK (day_of_week BETWEEN 1 AND 7),
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. 索引
+CREATE INDEX idx_teacher_availability_tid ON teacher_availability(teacher_id);
 /*
 ====================================================================
 --- 脚本结束 ---

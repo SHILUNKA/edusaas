@@ -16,7 +16,7 @@ use crate::models::{AssetType, CreateAssetTypePayload};
 
 // (GET /api/v1/asset-types - 获取所有资产类型)
 // (★ V2 - SaaS 安全加固 ★)
-pub async fn get_asset_types(
+pub async fn get_asset_types_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 【修改】必须出示“钥匙”
 ) -> Result<Json<Vec<AssetType>>, StatusCode> {
@@ -48,7 +48,7 @@ pub async fn get_asset_types(
 
 // (POST /api/v1/asset-types - 创建一个新资产类型)
 // (★ V3 - 角色安全加固 ★)
-pub async fn create_asset_type(
+pub async fn create_asset_type_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 【修改】必须出示“钥匙”
     Json(payload): Json<CreateAssetTypePayload>,

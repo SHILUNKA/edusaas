@@ -5,6 +5,8 @@
  */
 'use client';
 
+import { API_BASE_URL } from '@/lib/config';
+
 import { useState, FormEvent } from 'react';
 // 1. 修改导入
 import { useSession } from 'next-auth/react';
@@ -33,8 +35,6 @@ export default function NewParticipantPage() {
     const { data: session } = useSession();
     const token = session?.user?.rawToken;
 
-    const API_URL = 'http://localhost:8000/api/v1/customers';
-
     const currentBaseId = null; 
 
     const handleSubmit = async (e: FormEvent) => {
@@ -50,7 +50,7 @@ export default function NewParticipantPage() {
         };
 
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(`${API_BASE_URL}/customers`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

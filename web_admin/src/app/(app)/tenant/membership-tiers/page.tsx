@@ -5,6 +5,8 @@
  */
 'use client'; 
 
+import { API_BASE_URL } from '@/lib/config';
+
 import { useState, useEffect, FormEvent } from 'react';
 // (★ 修复) 导入 useSession, 移除 useAuthStore
 import { useSession } from 'next-auth/react';
@@ -50,9 +52,6 @@ export default function MembershipTiersPage() {
     const token = session?.user?.rawToken; //
     // const token = useAuthStore((state) => state.token); //
 
-    // (★ 修复) API_URL 保持不变, 'localhost:8000' 是正确的
-    const API_URL = 'http://localhost:8000/api/v1/membership-tiers'; //
-
     // --- 核心逻辑 ---
 
     // 3. 'GET' 数据获取函数 (保持不变)
@@ -62,7 +61,7 @@ export default function MembershipTiersPage() {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(`${API_BASE_URL}/membership-tiers`, {
                 method: 'GET',
                 headers: { 'Authorization': `Bearer ${token}` },
             });
@@ -112,7 +111,7 @@ export default function MembershipTiersPage() {
         };
 
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(`${API_BASE_URL}/membership-tiers`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

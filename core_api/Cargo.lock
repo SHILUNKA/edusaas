@@ -275,6 +275,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "jsonwebtoken",
+ "rand",
  "reqwest",
  "serde",
  "serde_json",

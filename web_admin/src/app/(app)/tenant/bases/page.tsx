@@ -5,6 +5,7 @@
  */
 'use client'; 
 
+import { API_BASE_URL } from '@/lib/config';
 import { useState, useEffect, FormEvent } from 'react';
 // 1. 修改导入：使用 next-auth/react
 import { useSession } from 'next-auth/react'; 
@@ -33,8 +34,6 @@ export default function BasesPage() {
     const { data: session } = useSession();
     const token = session?.user?.rawToken;
 
-    const API_URL = 'http://localhost:8000/api/v1/bases';
-
     // --- 核心逻辑 ---
 
     // 3. 'GET' 数据获取函数
@@ -44,7 +43,7 @@ export default function BasesPage() {
         setIsLoading(true);
         setError(null);
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(`${API_BASE_URL}/bases`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`, 
@@ -84,7 +83,7 @@ export default function BasesPage() {
         };
 
         try {
-            const response = await fetch(API_URL, {
+            const response = await fetch(API_BASE_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

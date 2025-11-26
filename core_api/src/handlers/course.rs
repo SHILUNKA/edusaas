@@ -16,7 +16,7 @@ use crate::models::{Course, CreateCoursePayload};
 
 // (GET /api/v1/courses - 获取所有课程)
 // (★ V2 - SaaS 安全加固 ★)
-pub async fn get_courses(
+pub async fn get_courses_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 必须出示“钥匙”
 ) -> Result<Json<Vec<Course>>, StatusCode> {
@@ -46,7 +46,7 @@ pub async fn get_courses(
 
 // (POST /api/v1/courses - 创建一个新课程)
 // (★ V3 - 角色安全加固 ★)
-pub async fn create_course(
+pub async fn create_course_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 必须出示“钥匙”
     Json(payload): Json<CreateCoursePayload>,

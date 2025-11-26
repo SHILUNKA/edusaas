@@ -17,7 +17,7 @@ use super::auth::Claims;
 use crate::models::{Customer, CreateCustomerPayload};
 
 // (POST /api/v1/customers - B端创建家长)
-pub async fn create_customer(
+pub async fn create_customer_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 自动验证 Token, 获取 Claims
     Json(payload): Json<CreateCustomerPayload>,

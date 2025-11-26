@@ -16,7 +16,7 @@ use crate::models::{Room, CreateRoomPayload};
 
 // (GET /api/v1/tenant/rooms - 获取 "本租户" 所有的教室, 按基地分组)
 // (★ V2 - SaaS 安全加固 ★)
-pub async fn get_all_tenant_rooms(
+pub async fn get_tenant_rooms_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 【修改】必须出示“钥匙”
 ) -> Result<Json<Vec<Room>>, StatusCode> {
@@ -46,7 +46,7 @@ pub async fn get_all_tenant_rooms(
 
 // (POST /api/v1/tenant/rooms - "总部" 创建一个新教室)
 // (★ V3 - 角色安全加固 ★)
-pub async fn create_room(
+pub async fn create_room_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 【修改】必须出示“钥匙”
     Json(payload): Json<CreateRoomPayload>,
@@ -96,7 +96,7 @@ pub async fn create_room(
 
 // (GET /api/v1/base/rooms - 获取 "本基地" 可用的教室列表)
 // (★ V2 - 基地安全加固 ★)
-pub async fn get_base_rooms(
+pub async fn get_base_rooms_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 【修改】必须出示“钥匙”
 ) -> Result<Json<Vec<Room>>, StatusCode> {

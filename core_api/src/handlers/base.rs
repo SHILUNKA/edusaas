@@ -16,7 +16,7 @@ use crate::models::{Base, CreateBasePayload};
 
 // (GET /api/v1/bases - 获取所有基地列表)
 // (★ V2 - SaaS 安全加固 ★)
-pub async fn get_bases(
+pub async fn get_tenant_bases_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 【修改】必须出示“钥匙”
 ) -> Result<Json<Vec<Base>>, StatusCode> {
@@ -47,7 +47,7 @@ pub async fn get_bases(
 
 // (POST /api/v1/bases - 创建一个新基地)
 // (★ V3 - 角色安全加固 ★)
-pub async fn create_base(
+pub async fn create_tenant_base_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 【修改】必须出示“钥匙”
     Json(payload): Json<CreateBasePayload>,

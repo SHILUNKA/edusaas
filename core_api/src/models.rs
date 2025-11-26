@@ -185,6 +185,8 @@ pub struct Room {
     pub name: String,
     pub capacity: Option<i32>,
     pub is_schedulable: bool,
+    pub layout_rows: Option<i32>,
+    pub layout_columns: Option<i32>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
@@ -193,7 +195,6 @@ pub struct Class {
     pub tenant_id: Uuid,
     pub base_id: Uuid,
     pub course_id: Uuid,
-    pub teacher_id: Uuid,
     pub room_id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
@@ -204,11 +205,15 @@ pub struct Class {
 #[derive(Debug, Deserialize)]
 pub struct CreateClassPayload {
     pub course_id: Uuid,
-    pub teacher_id: Uuid,
+    pub teacher_ids: Vec<Uuid>,
     pub room_id: Uuid,
-    pub start_time: DateTime<Utc>,
-    pub end_time: DateTime<Utc>,
+    pub start_time: DateTime<Utc>, // 第一节课开始时间
+    pub end_time: DateTime<Utc>,   // 第一节课结束时间
     pub max_capacity: i32,
+    
+    // (★ 新增字段: 重复规则)
+    pub recurrence_type: Option<String>, // "none" | "weekly" | "biweekly"
+    pub repeat_count: Option<i32>,       // 重复次数 (例如 10节)
 }
 
 #[derive(Debug, Deserialize)]
@@ -216,6 +221,8 @@ pub struct CreateRoomPayload {
     pub base_id: Uuid,
     pub name: String,
     pub capacity: Option<i32>,
+    pub layout_rows: Option<i32>,
+    pub layout_columns: Option<i32>,
 }
 
 // --- Customer ---
@@ -329,15 +336,16 @@ pub struct ClassDetail {
     pub tenant_id: Uuid,
     pub base_id: Uuid,
     pub course_id: Uuid,
-    pub teacher_id: Uuid,
     pub room_id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: DateTime<Utc>,
     pub max_capacity: i32,
     pub status: Option<String>,
     pub course_name_key: String, 
-    pub teacher_name: Option<String>, 
-    pub room_name: String,    
+    pub teacher_names: Option<String>,
+    pub room_name: String,
+    pub room_rows: Option<i32>,
+    pub room_columns: Option<i32>,  
 }
 
 // --- User ---

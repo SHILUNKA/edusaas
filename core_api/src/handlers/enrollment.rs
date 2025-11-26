@@ -565,3 +565,41 @@ pub async fn complete_enrollment_handler(
     tracing::debug!("(LOG) Transaction COMMITTED successfully.");
     Ok(Json(updated_enrollment))
 }
+
+// (DELETE /api/v1/enrollments/:id - 取消报名/请假)
+// (★ V11.0 新增)
+pub async fn delete_enrollment_handler(
+    State(state): State<AppState>,
+    claims: Claims,
+    Path(enrollment_id): Path<Uuid>,
+) -> Result<StatusCode, StatusCode> {
+
+    let tenant_id = claims.tenant_id;
+
+    // 1. 检查状态 (已结课的不能删)
+    let status: Option<String> = sqlx::query_scalar(
+        "SELECT status FROM class_enrollments WHERE id = $1 AND tenant_id = $2"
+    )
+    .bind(enrollment_id)
+    .bind(tenant_id)
+    .fetch_optional(&state.db_pool)
+    .await
+    .unwrap_or(None);
+
+    if let Some(s) = status {
+        if s == "completed" {
+            return Err(StatusCode::FORBIDDEN); // 已结课不能取消
+        }
+    } else {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    // 2. 执行删除
+    sqlx::query("DELETE FROM class_enrollments WHERE id = $1")
+        .bind(enrollment_id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(StatusCode::NO_CONTENT)
+}

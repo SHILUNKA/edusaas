@@ -1,11 +1,10 @@
 /*
  * src/handlers/room.rs
  * 职责: 教室 (Room) 管理
- * (★ V2/V3 混合安全加固版 ★)
+ * (★ V12.0 - 适配教室布局行列 ★)
  */
 
 use axum::{extract::State, http::StatusCode, Json};
-
 
 // 【修改】导入 AppState 和 Claims
 use super::AppState;
@@ -45,7 +44,7 @@ pub async fn get_tenant_rooms_handler(
 }
 
 // (POST /api/v1/tenant/rooms - "总部" 创建一个新教室)
-// (★ V3 - 角色安全加固 ★)
+// (★ V12.0 - 支持行列布局 ★)
 pub async fn create_room_handler(
     State(state): State<AppState>,
     claims: Claims, // <-- 【修改】必须出示“钥匙”
@@ -71,10 +70,11 @@ pub async fn create_room_handler(
     // (HACK 已移除!)
     let tenant_id = claims.tenant_id; // <-- 【修改】使用“钥匙”中的租户ID
 
+    // (★ 修改: 插入 layout_rows, layout_columns)
     let new_room = match sqlx::query_as::<_, Room>(
         r#"
-        INSERT INTO rooms (tenant_id, base_id, name, capacity, is_schedulable)
-        VALUES ($1, $2, $3, $4, true)
+        INSERT INTO rooms (tenant_id, base_id, name, capacity, layout_rows, layout_columns, is_schedulable)
+        VALUES ($1, $2, $3, $4, $5, $6, true)
         RETURNING *
         "#,
     )
@@ -82,6 +82,8 @@ pub async fn create_room_handler(
     .bind(payload.base_id)
     .bind(&payload.name)
     .bind(payload.capacity)
+    .bind(payload.layout_rows.unwrap_or(5)) // 默认 5 行
+    .bind(payload.layout_columns.unwrap_or(6)) // 默认 6 列
     .fetch_one(&state.db_pool)
     .await
     {

@@ -1,49 +1,69 @@
 /*
- * 校区端: 排课日历 (V4.0 - 沉浸式/无滚动/精美版)
+ * 校区端: 排课日历 (V5.2 - 多彩课程版)
  * 路径: /campus/schedule
+ * 新增: 根据课程名称自动分配不同颜色，提升辨识度
  */
 'use client';
-
-import { API_BASE_URL } from '@/lib/config';
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Plus, Calendar as CalendarIcon, User, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, User, MapPin, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import CreateClassModal from './CreateClassModal';
 import EditClassModal from './EditClassModal';
+import { API_BASE_URL } from '@/lib/config';
 
 // --- 类型定义 ---
 interface ClassDetail {
   id: string;
   course_name_key: string;
-  teacher_name: string;
-  teacher_id: string;
+  teacher_names: string | null; 
   room_name: string;
   start_time: string;
   end_time: string;
 }
 
+// --- (★ 新增) 配色方案定义 ---
+const COLOR_PALETTES = [
+    { border: 'border-indigo-500', bg: 'bg-indigo-50/90', hover: 'hover:bg-indigo-100', textTitle: 'text-indigo-900', textSub: 'text-indigo-700', icon: 'text-indigo-600/80' },
+    { border: 'border-emerald-500', bg: 'bg-emerald-50/90', hover: 'hover:bg-emerald-100', textTitle: 'text-emerald-900', textSub: 'text-emerald-700', icon: 'text-emerald-600/80' },
+    { border: 'border-amber-500', bg: 'bg-amber-50/90', hover: 'hover:bg-amber-100', textTitle: 'text-amber-900', textSub: 'text-amber-700', icon: 'text-amber-600/80' },
+    { border: 'border-rose-500', bg: 'bg-rose-50/90', hover: 'hover:bg-rose-100', textTitle: 'text-rose-900', textSub: 'text-rose-700', icon: 'text-rose-600/80' },
+    { border: 'border-cyan-500', bg: 'bg-cyan-50/90', hover: 'hover:bg-cyan-100', textTitle: 'text-cyan-900', textSub: 'text-cyan-700', icon: 'text-cyan-600/80' },
+    { border: 'border-violet-500', bg: 'bg-violet-50/90', hover: 'hover:bg-violet-100', textTitle: 'text-violet-900', textSub: 'text-violet-700', icon: 'text-violet-600/80' },
+];
+
+// (★ 新增) 根据课程名称获取固定的颜色
+const getColorForCourse = (courseName: string) => {
+    let hash = 0;
+    for (let i = 0; i < courseName.length; i++) {
+        hash = courseName.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % COLOR_PALETTES.length;
+    return COLOR_PALETTES[index];
+};
+
 export default function SchedulePage() {
   const { data: session } = useSession();
   const token = session?.user?.rawToken;
   
-  // 使用 ref 来手动控制日历 API (实现自定义翻页按钮)
   const calendarRef = useRef<FullCalendar>(null);
 
   const [events, setEvents] = useState<any[]>([]);
+  const [currentDateTitle, setCurrentDateTitle] = useState("");
+  
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassDetail | null>(null);
-  const [currentDateTitle, setCurrentDateTitle] = useState("");
+  const [selectedSlotDate, setSelectedSlotDate] = useState<{ start: Date, end: Date } | null>(null);
 
-  // --- 1. 数据获取 ---
+  const API = API_BASE_URL;
+
   const fetchClasses = async () => {
       if (!token) return;
       try {
-        const res = await fetch(`${API_BASE_URL}/base/classes`, {
+        const res = await fetch(`${API}/base/classes`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -66,46 +86,32 @@ export default function SchedulePage() {
     fetchClasses();
   }, [token]);
 
-  // --- 2. 日历控制逻辑 ---
-  const handlePrev = () => {
-      const api = calendarRef.current?.getApi();
-      api?.prev();
-      updateTitle();
-  };
-  const handleNext = () => {
-      const api = calendarRef.current?.getApi();
-      api?.next();
-      updateTitle();
-  };
-  const handleToday = () => {
-      const api = calendarRef.current?.getApi();
-      api?.today();
-      updateTitle();
-  };
-  
-  const updateTitle = () => {
-      const api = calendarRef.current?.getApi();
-      if (api) setCurrentDateTitle(api.view.title);
+  const handlePrev = () => { calendarRef.current?.getApi().prev(); updateTitle(); };
+  const handleNext = () => { calendarRef.current?.getApi().next(); updateTitle(); };
+  const handleToday = () => { calendarRef.current?.getApi().today(); updateTitle(); };
+  const updateTitle = () => { if (calendarRef.current) setCurrentDateTitle(calendarRef.current.getApi().view.title); };
+
+  useEffect(() => { setTimeout(updateTitle, 100); }, []);
+
+  const handleDateSelect = (selectInfo: any) => {
+      setSelectedSlotDate({ start: selectInfo.start, end: selectInfo.end });
+      setIsCreateModalOpen(true);
   };
 
-  // 初始化标题
-  useEffect(() => {
-      // 稍微延迟以确保 API 就绪
-      setTimeout(updateTitle, 100);
-  }, []);
+  const handleEventClick = (info: any) => {
+      const classData = info.event.extendedProps as ClassDetail;
+      setEditingClass(classData);
+  };
 
   return (
-    // (★ 关键 1) h-[calc(100vh-xxx)] 扣除顶栏高度，确保不出现浏览器滚动条
     <div className="flex flex-col h-[calc(100vh-80px)] bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
       
-      {/* --- 自定义顶部工具栏 (Header) --- */}
+      {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white z-20">
-        
-        {/* 左侧：标题与日期导航 */}
         <div className="flex items-center gap-6">
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 <CalendarIcon className="text-indigo-600" size={22} /> 
-                排课管理
+                排课管理 (本周)
             </h1>
             
             <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200">
@@ -125,52 +131,36 @@ export default function SchedulePage() {
             </span>
         </div>
 
-        {/* 右侧：新建按钮 */}
-        <button 
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2 rounded-full hover:bg-indigo-700 transition-all font-medium shadow-md hover:shadow-lg active:scale-95"
-        >
-            <Plus size={18} strokeWidth={3} /> 
-            <span className="tracking-wide">新建课程</span>
-        </button>
+        <div className="text-sm text-slate-400 italic flex items-center gap-2">
+           💡 提示: 鼠标拖拽空白处即可排课
+        </div>
       </div>
 
-      {/* --- 日历主体区域 --- */}
       <div className="flex-1 p-4 bg-white overflow-hidden">
           <FullCalendar
             ref={calendarRef}
             plugins={[timeGridPlugin, interactionPlugin]}
             initialView="timeGridWeek"
-            
-            // (★ 关键 2) 隐藏默认 Header，使用我们自定义的
             headerToolbar={false}
-            
-            // (★ 关键 3) 布局与时间设置
             locale="zh-cn"
-            firstDay={1} // 周一开始
-            height="100%" // 填满父容器
-            expandRows={true} // 自动撑开行高，消灭空白
-            stickyHeaderDates={true} // 表头固定
-            allDaySlot={false} // 不显示全天
-            slotMinTime="08:00:00" // 早上8点开始
-            slotMaxTime="22:00:00" // 晚上10点结束
+            firstDay={1} 
+            height="100%" 
+            expandRows={true} 
+            stickyHeaderDates={true} 
+            allDaySlot={false} 
+            slotMinTime="08:00:00" 
+            slotMaxTime="22:00:00" 
             slotDuration="00:30:00"
+            selectable={true}         
+            selectMirror={true}
+            select={handleDateSelect} 
+            eventClick={handleEventClick} 
+            slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
             
-            // (★ 关键 4) 时间轴格式化: 14:00
-            slotLabelFormat={{
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            }}
-
-            // (★ 关键 5) 表头自定义: 星期在上，日期在下
             dayHeaderContent={(arg) => {
                 const date = arg.date;
-                // 格式化星期 (例如 "周一")
                 const weekday = date.toLocaleDateString('zh-CN', { weekday: 'short' });
-                // 格式化日期 (例如 "25")
                 const dayNum = date.getDate();
-                // 判断是否今天
                 const isToday = date.toDateString() === new Date().toDateString();
                 
                 return (
@@ -184,22 +174,24 @@ export default function SchedulePage() {
             }}
 
             events={events}
-            eventClick={(info) => setEditingClass(info.event.extendedProps as ClassDetail)}
             
-            // (★ 关键 6) 课程卡片精美渲染
+            // (★ 核心修改: 动态应用多彩样式)
             eventContent={(arg) => {
-                const { course_name_key, teacher_name, room_name } = arg.event.extendedProps;
+                const { course_name_key, teacher_names, room_name } = arg.event.extendedProps;
+                // 获取该课程对应的配色方案
+                const colors = getColorForCourse(course_name_key);
+
                 return (
-                    <div className="h-full w-full p-2 flex flex-col border-l-4 border-indigo-500 bg-indigo-50/90 hover:bg-indigo-100 transition-colors rounded-r-md shadow-sm overflow-hidden cursor-pointer">
-                        <div className="font-bold text-xs md:text-sm text-indigo-900 leading-tight mb-auto">
+                    <div className={`h-full w-full p-2 flex flex-col border-l-4 rounded-r-md shadow-sm overflow-hidden cursor-pointer group transition-colors ${colors.border} ${colors.bg} ${colors.hover}`}>
+                        <div className={`font-bold text-xs md:text-sm leading-tight mb-auto ${colors.textTitle}`}>
                             {course_name_key}
                         </div>
                         <div className="mt-1 space-y-0.5">
-                            <div className="text-[10px] text-indigo-700 flex items-center gap-1">
+                            <div className={`text-[10px] flex items-center gap-1 opacity-90 group-hover:opacity-100 ${colors.textSub}`}>
                                 <User size={10} className="shrink-0" /> 
-                                <span className="truncate">{teacher_name || '待定'}</span>
+                                <span className="truncate">{teacher_names || '待定'}</span>
                             </div>
-                            <div className="text-[10px] text-indigo-600/80 flex items-center gap-1">
+                            <div className={`text-[10px] flex items-center gap-1 opacity-80 group-hover:opacity-100 ${colors.icon}`}>
                                 <MapPin size={10} className="shrink-0" /> 
                                 <span className="truncate">{room_name}</span>
                             </div>
@@ -210,15 +202,16 @@ export default function SchedulePage() {
           />
       </div>
 
-      {/* 弹窗组件保持不变 */}
       {token && (
           <CreateClassModal 
             token={token}
             isOpen={isCreateModalOpen}
             onClose={() => setIsCreateModalOpen(false)}
             onSuccess={fetchClasses} 
+            initialRange={selectedSlotDate} 
           />
       )}
+
       {token && editingClass && (
           <EditClassModal 
             token={token}

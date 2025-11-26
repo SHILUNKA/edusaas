@@ -1,7 +1,7 @@
 /*
  * src/handlers/class.rs
  * 职责: 排课 (Class) 管理
- * (★ V7.0 - 完整版: 含查询、创建、调课/代课 ★)
+ * (★ V12.1 - 修复 room_rows 缺失错误 ★)
  */
 
 use axum::{
@@ -12,26 +12,24 @@ use axum::{
 use serde::Deserialize; 
 use sqlx::{QueryBuilder, FromRow};
 use uuid::Uuid;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, Duration};
 
 use super::AppState;
 use super::auth::Claims; 
-// 引入模型
 use crate::models::{Class, CreateClassPayload, ClassDetail};
 
 // --- DTO: 查询参数 ---
 #[derive(Debug, Deserialize)]
 pub struct GetClassesQuery {
-    pub date: Option<String>, // "today", "2023-10-01", etc.
+    pub date: Option<String>, 
 }
 
-// --- DTO: 更新排课 (调课/代课) ---
-// (因为只在 handler 内部使用，直接定义在这里即可)
+// --- DTO: 更新排课 ---
 #[derive(Debug, Deserialize)]
 pub struct UpdateClassPayload {
-    pub teacher_id: Option<Uuid>, // 换老师 (代课)
-    pub room_id: Option<Uuid>,    // 换教室
-    pub start_time: Option<DateTime<Utc>>, // 调时间
+    pub teacher_ids: Option<Vec<Uuid>>,
+    pub room_id: Option<Uuid>,
+    pub start_time: Option<DateTime<Utc>>,
     pub end_time: Option<DateTime<Utc>>,
 }
 
@@ -44,7 +42,6 @@ pub async fn get_base_classes_handler(
 
     let tenant_id = claims.tenant_id;
 
-    // 1. 权限检查
     let base_id = match claims.base_id {
         Some(id) => id,
         None => {
@@ -53,24 +50,25 @@ pub async fn get_base_classes_handler(
         }
     };
 
-    // 2. 动态构建查询
+    // (★ 关键修复: SQL 必须包含 room_rows 和 room_columns)
     let mut query_builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
         r#"
         SELECT 
-            c.*, 
+            c.id, c.tenant_id, c.base_id, c.course_id, c.room_id, c.start_time, c.end_time, c.max_capacity, c.status,
             co.name_key AS course_name_key,
-            u.full_name AS teacher_name,
-            r.name AS room_name
+            r.name AS room_name,
+            -- (★ 修复点 1: 添加这两个字段)
+            r.layout_rows AS room_rows,
+            r.layout_columns AS room_columns,
+            -- (多老师聚合)
+            STRING_AGG(DISTINCT u.full_name, ', ') AS teacher_names
         FROM 
             classes c
-        LEFT JOIN 
-            courses co ON c.course_id = co.id
-        LEFT JOIN 
-            teachers t ON c.teacher_id = t.user_id
-        LEFT JOIN 
-            users u ON t.user_id = u.id
-        LEFT JOIN 
-            rooms r ON c.room_id = r.id
+        LEFT JOIN courses co ON c.course_id = co.id
+        LEFT JOIN rooms r ON c.room_id = r.id
+        LEFT JOIN class_teachers ct ON c.id = ct.class_id
+        LEFT JOIN teachers t ON ct.teacher_id = t.user_id
+        LEFT JOIN users u ON t.user_id = u.id
         WHERE 
             c.tenant_id = 
         "#
@@ -80,20 +78,15 @@ pub async fn get_base_classes_handler(
     query_builder.push(" AND c.base_id = ");
     query_builder.push_bind(base_id);
 
-    // 日期过滤
     if let Some(date_filter) = query.date {
         if date_filter == "today" {
-            // 使用数据库当前日期
             query_builder.push(" AND c.start_time::date = CURRENT_DATE ");
-        } else {
-            // (可选) 支持查询特定日期，例如 ?date=2025-11-25
-            // 这里简单实现，如果需要更复杂的范围查询需解析字符串
         }
     }
+    
+    // (★ 修复点 2: GROUP BY 也要加上这两个字段)
+    query_builder.push(" GROUP BY c.id, co.name_key, r.name, r.layout_rows, r.layout_columns ORDER BY c.start_time ASC ");
 
-    query_builder.push(" ORDER BY c.start_time ASC ");
-
-    // 3. 执行查询
     let classes = match query_builder.build_query_as::<ClassDetail>().fetch_all(&state.db_pool).await {
         Ok(classes) => classes,
         Err(e) => {
@@ -110,49 +103,76 @@ pub async fn create_base_class_handler(
     State(state): State<AppState>,
     claims: Claims, 
     Json(payload): Json<CreateClassPayload>,
-) -> Result<Json<Class>, StatusCode> {
+) -> Result<Json<Vec<Class>>, StatusCode> {
 
     let tenant_id = claims.tenant_id;
-
     let base_id = match claims.base_id {
         Some(id) => id,
         None => return Err(StatusCode::FORBIDDEN), 
     };
-    
-    // (可选: 这里可以加冲突检测，防止同一老师同一时间两地分身)
 
-    let new_class = match sqlx::query_as::<_, Class>(
-        r#"
-        INSERT INTO classes (
-            tenant_id, base_id, course_id, teacher_id, room_id,
-            start_time, end_time, max_capacity, status
+    let recurrence = payload.recurrence_type.as_deref().unwrap_or("none");
+    let count = if recurrence == "none" { 1 } else { payload.repeat_count.unwrap_or(1) };
+    
+    if count > 50 { return Err(StatusCode::BAD_REQUEST); }
+
+    let mut created_classes = Vec::new();
+    let mut tx = state.db_pool.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    for i in 0..count {
+        let days_to_add = match recurrence {
+            "weekly" => i * 7,
+            "biweekly" => i * 14,
+            _ => 0,
+        };
+        
+        let current_start = payload.start_time + Duration::days(days_to_add as i64);
+        let current_end = payload.end_time + Duration::days(days_to_add as i64);
+
+        let new_class = sqlx::query_as::<_, Class>(
+            r#"
+            INSERT INTO classes (
+                tenant_id, base_id, course_id, room_id,
+                start_time, end_time, max_capacity, status
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 'scheduled')
+            RETURNING *
+            "#,
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'scheduled')
-        RETURNING *
-        "#,
-    )
-    .bind(tenant_id)
-    .bind(base_id)
-    .bind(payload.course_id)
-    .bind(payload.teacher_id)
-    .bind(payload.room_id)
-    .bind(payload.start_time)
-    .bind(payload.end_time)
-    .bind(payload.max_capacity)
-    .fetch_one(&state.db_pool)
-    .await
-    {
-        Ok(c) => c,
-        Err(e) => {
+        .bind(tenant_id)
+        .bind(base_id)
+        .bind(payload.course_id)
+        .bind(payload.room_id)
+        .bind(current_start)
+        .bind(current_end)
+        .bind(payload.max_capacity)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| {
             tracing::error!("Failed to create class: {}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+        for teacher_id in &payload.teacher_ids {
+             sqlx::query("INSERT INTO class_teachers (class_id, teacher_id) VALUES ($1, $2)")
+                .bind(new_class.id)
+                .bind(teacher_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(|e| {
+                    tracing::error!("Failed to link teacher: {}", e);
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?;
         }
-    };
-    Ok(Json(new_class))
+
+        created_classes.push(new_class);
+    }
+
+    tx.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(created_classes))
 }
 
-// (PATCH /api/v1/base/classes/:id - 调课/代课)
-// (需在 main.rs 中注册路由: .route("/api/v1/base/classes/:id", patch(update_class_handler)))
+// (PATCH /api/v1/base/classes/:id)
 pub async fn update_class_handler(
     State(state): State<AppState>,
     claims: Claims,
@@ -161,58 +181,86 @@ pub async fn update_class_handler(
 ) -> Result<StatusCode, StatusCode> {
     
     let tenant_id = claims.tenant_id;
-    let base_id = match claims.base_id {
-        Some(id) => id,
-        None => return Err(StatusCode::FORBIDDEN),
-    };
+    let base_id = match claims.base_id { Some(id) => id, None => return Err(StatusCode::FORBIDDEN) };
 
-    // 动态构建 UPDATE 语句
-    let mut query_builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new("UPDATE classes SET ");
-    let mut separated = query_builder.separated(", ");
+    let mut tx = state.db_pool.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    if let Some(tid) = payload.teacher_id {
-        separated.push("teacher_id = ");
-        separated.push_bind_unseparated(tid);
+    if payload.room_id.is_some() || payload.start_time.is_some() || payload.end_time.is_some() {
+        let mut query_builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new("UPDATE classes SET ");
+        let mut separated = query_builder.separated(", ");
+
+        if let Some(rid) = payload.room_id {
+            separated.push("room_id = ");
+            separated.push_bind_unseparated(rid);
+        }
+        if let Some(start) = payload.start_time {
+            separated.push("start_time = ");
+            separated.push_bind_unseparated(start);
+        }
+        if let Some(end) = payload.end_time {
+            separated.push("end_time = ");
+            separated.push_bind_unseparated(end);
+        }
+
+        query_builder.push(" WHERE id = ");
+        query_builder.push_bind(class_id);
+        query_builder.push(" AND tenant_id = ");
+        query_builder.push_bind(tenant_id);
+        query_builder.push(" AND base_id = ");
+        query_builder.push_bind(base_id);
+        
+        query_builder.build().execute(&mut *tx).await.map_err(|e| {
+            tracing::error!("Failed to update class info: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
     }
-    if let Some(rid) = payload.room_id {
-        separated.push("room_id = ");
-        separated.push_bind_unseparated(rid);
-    }
-    if let Some(start) = payload.start_time {
-        separated.push("start_time = ");
-        separated.push_bind_unseparated(start);
-    }
-    if let Some(end) = payload.end_time {
-        separated.push("end_time = ");
-        separated.push_bind_unseparated(end);
-    }
 
-    // 如果没有任何字段要更新，直接返回
-    if payload.teacher_id.is_none() && payload.room_id.is_none() 
-       && payload.start_time.is_none() && payload.end_time.is_none() {
-        return Ok(StatusCode::OK);
-    }
-
-    query_builder.push(" WHERE id = ");
-    query_builder.push_bind(class_id);
-    query_builder.push(" AND tenant_id = ");
-    query_builder.push_bind(tenant_id);
-    query_builder.push(" AND base_id = ");
-    query_builder.push_bind(base_id);
-
-    // 执行更新
-    let result = query_builder.build().execute(&state.db_pool).await;
-
-    match result {
-        Ok(res) => {
-            if res.rows_affected() == 0 {
-                return Err(StatusCode::NOT_FOUND); // 没找到课，或无权修改
-            }
-            Ok(StatusCode::OK)
-        },
-        Err(e) => {
-            tracing::error!("Failed to update class: {}", e);
-            Err(StatusCode::INTERNAL_SERVER_ERROR)
+    if let Some(teacher_ids) = payload.teacher_ids {
+        sqlx::query("DELETE FROM class_teachers WHERE class_id = $1")
+            .bind(class_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            
+        for tid in teacher_ids {
+            sqlx::query("INSERT INTO class_teachers (class_id, teacher_id) VALUES ($1, $2)")
+                .bind(class_id)
+                .bind(tid)
+                .execute(&mut *tx)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         }
     }
+    
+    tx.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(StatusCode::OK)
+}
+
+// (DELETE /api/v1/base/classes/:id)
+pub async fn delete_class_handler(
+    State(state): State<AppState>,
+    claims: Claims,
+    Path(class_id): Path<Uuid>,
+) -> Result<StatusCode, StatusCode> {
+    let tenant_id = claims.tenant_id;
+    let base_id = match claims.base_id { Some(id) => id, None => return Err(StatusCode::FORBIDDEN) };
+
+    let result = sqlx::query(
+        "DELETE FROM classes WHERE id = $1 AND tenant_id = $2 AND base_id = $3"
+    )
+    .bind(class_id)
+    .bind(tenant_id)
+    .bind(base_id)
+    .execute(&state.db_pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to delete class: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if result.rows_affected() == 0 {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    Ok(StatusCode::NO_CONTENT)
 }

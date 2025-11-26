@@ -75,6 +75,8 @@ use handlers::{
     create_enrollment_handler, 
     get_enrollments_for_class_handler,
     complete_enrollment_handler,
+    delete_enrollment_handler,
+    delete_class_handler,
     
     // Honor & User
     create_honor_rank, 
@@ -203,11 +205,13 @@ async fn main() {
         .route("/api/v1/base/classes", get(get_base_classes_handler))
         // (★ 关键: 注册代课/修改接口)
         .route("/api/v1/base/classes/:id", patch(update_class_handler))
+        .route("/api/v1/base/classes/:id", axum::routing::delete(delete_class_handler))
         
         // Enrollment
         .route("/api/v1/enrollments", post(create_enrollment_handler))
         .route("/api/v1/classes/:id/enrollments", get(get_enrollments_for_class_handler))
         .route("/api/v1/enrollments/:id/complete", patch(complete_enrollment_handler))
+        .route("/api/v1/enrollments/:id", axum::routing::delete(delete_enrollment_handler))
 
         // Honor Rank
         .route("/api/v1/honor-ranks", post(create_honor_rank))

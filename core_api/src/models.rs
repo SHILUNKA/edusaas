@@ -255,6 +255,7 @@ pub struct Participant {
     pub gender: Option<String>,
     pub school_name: Option<String>,
     pub notes: Option<String>,
+    pub avatar_url: Option<String>
 }
 
 #[derive(Debug, Deserialize)]
@@ -265,6 +266,7 @@ pub struct CreateParticipantPayload {
     pub gender: Option<String>,
     pub school_name: Option<String>,
     pub notes: Option<String>,
+    pub avatar_url: Option<String>,
 }
 
 // --- ClassEnrollment ---
@@ -360,13 +362,19 @@ pub struct UserDetail {
     pub date_of_birth: Option<NaiveDate>,
     pub address: Option<String>,
     pub is_active: bool,
+    pub base_id: Option<Uuid>,
     pub base_name: Option<String>,
     pub role_name: Option<String>,
     pub created_at: DateTime<Utc>,
     
     #[serde(skip_serializing_if = "Option::is_none")]
     #[sqlx(default)] 
-    pub initial_password: Option<String>, 
+    pub initial_password: Option<String>,
+
+    #[sqlx(default)]
+    pub skills: Option<String>, // 逗号分隔的技能名
+    #[sqlx(default)]
+    pub is_teaching_now: Option<bool>, // 当前是否正在上课
 }
 
 #[derive(Debug, Deserialize)]
@@ -440,23 +448,34 @@ pub struct UpdateProcurementStatusPayload {
     pub reject_reason: Option<String>,
 }
 
-// --- 自动排课相关 ---
+// --- 【新增】Phase 6: 教师排课配置 (Schedule AI) ---
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TeacherQualificationPayload {
-    pub course_ids: Vec<Uuid>, // 批量设置老师能教的课
+// 1. 老师技能 (可教课程)
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct TeacherSkill {
+    pub course_id: Uuid,
+    // 前端展示用
+    pub course_name: Option<String>, 
 }
 
+// 2. 老师可用时间 (Availability)
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct TeacherAvailability {
     pub id: Uuid,
     pub teacher_id: Uuid,
-    pub day_of_week: i32,
+    pub day_of_week: i32, // 1-7
     pub start_time: chrono::NaiveTime,
     pub end_time: chrono::NaiveTime,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+// 3. [请求] 更新技能 (批量覆盖)
+#[derive(Debug, Deserialize)]
+pub struct UpdateTeacherSkillsPayload {
+    pub course_ids: Vec<Uuid>,
+}
+
+// 4. [请求] 新增时间段
+#[derive(Debug, Deserialize)]
 pub struct CreateAvailabilityPayload {
     pub day_of_week: i32,
     pub start_time: String, // "09:00"

@@ -76,6 +76,8 @@ pub use stock::*;
 pub mod user;
 pub use user::*;
 
-// ...
 pub mod procurement; // (新增)
 pub use procurement::*;
+
+pub mod schedule_ai;
+pub use schedule_ai::*;

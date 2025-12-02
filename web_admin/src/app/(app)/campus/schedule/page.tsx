@@ -1,7 +1,10 @@
 /*
- * 校区端: 排课日历 (V5.2 - 多彩课程版)
+ * 校区端: 排课日历 (V13.0 - AI 智能排课集成版)
  * 路径: /campus/schedule
- * 新增: 根据课程名称自动分配不同颜色，提升辨识度
+ * 功能:
+ * 1. AI 智能排课: 调用后端算法自动生成推荐课表
+ * 2. 交互排课: 鼠标框选新建、点击卡片编辑
+ * 3. 视觉优化: 沉浸式周视图、动态课程配色
  */
 'use client';
 
@@ -10,7 +13,10 @@ import { useSession } from 'next-auth/react';
 import FullCalendar from '@fullcalendar/react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { Calendar as CalendarIcon, User, MapPin, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { 
+    Calendar as CalendarIcon, User, MapPin, ChevronLeft, ChevronRight, 
+    Plus, Sparkles // (★ 引入 Sparkles 图标)
+} from 'lucide-react';
 import CreateClassModal from './CreateClassModal';
 import EditClassModal from './EditClassModal';
 import { API_BASE_URL } from '@/lib/config';
@@ -23,9 +29,12 @@ interface ClassDetail {
   room_name: string;
   start_time: string;
   end_time: string;
+  // (V12.1 新增布局字段)
+  room_rows?: number;
+  room_columns?: number;
 }
 
-// --- (★ 新增) 配色方案定义 ---
+// --- 配色方案 ---
 const COLOR_PALETTES = [
     { border: 'border-indigo-500', bg: 'bg-indigo-50/90', hover: 'hover:bg-indigo-100', textTitle: 'text-indigo-900', textSub: 'text-indigo-700', icon: 'text-indigo-600/80' },
     { border: 'border-emerald-500', bg: 'bg-emerald-50/90', hover: 'hover:bg-emerald-100', textTitle: 'text-emerald-900', textSub: 'text-emerald-700', icon: 'text-emerald-600/80' },
@@ -35,7 +44,6 @@ const COLOR_PALETTES = [
     { border: 'border-violet-500', bg: 'bg-violet-50/90', hover: 'hover:bg-violet-100', textTitle: 'text-violet-900', textSub: 'text-violet-700', icon: 'text-violet-600/80' },
 ];
 
-// (★ 新增) 根据课程名称获取固定的颜色
 const getColorForCourse = (courseName: string) => {
     let hash = 0;
     for (let i = 0; i < courseName.length; i++) {
@@ -48,9 +56,11 @@ const getColorForCourse = (courseName: string) => {
 export default function SchedulePage() {
   const { data: session } = useSession();
   const token = session?.user?.rawToken;
+  const API = API_BASE_URL;
   
   const calendarRef = useRef<FullCalendar>(null);
 
+  // --- 状态管理 ---
   const [events, setEvents] = useState<any[]>([]);
   const [currentDateTitle, setCurrentDateTitle] = useState("");
   
@@ -58,8 +68,10 @@ export default function SchedulePage() {
   const [editingClass, setEditingClass] = useState<ClassDetail | null>(null);
   const [selectedSlotDate, setSelectedSlotDate] = useState<{ start: Date, end: Date } | null>(null);
 
-  const API = API_BASE_URL;
+  // (★ 新增: AI 加载状态)
+  const [isAiLoading, setIsAiLoading] = useState(false);
 
+  // --- 1. 数据获取 ---
   const fetchClasses = async () => {
       if (!token) return;
       try {
@@ -86,6 +98,33 @@ export default function SchedulePage() {
     fetchClasses();
   }, [token]);
 
+  // --- 2. AI 智能排课逻辑 (★ 新增) ---
+  const handleAutoSchedule = async () => {
+      if (!confirm("🤖 确认启动 AI 智能排课？\n系统将根据【员工管理】中配置的老师技能和时间，自动为您生成本周的推荐课表。")) return;
+      
+      setIsAiLoading(true);
+      try {
+          const res = await fetch(`${API}/base/schedule/auto-generate`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          
+          if (res.ok) {
+              const data = await res.json();
+              alert(`🎉 排课完成！\n${data.message}`);
+              fetchClasses(); // 刷新日历显示新课表
+          } else {
+              throw new Error("AI 服务响应异常");
+          }
+      } catch (e) {
+          alert("排课失败，请检查是否已配置老师技能和可用时间。");
+          console.error(e);
+      } finally {
+          setIsAiLoading(false);
+      }
+  };
+
+  // --- 3. 日历控制 ---
   const handlePrev = () => { calendarRef.current?.getApi().prev(); updateTitle(); };
   const handleNext = () => { calendarRef.current?.getApi().next(); updateTitle(); };
   const handleToday = () => { calendarRef.current?.getApi().today(); updateTitle(); };
@@ -93,8 +132,14 @@ export default function SchedulePage() {
 
   useEffect(() => { setTimeout(updateTitle, 100); }, []);
 
+  // --- 4. 交互处理 ---
   const handleDateSelect = (selectInfo: any) => {
       setSelectedSlotDate({ start: selectInfo.start, end: selectInfo.end });
+      setIsCreateModalOpen(true);
+  };
+
+  const handleManualCreate = () => {
+      setSelectedSlotDate(null);
       setIsCreateModalOpen(true);
   };
 
@@ -108,6 +153,8 @@ export default function SchedulePage() {
       
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white z-20">
+        
+        {/* 左侧：导航 */}
         <div className="flex items-center gap-6">
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 <CalendarIcon className="text-indigo-600" size={22} /> 
@@ -131,11 +178,32 @@ export default function SchedulePage() {
             </span>
         </div>
 
-        <div className="text-sm text-slate-400 italic flex items-center gap-2">
-           💡 提示: 鼠标拖拽空白处即可排课
+        {/* 右侧：按钮组 */}
+        <div className="flex items-center gap-3">
+            {/* (★ AI 按钮) */}
+            <button 
+                onClick={handleAutoSchedule}
+                disabled={isAiLoading}
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-full hover:opacity-90 shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                {isAiLoading ? (
+                    <span className="animate-spin">✨</span> 
+                ) : (
+                    <Sparkles size={18} strokeWidth={2} />
+                )}
+                <span className="font-bold tracking-wide text-sm">
+                    {isAiLoading ? 'AI 计算中...' : '一键智能排课'}
+                </span>
+            </button>
+
+            {/* 提示文本 */}
+            <div className="hidden md:block text-xs text-slate-400 italic ml-2 border-l pl-3">
+               💡 提示: 鼠标拖拽日历空白处即可排课
+            </div>
         </div>
       </div>
 
+      {/* 日历主体 */}
       <div className="flex-1 p-4 bg-white overflow-hidden">
           <FullCalendar
             ref={calendarRef}
@@ -151,35 +219,29 @@ export default function SchedulePage() {
             slotMinTime="08:00:00" 
             slotMaxTime="22:00:00" 
             slotDuration="00:30:00"
+            
             selectable={true}         
             selectMirror={true}
             select={handleDateSelect} 
             eventClick={handleEventClick} 
-            slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
             
+            slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
             dayHeaderContent={(arg) => {
                 const date = arg.date;
-                const weekday = date.toLocaleDateString('zh-CN', { weekday: 'short' });
-                const dayNum = date.getDate();
                 const isToday = date.toDateString() === new Date().toDateString();
-                
                 return (
                     <div className={`flex flex-col items-center py-1 ${isToday ? 'text-indigo-600' : 'text-slate-600'}`}>
-                        <span className="text-xs font-medium opacity-80 mb-1">{weekday}</span>
-                        <span className={`text-xl font-bold leading-none ${isToday ? 'bg-indigo-50 px-2 py-1 rounded-md' : ''}`}>
-                            {dayNum}
-                        </span>
+                        <span className="text-xs font-medium opacity-80 mb-1">{date.toLocaleDateString('zh-CN', { weekday: 'short' })}</span>
+                        <span className={`text-xl font-bold leading-none ${isToday ? 'bg-indigo-50 px-2 py-1 rounded-md' : ''}`}>{date.getDate()}</span>
                     </div>
                 );
             }}
 
             events={events}
             
-            // (★ 核心修改: 动态应用多彩样式)
             eventContent={(arg) => {
                 const { course_name_key, teacher_names, room_name } = arg.event.extendedProps;
-                // 获取该课程对应的配色方案
-                const colors = getColorForCourse(course_name_key);
+                const colors = getColorForCourse(course_name_key); // 动态颜色
 
                 return (
                     <div className={`h-full w-full p-2 flex flex-col border-l-4 rounded-r-md shadow-sm overflow-hidden cursor-pointer group transition-colors ${colors.border} ${colors.bg} ${colors.hover}`}>
@@ -202,6 +264,7 @@ export default function SchedulePage() {
           />
       </div>
 
+      {/* 弹窗组件 */}
       {token && (
           <CreateClassModal 
             token={token}

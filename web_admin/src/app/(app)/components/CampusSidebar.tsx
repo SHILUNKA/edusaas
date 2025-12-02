@@ -1,6 +1,8 @@
 // src/app/(app)/components/CampusSidebar.tsx
 'use client';
 import Link from 'next/link';
+import { Users } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 
 // (图标组件们... 保持不变)
 const HomeIcon = () => <span>🏠</span>;
@@ -16,6 +18,11 @@ export function CampusSidebar() {
       icon: HomeIcon 
     },
     { 
+      name: "今日课堂 (点名)", 
+      href: "/campus/classes", 
+      icon: () => <ClipboardList size={20} /> 
+    },
+    { 
       name: "排课与消课", // (★ "开课" 在这里)
       href: "/campus/schedule", 
       icon: ClassesIcon 
@@ -29,6 +36,12 @@ export function CampusSidebar() {
       name: "物料与库存", 
       href: "/campus/stock", 
       icon: StockIcon 
+    },
+
+    { 
+      name: "教职工管理", 
+      href: "/campus/staff", 
+      icon: () => <Users size={20} /> 
     },
   ];
 

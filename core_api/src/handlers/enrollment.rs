@@ -295,9 +295,18 @@ pub async fn get_enrollments_for_class_handler(
     
     let enrollments = match sqlx::query_as::<_, ClassEnrollment>(
         r#"
-        SELECT * FROM class_enrollments
-        WHERE class_id = $1 AND tenant_id = $2
-        ORDER BY created_at ASC
+        SELECT 
+            e.id, 
+            e.participant_id, 
+            e.status, 
+            e.created_at,
+            p.name AS participant_name,
+            p.avatar_url AS participant_avatar,
+            p.gender AS participant_gender
+        FROM class_enrollments e
+        JOIN participants p ON e.participant_id = p.id
+        WHERE e.class_id = $1 AND e.tenant_id = $2
+        ORDER BY p.name ASC
         "#,
     )
     .bind(class_id)

@@ -1,6 +1,7 @@
 /*
  * src/handlers/user.rs
- * 职责: 员工与权限管理 (V5.0 - 安全增强版)
+ * 职责: 员工与权限管理
+ * (★ V14.1 - 修复 UserDetail 初始化缺失 base_id ★)
  */
 use axum::{extract::State, http::StatusCode, Json};
 use uuid::Uuid;
@@ -8,72 +9,94 @@ use bcrypt::{hash, DEFAULT_COST};
 use crate::models::{UserDetail, CreateUserPayload};
 use super::{AppState, auth::Claims};
 use chrono::{DateTime, Utc};
-use sqlx::FromRow;
-// (★ 关键) 引入随机数生成
+use sqlx::{FromRow, QueryBuilder};
 use rand::{Rng, seq::SliceRandom};
 
 // --- 强密码生成工具函数 ---
 fn generate_strong_password() -> String {
     let mut rng = rand::thread_rng();
-    // 字符集定义
     let upper: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars().collect();
     let lower: Vec<char> = "abcdefghijklmnopqrstuvwxyz".chars().collect();
     let numbers: Vec<char> = "0123456789".chars().collect();
     let special: Vec<char> = "!@#$%^&*".chars().collect();
-
     let mut password: Vec<char> = Vec::new();
-    // 1. 保证每种类型至少有一个
     password.push(*upper.choose(&mut rng).unwrap());
     password.push(*lower.choose(&mut rng).unwrap());
     password.push(*numbers.choose(&mut rng).unwrap());
     password.push(*special.choose(&mut rng).unwrap());
-
-    // 2. 填充剩余 4 位 (共 8 位)
     let all_chars = [upper, lower, numbers, special].concat();
-    for _ in 0..4 {
-        password.push(*all_chars.choose(&mut rng).unwrap());
-    }
-
-    // 3. 打乱顺序
+    for _ in 0..4 { password.push(*all_chars.choose(&mut rng).unwrap()); }
     password.shuffle(&mut rng);
     password.into_iter().collect()
 }
 
-// (GET) 获取所有员工
+// (GET) 获取员工列表 (含技能与实时状态 + base_id)
 pub async fn get_tenant_users(
     State(state): State<AppState>,
     claims: Claims,
 ) -> Result<Json<Vec<UserDetail>>, StatusCode> {
+    
+    let tenant_id = claims.tenant_id;
     let is_hq = claims.roles.iter().any(|r| r == "role.tenant.admin");
-    if !is_hq {
+    let is_base = claims.roles.iter().any(|r| r == "role.base.admin");
+
+    if !is_hq && !is_base {
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let users = match sqlx::query_as::<_, UserDetail>(
+    // (★ V14.0 更新: 增加 u.base_id 查询)
+    let mut query_builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
         r#"
         SELECT 
             u.id, u.email, u.full_name, u.is_active, u.created_at,
             u.phone_number, u.gender, u.blood_type, u.date_of_birth, u.address,
+            u.base_id, -- (★ 关键: 必须查出来)
             b.name as base_name,
             (SELECT r.name_key FROM roles r 
              JOIN user_roles ur ON r.id = ur.role_id 
-             WHERE ur.user_id = u.id LIMIT 1) as role_name
+             WHERE ur.user_id = u.id LIMIT 1) as role_name,
+             
+            -- (1. 获取技能)
+            (SELECT STRING_AGG(c.name_key, ', ')
+             FROM teacher_qualified_courses tqc
+             JOIN courses c ON tqc.course_id = c.id
+             WHERE tqc.teacher_id = u.id) as skills,
+             
+            -- (2. 获取实时状态)
+            EXISTS (
+                SELECT 1 FROM classes cl
+                JOIN class_teachers ct ON cl.id = ct.class_id
+                WHERE ct.teacher_id = u.id
+                AND cl.status = 'scheduled'
+                AND CURRENT_TIMESTAMP BETWEEN cl.start_time AND cl.end_time
+            ) as is_teaching_now
+
         FROM users u
         LEFT JOIN bases b ON u.base_id = b.id
-        WHERE u.tenant_id = $1
-        ORDER BY u.created_at DESC
+        WHERE u.tenant_id = 
         "#
-    )
-    .bind(claims.tenant_id)
-    .fetch_all(&state.db_pool)
-    .await
-    {
-        Ok(users) => users,
-        Err(e) => {
-            tracing::error!("Failed to fetch users: {}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    );
+
+    query_builder.push_bind(tenant_id);
+
+    if !is_hq && is_base {
+        if let Some(base_id) = claims.base_id {
+            query_builder.push(" AND u.base_id = ");
+            query_builder.push_bind(base_id);
+        } else {
+            return Err(StatusCode::FORBIDDEN);
         }
-    };
+    }
+
+    query_builder.push(" ORDER BY u.created_at DESC ");
+
+    let users = query_builder.build_query_as::<UserDetail>()
+        .fetch_all(&state.db_pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to fetch users: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     Ok(Json(users))
 }
@@ -84,34 +107,39 @@ pub async fn create_tenant_user(
     claims: Claims,
     Json(payload): Json<CreateUserPayload>,
 ) -> Result<Json<UserDetail>, StatusCode> {
-    // 1. 权限检查
+    
     let is_hq = claims.roles.iter().any(|r| r == "role.tenant.admin");
-    if !is_hq {
+    let is_base = claims.roles.iter().any(|r| r == "role.base.admin");
+
+    if !is_hq && !is_base {
         return Err(StatusCode::FORBIDDEN);
     }
 
+    let (final_base_id, final_role_key) = if is_hq {
+        (payload.base_id, payload.role_key)
+    } else {
+        let my_base_id = claims.base_id.ok_or(StatusCode::FORBIDDEN)?;
+        (Some(my_base_id), "role.teacher".to_string())
+    };
+
     let mut tx = state.db_pool.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // 2. (★ 核心) 自动生成强密码
     let plain_password = generate_strong_password();
-    
-    // 3. 哈希处理
     let password_hash = hash(&plain_password, DEFAULT_COST).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // 4. 插入 User (包含详细档案 + 密码修改时间)
     let user_id: Uuid = sqlx::query_scalar(
         r#"
         INSERT INTO users (
             tenant_id, base_id, email, password_hash, full_name, is_active,
             phone_number, gender, blood_type, date_of_birth, address,
-            password_changed_at -- (★ 记录当前时间)
+            password_changed_at
         )
         VALUES ($1, $2, $3, $4, $5, true, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
         RETURNING id
         "#
     )
     .bind(claims.tenant_id)
-    .bind(payload.base_id)
+    .bind(final_base_id)
     .bind(&payload.email)
     .bind(password_hash)
     .bind(&payload.full_name)
@@ -127,11 +155,10 @@ pub async fn create_tenant_user(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
 
-    // 5. 分配角色
     let role_id: Option<Uuid> = sqlx::query_scalar(
         "SELECT id FROM roles WHERE name_key = $1 AND tenant_id = $2"
     )
-    .bind(&payload.role_key)
+    .bind(&final_role_key)
     .bind(claims.tenant_id)
     .fetch_optional(&mut *tx)
     .await
@@ -149,34 +176,25 @@ pub async fn create_tenant_user(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    // 6. (★ 业务联动) 如果是教师，自动创建档案
-    if payload.role_key == "role.teacher" {
-        if let Some(base_id) = payload.base_id {
+    if final_role_key == "role.teacher" || final_role_key == "role.base.admin" {
+        if let Some(bid) = final_base_id {
             sqlx::query(
-                r#"
-                INSERT INTO teachers (user_id, tenant_id, base_id, is_active)
-                VALUES ($1, $2, $3, true)
-                "#
+                "INSERT INTO teachers (user_id, tenant_id, base_id, is_active) VALUES ($1, $2, $3, true)"
             )
             .bind(user_id)
             .bind(claims.tenant_id)
-            .bind(base_id)
+            .bind(bid)
             .execute(&mut *tx)
             .await
             .map_err(|e| {
                 tracing::error!("Failed to create teacher profile: {}", e);
                 StatusCode::INTERNAL_SERVER_ERROR
             })?;
-        } else {
-            tracing::warn!("Teacher creation failed: base_id is missing");
-            tx.rollback().await.ok();
-            return Err(StatusCode::BAD_REQUEST); 
         }
     }
 
     tx.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    // 7. 返回数据 (包含明文密码)
     Ok(Json(UserDetail {
         id: user_id,
         email: payload.email,
@@ -187,10 +205,13 @@ pub async fn create_tenant_user(
         date_of_birth: payload.date_of_birth,
         address: payload.address,
         is_active: true,
-        base_name: None,
-        role_name: Some(payload.role_key),
+        base_name: None, // 刷新后会有
+        // (★ 修复: 补上 base_id)
+        base_id: final_base_id, 
+        role_name: Some(final_role_key),
         created_at: chrono::Utc::now(),
-        // (★ 关键: 返回生成的密码)
         initial_password: Some(plain_password),
+        skills: None, 
+        is_teaching_now: Some(false),
     }))
 }

@@ -1,14 +1,24 @@
 /*
 ====================================================================
---- 数据库初始化脚本 (V12.0 - 完整版) ---
---- 包含: 教室布局、多师排课、集采流程、19级军衔 ---
+--- 数据库初始化脚本 (V13.0 - 最终完整版) ---
+--- 包含: 
+--- 1. 基础: 租户, 基地, 员工(含详细档案), 角色
+--- 2. 教务: 多师排课(class_teachers), 教室布局(layout), 课程
+--- 3. 业务: CRM(家长/学员), 会员卡, 积分军衔(19级)
+--- 4. 运营: 物资集采(Procurement), 库存管理
+--- 5. 智能: 教师技能与时间配置(AI Scheduling)
 ====================================================================
 */
 
 -- 启用 UUID 扩展
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-/* Phase 0: SaaS 基础 */
+/*
+====================================================================
+--- Phase 0: SaaS 基础 (租户, B端员工, 角色) ---
+====================================================================
+*/
+
 CREATE TABLE tenants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL, 
@@ -33,12 +43,15 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(100),
     is_active BOOLEAN DEFAULT true,
+    
+    -- (V5.0+) 详细档案字段
     phone_number VARCHAR(50),
     gender VARCHAR(20),
     blood_type VARCHAR(10),
     date_of_birth DATE,
     address TEXT,
     password_changed_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -57,8 +70,15 @@ CREATE TABLE user_roles (
     PRIMARY KEY (user_id, role_id)
 );
 
-/* Phase 1: 资产与物料 */
-CREATE TYPE asset_status AS ENUM ('in_stock', 'in_use', 'in_class', 'in_maintenance', 'retired');
+/*
+====================================================================
+--- Phase 1: 资产与物料模块 ---
+====================================================================
+*/
+
+CREATE TYPE asset_status AS ENUM (
+    'in_stock', 'in_use', 'in_class', 'in_maintenance', 'retired'
+);
 
 CREATE TABLE asset_types (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -101,7 +121,12 @@ CREATE TABLE material_stock_changes (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-/* Phase 1: 会员系统 */
+/*
+====================================================================
+--- Phase 1: 会员 (Customer) 系统 ---
+====================================================================
+*/
+
 CREATE TABLE customers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -128,7 +153,9 @@ CREATE TABLE participants (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TYPE membership_tier_type AS ENUM ('time_based', 'usage_based');
+CREATE TYPE membership_tier_type AS ENUM (
+    'time_based', 'usage_based'
+);
 
 CREATE TABLE membership_tiers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -185,7 +212,12 @@ CREATE TABLE point_transactions (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-/* Phase 2: 教务 */
+/*
+====================================================================
+--- Phase 2: 教务 (教师, 课程, 排课) ---
+====================================================================
+*/
+
 CREATE TABLE teachers (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -196,6 +228,7 @@ CREATE TABLE teachers (
     is_active BOOLEAN DEFAULT true
 );
 
+-- (V12.0+ 修改: 增加教室布局字段)
 CREATE TABLE rooms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -203,8 +236,8 @@ CREATE TABLE rooms (
     name VARCHAR(100) NOT NULL, 
     capacity INT DEFAULT 10,
     is_schedulable BOOLEAN DEFAULT true,
-    layout_rows INT DEFAULT 5,   -- (★)
-    layout_columns INT DEFAULT 6 -- (★)
+    layout_rows INT DEFAULT 5,
+    layout_columns INT DEFAULT 6
 );
 
 CREATE TABLE courses (
@@ -233,6 +266,7 @@ CREATE TABLE course_required_asset_types (
     PRIMARY KEY (course_id, asset_type_id)
 );
 
+-- (V9.0+ 修改: 移除 teacher_id)
 CREATE TABLE classes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -245,6 +279,7 @@ CREATE TABLE classes (
     status VARCHAR(50) DEFAULT 'scheduled'
 );
 
+-- (V9.0+ 新增: 课程-老师关联表)
 CREATE TABLE class_teachers (
     class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
     teacher_id UUID NOT NULL REFERENCES teachers(user_id) ON DELETE CASCADE,
@@ -257,6 +292,7 @@ CREATE TABLE class_enrollments (
     class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
     participant_id UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
     customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    -- (V10.0+ 修改: 增加关联会员卡)
     customer_membership_id UUID REFERENCES customer_memberships(id),
     status VARCHAR(50) DEFAULT 'enrolled',
     teacher_feedback TEXT,
@@ -264,8 +300,14 @@ CREATE TABLE class_enrollments (
     UNIQUE(class_id, participant_id)
 );
 
-/* Phase 5: 采购 */
+/*
+====================================================================
+--- Phase 5: 采购与供应链 (Procurement) ---
+====================================================================
+*/
+
 CREATE TYPE procurement_status AS ENUM ('pending', 'approved', 'rejected', 'shipped', 'received');
+
 CREATE TABLE procurement_orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -277,6 +319,7 @@ CREATE TABLE procurement_orders (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
 CREATE TABLE procurement_items (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID NOT NULL REFERENCES procurement_orders(id) ON DELETE CASCADE,
@@ -285,12 +328,18 @@ CREATE TABLE procurement_items (
     check (quantity > 0)
 );
 
-/* Phase 6: 智能排课 */
+/*
+====================================================================
+--- Phase 6: 智能排课基础 (AI Scheduling) ---
+====================================================================
+*/
+
 CREATE TABLE teacher_qualified_courses (
     teacher_id UUID NOT NULL REFERENCES teachers(user_id) ON DELETE CASCADE,
     course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
     PRIMARY KEY (teacher_id, course_id)
 );
+
 CREATE TABLE teacher_availability (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     teacher_id UUID NOT NULL REFERENCES teachers(user_id) ON DELETE CASCADE,
@@ -300,8 +349,17 @@ CREATE TABLE teacher_availability (
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
-/* 日志 */
-CREATE TYPE login_status AS ENUM ('success', 'failed');
+/*
+====================================================================
+--- Phase 1: B端员工 登录日志 ---
+====================================================================
+*/
+
+CREATE TYPE login_status AS ENUM (
+    'success',
+    'failed'
+);
+
 CREATE TABLE user_login_history (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email_attempted VARCHAR(255) NOT NULL, 
@@ -314,11 +372,17 @@ CREATE TABLE user_login_history (
     failure_reason_key VARCHAR(255) 
 );
 
--- 索引
+/*
+====================================================================
+--- 索引区 ---
+====================================================================
+*/
+
 CREATE INDEX idx_assets_tenant_base ON assets (tenant_id, base_id);
 CREATE INDEX idx_assets_type ON assets (asset_type_id);
 CREATE INDEX idx_materials_tenant ON materials (tenant_id);
 CREATE INDEX idx_material_stock_changes_material_base ON material_stock_changes (material_id, base_id);
+
 CREATE INDEX idx_customers_tenant_phone ON customers (tenant_id, phone_number);
 CREATE INDEX idx_participants_customer ON participants (customer_id);
 CREATE INDEX idx_membership_tiers_tenant ON membership_tiers (tenant_id);
@@ -326,29 +390,51 @@ CREATE INDEX idx_customer_memberships_customer ON customer_memberships (customer
 CREATE INDEX idx_customer_memberships_participant ON customer_memberships (participant_id);
 CREATE INDEX idx_honor_ranks_tenant_level ON honor_ranks (tenant_id, rank_level);
 CREATE INDEX idx_point_transactions_participant ON point_transactions (participant_id);
+
 CREATE INDEX idx_teachers_tenant_base ON teachers (tenant_id, base_id);
 CREATE INDEX idx_rooms_tenant_base ON rooms (tenant_id, base_id);
 CREATE INDEX idx_courses_tenant ON courses (tenant_id);
 CREATE INDEX idx_classes_tenant_base ON classes (tenant_id, base_id);
+
+-- (V9.0+ 更新: 针对时间、教室、老师的查询优化)
 CREATE INDEX idx_classes_time_room ON classes (start_time, end_time, room_id);
 CREATE INDEX idx_class_teachers_teacher ON class_teachers (teacher_id);
+
 CREATE INDEX idx_class_enrollments_class ON class_enrollments (class_id);
 CREATE INDEX idx_class_enrollments_participant ON class_enrollments (participant_id);
+
 CREATE INDEX idx_procurement_orders_tenant ON procurement_orders(tenant_id);
 CREATE INDEX idx_procurement_orders_base ON procurement_orders(base_id);
 CREATE INDEX idx_procurement_orders_status ON procurement_orders(status);
+
 CREATE INDEX idx_teacher_availability_tid ON teacher_availability(teacher_id);
+
 CREATE INDEX idx_user_login_history_user_id ON user_login_history (user_id);
 CREATE INDEX idx_user_login_history_tenant_id ON user_login_history (tenant_id);
 CREATE INDEX idx_user_login_history_email ON user_login_history (email_attempted);
 CREATE INDEX idx_user_login_history_timestamp ON user_login_history (login_timestamp);
 
--- Seed Data
-INSERT INTO tenants (name) VALUES ('默认测试品牌') ON CONFLICT DO NOTHING;
-INSERT INTO roles (tenant_id, name_key, description_key) SELECT id, 'role.tenant.admin', '总部超级管理员' FROM tenants LIMIT 1 ON CONFLICT DO NOTHING;
-INSERT INTO roles (tenant_id, name_key, description_key) SELECT id, 'role.base.admin', '分基地/校区管理员' FROM tenants LIMIT 1 ON CONFLICT DO NOTHING;
-INSERT INTO roles (tenant_id, name_key, description_key) SELECT id, 'role.teacher', '普通教师/员工' FROM tenants LIMIT 1 ON CONFLICT DO NOTHING;
+/*
+====================================================================
+--- Seed Data: 初始数据预设 ---
+====================================================================
+*/
 
+INSERT INTO tenants (name) VALUES ('默认测试品牌') ON CONFLICT DO NOTHING;
+
+INSERT INTO roles (tenant_id, name_key, description_key)
+SELECT id, 'role.tenant.admin', '总部超级管理员' FROM tenants LIMIT 1
+ON CONFLICT DO NOTHING;
+
+INSERT INTO roles (tenant_id, name_key, description_key)
+SELECT id, 'role.base.admin', '分基地/校区管理员' FROM tenants LIMIT 1
+ON CONFLICT DO NOTHING;
+
+INSERT INTO roles (tenant_id, name_key, description_key)
+SELECT id, 'role.teacher', '普通教师/员工' FROM tenants LIMIT 1
+ON CONFLICT DO NOTHING;
+
+-- 预设 19 级军衔体系
 INSERT INTO honor_ranks (tenant_id, name_key, rank_level, points_required, badge_icon_url)
 VALUES 
 ((SELECT id FROM tenants LIMIT 1), '列兵', 1, 0, NULL),
@@ -371,3 +457,9 @@ VALUES
 ((SELECT id FROM tenants LIMIT 1), '中将', 18, 220000, NULL),
 ((SELECT id FROM tenants LIMIT 1), '上将', 19, 300000, NULL)
 ON CONFLICT DO NOTHING;
+
+/*
+====================================================================
+--- 脚本结束 ---
+====================================================================
+*/

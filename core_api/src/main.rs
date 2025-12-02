@@ -94,7 +94,11 @@ use handlers::{
     update_procurement_status,
     
     // AI Scheduling
-    // (如果之前实现了 schedule_ai.rs，这里也需要导入，暂略以保证当前功能跑通)
+    get_teacher_config_handler,
+    update_teacher_skills_handler,
+    add_teacher_availability_handler,
+    delete_teacher_availability_handler,
+    trigger_auto_schedule_handler,
 };
 
 #[tokio::main]
@@ -230,6 +234,13 @@ async fn main() {
 
         // Phase 4 看板 (分店)
         .route("/api/v1/base/dashboard/stats", get(get_base_dashboard_stats))
+
+        // AI Scheduling & Teacher Config
+        .route("/api/v1/teachers/:id/config", get(get_teacher_config_handler))
+        .route("/api/v1/teachers/:id/skills", axum::routing::put(update_teacher_skills_handler))
+        .route("/api/v1/teachers/:id/availability", post(add_teacher_availability_handler))
+        .route("/api/v1/teachers/availability/:id", axum::routing::delete(delete_teacher_availability_handler))
+        .route("/api/v1/base/schedule/auto-generate", post(trigger_auto_schedule_handler))
 
         .layer(cors)
         .layer(TraceLayer::new_for_http())

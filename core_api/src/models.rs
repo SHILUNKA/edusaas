@@ -269,6 +269,18 @@ pub struct CreateParticipantPayload {
     pub avatar_url: Option<String>,
 }
 
+#[derive(Debug, Serialize, FromRow)]
+pub struct EnrollmentDetail {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub participant_id: Uuid,
+    pub participant_name: String,       // (JOIN participants.name)
+    pub participant_avatar: Option<String>, // (JOIN participants.avatar_url)
+    pub participant_gender: Option<String>, // (JOIN participants.gender)
+    pub status: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
 // --- ClassEnrollment ---
 #[derive(Debug, Serialize, FromRow)]
 pub struct ClassEnrollment {
@@ -489,4 +501,57 @@ pub struct AutoScheduleRequest {
     pub end_date: chrono::NaiveDate,
     pub tenant_id: Uuid,
     pub base_id: Uuid,
+}
+
+// --- Phase 7: 财务中心 (Financial Center) ---
+
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq, Eq, Clone, Copy)]
+#[sqlx(type_name = "transaction_type", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TransactionType {
+    Income,
+    Expense,
+    Refund,
+    Usage,
+    Adjustment,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq, Eq, Clone, Copy)]
+#[sqlx(type_name = "transaction_category", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum TransactionCategory {
+    MembershipSale,
+    ProcurementCost,
+    CourseRevenue,
+    Salary,
+    Utility,
+    Rent,
+    Other,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+pub struct FinancialTransaction {
+    pub id: Uuid,
+    pub tenant_id: Uuid,
+    pub base_id: Option<Uuid>,
+    pub amount_in_cents: i32,
+    pub transaction_type: TransactionType,
+    pub category: TransactionCategory,
+    pub related_entity_id: Option<Uuid>,
+    pub description: Option<String>,
+    pub created_at: DateTime<Utc>,
+    
+    // (用于前端展示的 JOIN 字段)
+    pub base_name: Option<String>,       // JOIN bases
+    pub created_by_name: Option<String>, // JOIN users
+}
+
+// [请求] 手动录入流水 (例如: 录入水电费)
+#[derive(Debug, Deserialize)]
+pub struct CreateTransactionPayload {
+    pub base_id: Option<Uuid>,
+    pub amount: f64, // 前端传元 (100.00)
+    pub transaction_type: TransactionType,
+    pub category: TransactionCategory,
+    pub description: String,
 }

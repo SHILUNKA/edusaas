@@ -1,12 +1,13 @@
 /*
 ====================================================================
---- 数据库初始化脚本 (V13.0 - 最终完整版) ---
+--- 数据库初始化脚本 (V15.0 - 完整版: 含财务中心) ---
 --- 包含: 
 --- 1. 基础: 租户, 基地, 员工(含详细档案), 角色
 --- 2. 教务: 多师排课(class_teachers), 教室布局(layout), 课程
 --- 3. 业务: CRM(家长/学员), 会员卡, 积分军衔(19级)
 --- 4. 运营: 物资集采(Procurement), 库存管理
 --- 5. 智能: 教师技能与时间配置(AI Scheduling)
+--- 6. 财务: 交易流水账本 (Financial Ledger)
 ====================================================================
 */
 
@@ -44,7 +45,7 @@ CREATE TABLE users (
     full_name VARCHAR(100),
     is_active BOOLEAN DEFAULT true,
     
-    -- (V5.0+) 详细档案字段
+    -- 详细档案字段
     phone_number VARCHAR(50),
     gender VARCHAR(20),
     blood_type VARCHAR(10),
@@ -149,6 +150,7 @@ CREATE TABLE participants (
     gender VARCHAR(50),
     school_name VARCHAR(255),
     notes TEXT,
+    avatar_url TEXT, -- (V14.0 新增)
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -228,7 +230,6 @@ CREATE TABLE teachers (
     is_active BOOLEAN DEFAULT true
 );
 
--- (V12.0+ 修改: 增加教室布局字段)
 CREATE TABLE rooms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -266,7 +267,6 @@ CREATE TABLE course_required_asset_types (
     PRIMARY KEY (course_id, asset_type_id)
 );
 
--- (V9.0+ 修改: 移除 teacher_id)
 CREATE TABLE classes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -279,7 +279,7 @@ CREATE TABLE classes (
     status VARCHAR(50) DEFAULT 'scheduled'
 );
 
--- (V9.0+ 新增: 课程-老师关联表)
+-- 课程-老师关联表 (多对多)
 CREATE TABLE class_teachers (
     class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
     teacher_id UUID NOT NULL REFERENCES teachers(user_id) ON DELETE CASCADE,
@@ -292,7 +292,6 @@ CREATE TABLE class_enrollments (
     class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
     participant_id UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
     customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-    -- (V10.0+ 修改: 增加关联会员卡)
     customer_membership_id UUID REFERENCES customer_memberships(id),
     status VARCHAR(50) DEFAULT 'enrolled',
     teacher_feedback TEXT,
@@ -351,6 +350,62 @@ CREATE TABLE teacher_availability (
 
 /*
 ====================================================================
+--- Phase 7: 财务中心 (Financial Center) - (★ V15.0 新增) ---
+====================================================================
+*/
+
+-- 交易方向: 收入(流入), 支出(流出), 退款, 耗课(确认收入), 调账
+CREATE TYPE transaction_type AS ENUM ('income', 'expense', 'refund', 'usage', 'adjustment');
+
+-- 业务场景 (用于筛选): 办卡、采购、消课收入、工资、水电、房租、其他
+CREATE TYPE transaction_category AS ENUM (
+    'membership_sale',   -- 销售会员卡 (预收)
+    'procurement_cost',  -- 采购成本
+    'course_revenue',    -- 课时收入 (消课)
+    'salary',            -- 工资
+    'utility',           -- 水电杂费
+    'rent',              -- 房租
+    'other'              -- 其他
+);
+
+-- 会计科目 (简化版 CAS 准则): 用于自动生成财务报表
+CREATE TYPE account_subject AS ENUM (
+    'cash',                -- 资产: 货币资金 (银行/现金)
+    'contract_liability',  -- 负债: 合同负债 (预收学费)
+    'revenue',             -- 损益: 主营业务收入 (确认收入)
+    'cost',                -- 损益: 主营业务成本 (课时费/物料)
+    'expense',             -- 损益: 管理/销售费用 (房租水电)
+    'refund_payable'       -- 负债: 应付退费
+);
+
+CREATE TABLE financial_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    base_id UUID REFERENCES bases(id) ON DELETE SET NULL, -- 归属分店
+    
+    -- 金额 (单位: 分)
+    -- 收入记正数, 支出/退款记负数
+    amount_in_cents INT NOT NULL, 
+    
+    -- 业务分类
+    transaction_type transaction_type NOT NULL,
+    category transaction_category NOT NULL,
+    
+    -- 会计分录 (借贷关系，用于生成报表)
+    debit_subject account_subject,  -- 借方
+    credit_subject account_subject, -- 贷方
+
+    -- 关联单据 (用于追溯)
+    related_entity_id UUID, 
+    
+    description TEXT,       -- '张三办理年卡', '301教室空调费'
+    
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL, -- 经手人
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+/*
+====================================================================
 --- Phase 1: B端员工 登录日志 ---
 ====================================================================
 */
@@ -396,7 +451,6 @@ CREATE INDEX idx_rooms_tenant_base ON rooms (tenant_id, base_id);
 CREATE INDEX idx_courses_tenant ON courses (tenant_id);
 CREATE INDEX idx_classes_tenant_base ON classes (tenant_id, base_id);
 
--- (V9.0+ 更新: 针对时间、教室、老师的查询优化)
 CREATE INDEX idx_classes_time_room ON classes (start_time, end_time, room_id);
 CREATE INDEX idx_class_teachers_teacher ON class_teachers (teacher_id);
 
@@ -413,6 +467,10 @@ CREATE INDEX idx_user_login_history_user_id ON user_login_history (user_id);
 CREATE INDEX idx_user_login_history_tenant_id ON user_login_history (tenant_id);
 CREATE INDEX idx_user_login_history_email ON user_login_history (email_attempted);
 CREATE INDEX idx_user_login_history_timestamp ON user_login_history (login_timestamp);
+
+-- 财务索引
+CREATE INDEX idx_finance_tenant_base_time ON financial_transactions(tenant_id, base_id, created_at);
+CREATE INDEX idx_finance_category ON financial_transactions(transaction_type, category);
 
 /*
 ====================================================================

@@ -1,11 +1,12 @@
 /*
  * src/handlers/membership.rs
- * 职责: 会员卡种 (MembershipTier) 管理
- * (★ V5.0 - 补全查询接口 & 修复命名 ★)
+ * 职责: 会员卡种 (MembershipTier) 管理 & 分配
+ * (★ V15.1 - 修复 Uuid 导入错误 ★)
  */
 
-use axum::{extract::{State, Path}, http::StatusCode, Json}; // (★ 修改: 引入 Path)
+use axum::{extract::State, http::StatusCode, Json};
 use chrono::{Utc, DateTime};
+use uuid::Uuid; // (★ 修复: 添加这行导入)
 
 use super::AppState;
 use super::auth::Claims; 
@@ -16,9 +17,8 @@ use crate::models::{
     CreateCustomerMembershipPayload,
 };
 
-
 // (GET /api/v1/membership-tiers)
-pub async fn get_membership_tiers_handler( // (★ 确认后缀)
+pub async fn get_membership_tiers_handler(
     State(state): State<AppState>,
     claims: Claims, 
 ) -> Result<Json<Vec<MembershipTier>>, StatusCode> {
@@ -47,7 +47,7 @@ pub async fn get_membership_tiers_handler( // (★ 确认后缀)
 }
 
 // (POST /api/v1/membership-tiers)
-pub async fn create_membership_tier_handler( // (★ 确认后缀)
+pub async fn create_membership_tier_handler(
     State(state): State<AppState>,
     claims: Claims, 
     Json(payload): Json<CreateMembershipTierPayload>,
@@ -94,7 +94,9 @@ pub async fn create_membership_tier_handler( // (★ 确认后缀)
     Ok(Json(new_tier))
 }
 
-// (POST /api/v1/customer-memberships - 分配会员卡)
+// --- API-J: 为客户分配会员卡 (含自动记账) ---
+
+// (POST /api/v1/customer-memberships)
 pub async fn assign_membership_handler(
     State(state): State<AppState>,
     claims: Claims, 
@@ -103,14 +105,24 @@ pub async fn assign_membership_handler(
 
     let tenant_id = claims.tenant_id;
 
+    // 1. 安全校验: 必须是基地员工
     let _base_id = match claims.base_id {
         Some(id) => id,
-        None => return Err(StatusCode::FORBIDDEN), 
+        None => {
+            tracing::warn!("Tenant admin tried to assign membership without base_id");
+            return Err(StatusCode::FORBIDDEN); 
+        }
     };
 
-    let mut tx = state.db_pool.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut tx = match state.db_pool.begin().await {
+        Ok(tx) => tx,
+        Err(e) => {
+            tracing::error!("Failed to start transaction: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
 
-    // 1. 校验 tier
+    // 2. 校验卡种
     let tier = match sqlx::query_as::<_, MembershipTier>(
         "SELECT * FROM membership_tiers WHERE id = $1 AND tenant_id = $2 AND is_active = true"
     )
@@ -118,7 +130,7 @@ pub async fn assign_membership_handler(
     .bind(tenant_id)
     .fetch_optional(&mut *tx)
     .await {
-        Ok(Some(t)) => t,
+        Ok(Some(tier_data)) => tier_data,
         Ok(None) => {
             tx.rollback().await.ok();
             return Err(StatusCode::NOT_FOUND);
@@ -129,7 +141,7 @@ pub async fn assign_membership_handler(
         }
     };
 
-    // 2. 校验 customer
+    // 3. 校验客户
     let customer_check = sqlx::query("SELECT id FROM customers WHERE id = $1 AND tenant_id = $2")
         .bind(payload.customer_id)
         .bind(tenant_id)
@@ -138,15 +150,16 @@ pub async fn assign_membership_handler(
 
     if customer_check.is_err() || customer_check.unwrap().is_none() {
         tx.rollback().await.ok();
-        return Err(StatusCode::NOT_FOUND);
+        return Err(StatusCode::NOT_FOUND); 
     }
 
-    // 3. 计算有效期
+    // 4. 核心业务: 创建会员卡记录
     let start_date = Utc::now();
-    let expiry_date = tier.duration_days.map(|days| start_date + chrono::Duration::days(days as i64));
-    let remaining_uses = tier.usage_count;
+    let expiry_date: Option<DateTime<Utc>> = tier.duration_days.map(|days| 
+        start_date + chrono::Duration::days(days as i64)
+    );
+    let remaining_uses: Option<i32> = tier.usage_count;
 
-    // 4. 插入
     let new_membership = match sqlx::query_as::<_, CustomerMembership>(
         r#"
         INSERT INTO customer_memberships
@@ -163,71 +176,61 @@ pub async fn assign_membership_handler(
     .bind(start_date)
     .bind(expiry_date)
     .bind(remaining_uses)
-    .fetch_one(&mut *tx) 
+    .fetch_one(&mut *tx)
     .await {
-        Ok(m) => m,
+        Ok(membership) => membership,
         Err(e) => {
-            tracing::error!("Failed to assign membership: {}", e);
+            tracing::error!("Failed to create customer membership: {}", e);
             tx.rollback().await.ok();
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
     
-    tx.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // --- (★ V15.0 核心: 自动财务记账) ---
+    let price_in_cents = tier.price_in_cents;
+    let user_id_uuid = Uuid::parse_str(&claims.sub).unwrap_or_default(); // (★ 现在 Uuid 已导入)
+    
+    // 记录收入: 借-Cash, 贷-ContractLiability
+    sqlx::query(
+        r#"
+        INSERT INTO financial_transactions 
+        (tenant_id, base_id, amount_in_cents, transaction_type, category, related_entity_id, description, created_by, debit_subject, credit_subject)
+        VALUES ($1, $2, $3, 'income', 'membership_sale', $4, $5, $6, 'cash', 'contract_liability')
+        "#
+    )
+    .bind(tenant_id)
+    .bind(claims.base_id) // 收入归属当前操作人所在的基地
+    .bind(price_in_cents) // 正数
+    .bind(new_membership.id) // 关联会员卡ID
+    .bind(format!("销售会员卡: {}", tier.name_key))
+    .bind(user_id_uuid)
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to create financial record: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    // --- (记账结束) ---
+
+    if let Err(e) = tx.commit().await {
+        tracing::error!("Failed to commit transaction: {}", e);
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
 
     Ok(Json(new_membership))
 }
 
-// --- (★ 新增: 修复缺失的 Handler) ---
-// (GET /api/v1/customers/:id/memberships)
-pub async fn get_customer_memberships_handler(
-    State(state): State<AppState>,
-    claims: Claims,
-    Path(customer_id): Path<uuid::Uuid>,
-) -> Result<Json<Vec<CustomerMembership>>, StatusCode> {
-    
-    let tenant_id = claims.tenant_id;
-
-    // 简单的租户校验
-    let memberships = match sqlx::query_as::<_, CustomerMembership>(
-        r#"
-        SELECT * FROM customer_memberships 
-        WHERE customer_id = $1 AND tenant_id = $2
-        ORDER BY created_at DESC
-        "#
-    )
-    .bind(customer_id)
-    .bind(tenant_id)
-    .fetch_all(&state.db_pool)
-    .await
-    {
-        Ok(list) => list,
-        Err(e) => {
-            tracing::error!("Failed to fetch customer memberships: {}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-
-    Ok(Json(memberships))
-}
-
-// --- (★ 新增) 获取本基地所有有效的会员卡 (用于 CRM 列表展示) ---
-// (GET /api/v1/base/customer-memberships)
+// (★ V5.0 新增: 获取本基地所有有效会员卡)
 pub async fn get_base_memberships_handler(
     State(state): State<AppState>,
     claims: Claims,
 ) -> Result<Json<Vec<CustomerMembership>>, StatusCode> {
-    
     let tenant_id = claims.tenant_id;
-
-    // 1. 必须是基地员工
     let base_id = match claims.base_id {
         Some(id) => id,
         None => return Err(StatusCode::FORBIDDEN), 
     };
 
-    // 2. 查询本基地所有家长的有效会员卡
-    // (通过 JOIN customers 表来过滤 base_id)
     let memberships = match sqlx::query_as::<_, CustomerMembership>(
         r#"
         SELECT cm.* FROM customer_memberships cm
@@ -249,6 +252,26 @@ pub async fn get_base_memberships_handler(
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
+
+    Ok(Json(memberships))
+}
+
+// (GET /api/v1/customers/:id/memberships)
+pub async fn get_customer_memberships_handler(
+    State(state): State<AppState>,
+    claims: Claims,
+    axum::extract::Path(customer_id): axum::extract::Path<Uuid>,
+) -> Result<Json<Vec<CustomerMembership>>, StatusCode> {
+    let tenant_id = claims.tenant_id;
+    
+    let memberships = sqlx::query_as::<_, CustomerMembership>(
+        "SELECT * FROM customer_memberships WHERE customer_id = $1 AND tenant_id = $2 AND is_active = true"
+    )
+    .bind(customer_id)
+    .bind(tenant_id)
+    .fetch_all(&state.db_pool)
+    .await
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(Json(memberships))
 }

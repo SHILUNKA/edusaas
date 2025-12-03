@@ -1,10 +1,10 @@
 /*
- * 校区端: 排课日历 (V13.0 - AI 智能排课集成版)
- * 路径: /campus/schedule
+ * 校区端: 排课日历 (V14.6 - 修复图标缺失版)
+ * 路径: /campus/schedule/page.tsx
  * 功能:
- * 1. AI 智能排课: 调用后端算法自动生成推荐课表
- * 2. 交互排课: 鼠标框选新建、点击卡片编辑
- * 3. 视觉优化: 沉浸式周视图、动态课程配色
+ * 1. AI 智能排课
+ * 2. 批量排课向导 (Batch Wizard)
+ * 3. 交互排课 (框选/点击)
  */
 'use client';
 
@@ -15,10 +15,11 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { 
     Calendar as CalendarIcon, User, MapPin, ChevronLeft, ChevronRight, 
-    Plus, Sparkles // (★ 引入 Sparkles 图标)
+    Plus, Sparkles, CalendarRange // (★ 修复: 确保导入了 CalendarRange)
 } from 'lucide-react';
 import CreateClassModal from './CreateClassModal';
 import EditClassModal from './EditClassModal';
+import BatchScheduleWizard from './BatchScheduleWizard'; // (★ 确保导入了向导组件)
 import { API_BASE_URL } from '@/lib/config';
 
 // --- 类型定义 ---
@@ -29,7 +30,6 @@ interface ClassDetail {
   room_name: string;
   start_time: string;
   end_time: string;
-  // (V12.1 新增布局字段)
   room_rows?: number;
   room_columns?: number;
 }
@@ -44,7 +44,8 @@ const COLOR_PALETTES = [
     { border: 'border-violet-500', bg: 'bg-violet-50/90', hover: 'hover:bg-violet-100', textTitle: 'text-violet-900', textSub: 'text-violet-700', icon: 'text-violet-600/80' },
 ];
 
-const getColorForCourse = (courseName: string) => {
+const getColorForCourse = (courseName: string | null | undefined) => {
+    if (!courseName) return COLOR_PALETTES[0]; 
     let hash = 0;
     for (let i = 0; i < courseName.length; i++) {
         hash = courseName.charCodeAt(i) + ((hash << 5) - hash);
@@ -65,19 +66,21 @@ export default function SchedulePage() {
   const [currentDateTitle, setCurrentDateTitle] = useState("");
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false); // (★ 批量向导状态)
   const [editingClass, setEditingClass] = useState<ClassDetail | null>(null);
   const [selectedSlotDate, setSelectedSlotDate] = useState<{ start: Date, end: Date } | null>(null);
 
-  // (★ 新增: AI 加载状态)
   const [isAiLoading, setIsAiLoading] = useState(false);
 
   // --- 1. 数据获取 ---
   const fetchClasses = async () => {
       if (!token) return;
       try {
-        const res = await fetch(`${API}/base/classes`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const res = await fetch(`${API}/base/classes?_t=${new Date().getTime()}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+          cache: 'no-store', 
         });
+        
         if (res.ok) {
             const data: ClassDetail[] = await res.json();
             const calendarEvents = data.map(cls => ({
@@ -98,30 +101,22 @@ export default function SchedulePage() {
     fetchClasses();
   }, [token]);
 
-  // --- 2. AI 智能排课逻辑 (★ 新增) ---
+  // --- 2. AI 智能排课 ---
   const handleAutoSchedule = async () => {
-      if (!confirm("🤖 确认启动 AI 智能排课？\n系统将根据【员工管理】中配置的老师技能和时间，自动为您生成本周的推荐课表。")) return;
-      
+      if (!confirm("🤖 确认启动 AI 智能排课？")) return;
       setIsAiLoading(true);
       try {
           const res = await fetch(`${API}/base/schedule/auto-generate`, {
               method: 'POST',
               headers: { 'Authorization': `Bearer ${token}` }
           });
-          
           if (res.ok) {
               const data = await res.json();
               alert(`🎉 排课完成！\n${data.message}`);
-              fetchClasses(); // 刷新日历显示新课表
-          } else {
-              throw new Error("AI 服务响应异常");
-          }
-      } catch (e) {
-          alert("排课失败，请检查是否已配置老师技能和可用时间。");
-          console.error(e);
-      } finally {
-          setIsAiLoading(false);
-      }
+              fetchClasses(); 
+          } else { throw new Error("AI Error"); }
+      } catch (e) { alert("排课失败"); } 
+      finally { setIsAiLoading(false); }
   };
 
   // --- 3. 日历控制 ---
@@ -138,14 +133,11 @@ export default function SchedulePage() {
       setIsCreateModalOpen(true);
   };
 
-  const handleManualCreate = () => {
-      setSelectedSlotDate(null);
-      setIsCreateModalOpen(true);
-  };
-
   const handleEventClick = (info: any) => {
-      const classData = info.event.extendedProps as ClassDetail;
-      setEditingClass(classData);
+      if (info.event.extendedProps?.id) {
+          const classData = info.event.extendedProps as ClassDetail;
+          setEditingClass(classData);
+      }
   };
 
   return (
@@ -153,57 +145,38 @@ export default function SchedulePage() {
       
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white z-20">
-        
-        {/* 左侧：导航 */}
         <div className="flex items-center gap-6">
             <h1 className="text-xl font-bold text-slate-800 flex items-center gap-2">
                 <CalendarIcon className="text-indigo-600" size={22} /> 
                 排课管理 (本周)
             </h1>
-            
             <div className="flex items-center bg-slate-50 rounded-lg p-1 border border-slate-200">
-                <button onClick={handlePrev} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-500 hover:text-indigo-600">
-                    <ChevronLeft size={18} />
-                </button>
-                <button onClick={handleToday} className="px-3 py-1 text-sm font-bold text-slate-700 hover:text-indigo-600 transition-colors">
-                    今天
-                </button>
-                <button onClick={handleNext} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md transition-all text-slate-500 hover:text-indigo-600">
-                    <ChevronRight size={18} />
-                </button>
+                <button onClick={handlePrev} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-slate-500"><ChevronLeft size={18} /></button>
+                <button onClick={handleToday} className="px-3 py-1 text-sm font-bold text-slate-700 hover:text-indigo-600">今天</button>
+                <button onClick={handleNext} className="p-1.5 hover:bg-white hover:shadow-sm rounded-md text-slate-500"><ChevronRight size={18} /></button>
             </div>
-
-            <span className="text-lg font-medium text-slate-600 min-w-[150px]">
-                {currentDateTitle}
-            </span>
+            <span className="text-lg font-medium text-slate-600 min-w-[150px]">{currentDateTitle}</span>
         </div>
 
-        {/* 右侧：按钮组 */}
         <div className="flex items-center gap-3">
-            {/* (★ AI 按钮) */}
+            {/* (★ 新增: 批量排课按钮) */}
             <button 
-                onClick={handleAutoSchedule}
-                disabled={isAiLoading}
-                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-full hover:opacity-90 shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => setIsBatchModalOpen(true)}
+                className="flex items-center gap-2 bg-white border border-indigo-100 text-indigo-700 px-4 py-2 rounded-full hover:bg-indigo-50 hover:border-indigo-200 shadow-sm transition-all"
             >
-                {isAiLoading ? (
-                    <span className="animate-spin">✨</span> 
-                ) : (
-                    <Sparkles size={18} strokeWidth={2} />
-                )}
-                <span className="font-bold tracking-wide text-sm">
-                    {isAiLoading ? 'AI 计算中...' : '一键智能排课'}
-                </span>
+                <CalendarRange size={18} strokeWidth={2} />
+                <span className="font-bold text-sm">批量排课向导</span>
             </button>
 
-            {/* 提示文本 */}
-            <div className="hidden md:block text-xs text-slate-400 italic ml-2 border-l pl-3">
-               💡 提示: 鼠标拖拽日历空白处即可排课
-            </div>
+            {/* (AI 按钮) */}
+            <button onClick={handleAutoSchedule} disabled={isAiLoading} className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-full hover:opacity-90 shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                {isAiLoading ? <span className="animate-spin">✨</span> : <Sparkles size={18} strokeWidth={2} />}
+                <span className="font-bold tracking-wide text-sm">{isAiLoading ? 'AI 计算中...' : '一键智能排课'}</span>
+            </button>
         </div>
       </div>
 
-      {/* 日历主体 */}
+      {/* Calendar */}
       <div className="flex-1 p-4 bg-white overflow-hidden">
           <FullCalendar
             ref={calendarRef}
@@ -219,12 +192,10 @@ export default function SchedulePage() {
             slotMinTime="08:00:00" 
             slotMaxTime="22:00:00" 
             slotDuration="00:30:00"
-            
             selectable={true}         
             selectMirror={true}
             select={handleDateSelect} 
             eventClick={handleEventClick} 
-            
             slotLabelFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
             dayHeaderContent={(arg) => {
                 const date = arg.date;
@@ -241,8 +212,16 @@ export default function SchedulePage() {
             
             eventContent={(arg) => {
                 const { course_name_key, teacher_names, room_name } = arg.event.extendedProps;
-                const colors = getColorForCourse(course_name_key); // 动态颜色
+                
+                if (!course_name_key) {
+                    return (
+                        <div className="h-full w-full p-1 bg-indigo-50/50 border-2 border-dashed border-indigo-300 rounded-md flex items-center justify-center text-xs text-indigo-500 font-bold">
+                            <Plus size={14} /> 新建...
+                        </div>
+                    );
+                }
 
+                const colors = getColorForCourse(course_name_key); 
                 return (
                     <div className={`h-full w-full p-2 flex flex-col border-l-4 rounded-r-md shadow-sm overflow-hidden cursor-pointer group transition-colors ${colors.border} ${colors.bg} ${colors.hover}`}>
                         <div className={`font-bold text-xs md:text-sm leading-tight mb-auto ${colors.textTitle}`}>
@@ -264,7 +243,7 @@ export default function SchedulePage() {
           />
       </div>
 
-      {/* 弹窗组件 */}
+      {/* 弹窗 1: 框选新建 */}
       {token && (
           <CreateClassModal 
             token={token}
@@ -275,6 +254,16 @@ export default function SchedulePage() {
           />
       )}
 
+      {/* 弹窗 2: 批量向导 (★ 新增渲染) */}
+      {token && isBatchModalOpen && (
+          <BatchScheduleWizard 
+            token={token}
+            onClose={() => setIsBatchModalOpen(false)}
+            onSuccess={fetchClasses}
+          />
+      )}
+
+      {/* 弹窗 3: 编辑/点名 */}
       {token && editingClass && (
           <EditClassModal 
             token={token}

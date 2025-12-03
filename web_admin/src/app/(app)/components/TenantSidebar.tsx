@@ -1,6 +1,7 @@
 // src/app/(app)/components/TenantSidebar.tsx
 'use client';
 import Link from 'next/link';
+import { Wallet } from 'lucide-react';
 
 // (图标组件们... 保持不变)
 const HomeIcon = () => <span>🏠</span>;
@@ -13,6 +14,11 @@ const SettingsIcon = () => <span>⚙️</span>;
 export function TenantSidebar() {
   const menuItems = [
     { name: "全局看板", href: "/tenant/dashboard", icon: HomeIcon },
+    { 
+        name: "财务中心", 
+        href: "/tenant/finance", 
+        icon: () => <Wallet size={20} /> 
+    },
     { name: "基地管理", href: "/tenant/bases", icon: BasesIcon },
     { name: "学员总览", href: "/tenant/participants", icon: MembersIcon },
     { name: "中央课程库", href: "/tenant/courses", icon: CoursesIcon },

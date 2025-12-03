@@ -11,7 +11,7 @@ use axum::{
 };
 use sqlx::{FromRow, Row};
 use uuid::Uuid;
-use bcrypt::{hash, verify, DEFAULT_COST, BcryptError};
+use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, decode, Header, EncodingKey, Validation, DecodingKey};
 use serde::{Deserialize, Serialize};
 use chrono::{Utc, Duration, DateTime};

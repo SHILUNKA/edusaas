@@ -5,16 +5,16 @@
 use axum::{
     routing::{get, post, patch},
     Router,
-    http::{Method, StatusCode},
+    http::{Method},
 };
-use sqlx::postgres::PgPoolOptions;
+
 use std::net::SocketAddr;
 use std::env;
 use dotenvy::dotenv;
 
 // --- 导入 TraceLayer (日志) ---
 use tower_http::trace::TraceLayer;
-use tracing::Level;
+
 
 // --- 导入 CorsLayer (CORS) ---
 use tower_http::cors::CorsLayer;
@@ -64,8 +64,7 @@ use handlers::{
     create_course_handler,
     get_courses_handler,
     create_room_handler, 
-    get_tenant_rooms_handler, 
-    get_base_rooms_handler,   
+    get_rooms_handler,   
     get_base_teachers_handler, 
     
     // Class & Enrollment (排课)
@@ -99,6 +98,10 @@ use handlers::{
     add_teacher_availability_handler,
     delete_teacher_availability_handler,
     trigger_auto_schedule_handler,
+
+    //finacial
+    get_financial_records_handler,
+    create_manual_transaction_handler,
 };
 
 #[tokio::main]
@@ -200,8 +203,11 @@ async fn main() {
         // Course/Room/Teacher
         .route("/api/v1/courses", post(create_course_handler))
         .route("/api/v1/courses", get(get_courses_handler))
-        .route("/api/v1/tenant/rooms", get(get_tenant_rooms_handler).post(create_room_handler)) 
-        .route("/api/v1/base/rooms", get(get_base_rooms_handler)) 
+        // 无论是总部还是基地，都访问这两个接口，Handler 内部区分权限
+        .route("/api/v1/rooms", get(get_rooms_handler).post(create_room_handler))
+        // (为了兼容旧前端代码，保留这两个路径的别名)
+        .route("/api/v1/tenant/rooms", get(get_rooms_handler).post(create_room_handler))
+        .route("/api/v1/base/rooms", get(get_rooms_handler))
         .route("/api/v1/base/teachers", get(get_base_teachers_handler))
 
         // Class (排课)
@@ -241,6 +247,9 @@ async fn main() {
         .route("/api/v1/teachers/:id/availability", post(add_teacher_availability_handler))
         .route("/api/v1/teachers/availability/:id", axum::routing::delete(delete_teacher_availability_handler))
         .route("/api/v1/base/schedule/auto-generate", post(trigger_auto_schedule_handler))
+
+        // Finance
+        .route("/api/v1/finance/transactions", get(get_financial_records_handler).post(create_manual_transaction_handler))
 
         .layer(cors)
         .layer(TraceLayer::new_for_http())

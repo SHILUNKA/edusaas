@@ -10,7 +10,7 @@ use axum::{
     Json
 };
 use serde::Deserialize; 
-use sqlx::{QueryBuilder, FromRow};
+use sqlx::{QueryBuilder};
 use uuid::Uuid;
 use chrono::{DateTime, Utc, Duration};
 

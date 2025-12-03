@@ -8,9 +8,9 @@ use uuid::Uuid;
 use bcrypt::{hash, DEFAULT_COST};
 use crate::models::{UserDetail, CreateUserPayload};
 use super::{AppState, auth::Claims};
-use chrono::{DateTime, Utc};
-use sqlx::{FromRow, QueryBuilder};
-use rand::{Rng, seq::SliceRandom};
+
+use sqlx::{QueryBuilder};
+use rand::{seq::SliceRandom};
 
 // --- 强密码生成工具函数 ---
 fn generate_strong_password() -> String {

@@ -81,3 +81,6 @@ pub use procurement::*;
 
 pub mod schedule_ai;
 pub use schedule_ai::*;
+
+pub mod finance; // 新增
+pub use finance::*;

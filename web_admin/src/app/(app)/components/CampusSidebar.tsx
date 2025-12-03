@@ -2,7 +2,7 @@
 'use client';
 import Link from 'next/link';
 import { Users } from 'lucide-react';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, LayoutGrid } from 'lucide-react';
 
 // (图标组件们... 保持不变)
 const HomeIcon = () => <span>🏠</span>;
@@ -37,11 +37,15 @@ export function CampusSidebar() {
       href: "/campus/stock", 
       icon: StockIcon 
     },
-
     { 
       name: "教职工管理", 
       href: "/campus/staff", 
       icon: () => <Users size={20} /> 
+    },
+    { 
+      name: "教室与场地", 
+      href: "/campus/rooms", 
+      icon: () => <LayoutGrid size={20} /> 
     },
   ];
 

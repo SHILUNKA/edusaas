@@ -7,6 +7,8 @@
  */
 
 use sqlx::PgPool;
+use uuid::Uuid;
+use reqwest::StatusCode;
 
 // --- 1. 共享的 AppState ---
 // (AppState 留在父模块中, 以便子模块可以通过 super::AppState 访问)
@@ -84,3 +86,38 @@ pub use schedule_ai::*;
 
 pub mod finance; // 新增
 pub use finance::*;
+
+// --- (★ V16.0 新增: 通用状态切换逻辑) ---
+// 这是一个辅助函数，不是 Handler，供具体 Handler 调用
+pub async fn toggle_status_common(
+    pool: &PgPool,
+    table_name: &str, // 传入表名 (例如 "courses", "membership_tiers")
+    id: Uuid,
+    tenant_id: Uuid,
+    is_active: bool,
+) -> Result<StatusCode, StatusCode> {
+    
+    // 注意: 表名必须是硬编码传入的，防止 SQL 注入风险
+    let query = format!(
+        "UPDATE {} SET is_active = $1 WHERE id = $2 AND tenant_id = $3",
+        table_name
+    );
+
+    let result = sqlx::query(&query)
+        .bind(is_active)
+        .bind(id)
+        .bind(tenant_id)
+        .execute(pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Failed to toggle status for {}: {}", table_name, e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    if result.rows_affected() == 0 {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    Ok(StatusCode::OK)
+}
+

@@ -132,6 +132,8 @@ pub struct Course {
     pub points_awarded: i32, 
     pub prerequisite_course_id: Option<Uuid>, 
     pub is_active: bool,
+    pub cover_url: Option<String>,
+    pub introduction: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -142,6 +144,19 @@ pub struct CreateCoursePayload {
     pub default_duration_minutes: Option<i32>,
     pub points_awarded: Option<i32>,
     pub prerequisite_course_id: Option<Uuid>,
+    pub cover_url: Option<String>,
+    pub introduction: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateCoursePayload {
+    pub name_key: String,
+    pub description_key: Option<String>,
+    pub target_audience_key: Option<String>,
+    pub default_duration_minutes: i32,
+    pub points_awarded: i32,
+    pub cover_url: Option<String>,
+    pub introduction: Option<String>,
 }
 
 // --- 看板 ---
@@ -161,7 +176,9 @@ pub struct ParticipantDetail {
     pub customer_phone: String,
     pub current_total_points: Option<i32>,
     pub rank_name_key: Option<String>,
-    pub base_name: Option<String>, 
+    pub base_id: Option<Uuid>,   
+    pub base_name: Option<String>,
+    pub last_class_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 // --- 分店/教室/排课 ---
@@ -223,6 +240,14 @@ pub struct CreateRoomPayload {
     pub capacity: Option<i32>,
     pub layout_rows: Option<i32>,
     pub layout_columns: Option<i32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateRoomPayload {
+    pub name: String,
+    pub capacity: i32,
+    pub layout_rows: i32,
+    pub layout_columns: i32,
 }
 
 // --- Customer ---
@@ -554,4 +579,17 @@ pub struct CreateTransactionPayload {
     pub transaction_type: TransactionType,
     pub category: TransactionCategory,
     pub description: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateStatusPayload {
+    pub is_active: bool,
+}
+
+// (★ V16.2 Step 2: 总部学员统计)
+#[derive(Debug, Serialize, FromRow)]
+pub struct TenantParticipantStats {
+    pub total_count: i64,
+    pub new_this_month: i64,
+    pub active_members: i64, // 持有有效卡的学员数
 }

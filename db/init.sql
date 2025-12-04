@@ -251,6 +251,8 @@ CREATE TABLE courses (
     points_awarded INT NOT NULL DEFAULT 0,
     prerequisite_course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
     is_active BOOLEAN DEFAULT true
+    cover_url TEXT,       -- 课程封面图 URL
+    introduction TEXT     -- 课程详情简介 (Markdown/HTML)
 );
 
 CREATE TABLE course_required_materials (

@@ -1,6 +1,6 @@
 /*
  * src/main.rs
- * (★ V8.0 - 终极完整版: 动态 CORS + 全功能路由 ★)
+ * (★ V16.3 - 修复路由冲突 Panic ★)
  */
 use axum::{
     routing::{get, post, patch},
@@ -14,7 +14,6 @@ use dotenvy::dotenv;
 
 // --- 导入 TraceLayer (日志) ---
 use tower_http::trace::TraceLayer;
-
 
 // --- 导入 CorsLayer (CORS) ---
 use tower_http::cors::CorsLayer;
@@ -46,7 +45,8 @@ use handlers::{
     get_customers_handler,   
     create_participant_handler, 
     get_participants_for_customer_handler, 
-    get_participants_handler, 
+    get_participants_handler,
+    get_tenant_participant_stats,
     
     // Dashboard
     get_dashboard_stats, 
@@ -59,18 +59,23 @@ use handlers::{
     assign_membership_handler,
     get_customer_memberships_handler,
     get_base_memberships_handler,
+    toggle_tier_status_handler,
     
     // Course, Room, Teacher
     create_course_handler,
+    update_course_handler,
     get_courses_handler,
+    toggle_course_status_handler,
     create_room_handler, 
-    get_rooms_handler,   
+    get_rooms_handler,
+    update_room_handler, 
+    delete_room_handler,
     get_base_teachers_handler, 
     
     // Class & Enrollment (排课)
     create_base_class_handler, 
     get_base_classes_handler, 
-    update_class_handler, // (★ 确保导入了 PATCH 接口)
+    update_class_handler, 
     create_enrollment_handler, 
     get_enrollments_for_class_handler,
     complete_enrollment_handler,
@@ -99,7 +104,7 @@ use handlers::{
     delete_teacher_availability_handler,
     trigger_auto_schedule_handler,
 
-    //finacial
+    // Finacial
     get_financial_records_handler,
     create_manual_transaction_handler,
 };
@@ -114,12 +119,10 @@ async fn main() {
     let jwt_secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     let ai_api_url = env::var("AI_API_URL").unwrap_or_else(|_| "http://edusaas_ai_api:8000".to_string());
     
-    // 2. 动态 CORS 配置 (★ 核心修改)
-    // 从环境变量读取允许的 Origin，如果没设置则默认 localhost:3000
+    // 2. 动态 CORS 配置
     let cors_origins_str = env::var("CORS_ALLOWED_ORIGINS")
         .unwrap_or_else(|_| "http://localhost:3000".to_string());
 
-    // 解析逗号分隔的 URL 列表
     let allowed_origins: Vec<axum::http::HeaderValue> = cors_origins_str
         .split(',')
         .map(|s| s.trim().parse::<axum::http::HeaderValue>().expect("Invalid CORS origin URL"))
@@ -144,7 +147,7 @@ async fn main() {
 
     // 4. 构建 CORS Layer
     let cors = CorsLayer::new()
-        .allow_origin(allowed_origins) // 使用动态列表
+        .allow_origin(allowed_origins)
         .allow_methods([
             Method::GET, Method::POST, Method::OPTIONS, Method::PUT, Method::DELETE, Method::PATCH,
         ])
@@ -186,6 +189,7 @@ async fn main() {
         .route("/api/v1/participants", post(create_participant_handler))
         .route("/api/v1/participants", get(get_participants_handler)) 
         .route("/api/v1/customers/:id/participants", get(get_participants_for_customer_handler))
+        .route("/api/v1/tenant/participants/stats", get(get_tenant_participant_stats))
         
         // Dashboard
         .route("/api/v1/dashboard/stats", get(get_dashboard_stats))
@@ -199,21 +203,28 @@ async fn main() {
         .route("/api/v1/customer-memberships", post(assign_membership_handler)) 
         .route("/api/v1/customers/:id/memberships", get(get_customer_memberships_handler))
         .route("/api/v1/base/customer-memberships", get(get_base_memberships_handler))
+        .route("/api/v1/membership-tiers/:id/status", axum::routing::patch(toggle_tier_status_handler))
 
         // Course/Room/Teacher
         .route("/api/v1/courses", post(create_course_handler))
+        .route("/api/v1/courses/:id", axum::routing::put(update_course_handler))
         .route("/api/v1/courses", get(get_courses_handler))
+        .route("/api/v1/courses/:id/status", axum::routing::patch(toggle_course_status_handler))
+        
+        // (★ 修复: 移除重复的路由定义)
         // 无论是总部还是基地，都访问这两个接口，Handler 内部区分权限
         .route("/api/v1/rooms", get(get_rooms_handler).post(create_room_handler))
+        .route("/api/v1/rooms/:id", axum::routing::put(update_room_handler).delete(delete_room_handler))
+        
         // (为了兼容旧前端代码，保留这两个路径的别名)
         .route("/api/v1/tenant/rooms", get(get_rooms_handler).post(create_room_handler))
         .route("/api/v1/base/rooms", get(get_rooms_handler))
+        
         .route("/api/v1/base/teachers", get(get_base_teachers_handler))
 
         // Class (排课)
         .route("/api/v1/base/classes", post(create_base_class_handler)) 
         .route("/api/v1/base/classes", get(get_base_classes_handler))
-        // (★ 关键: 注册代课/修改接口)
         .route("/api/v1/base/classes/:id", patch(update_class_handler))
         .route("/api/v1/base/classes/:id", axum::routing::delete(delete_class_handler))
         

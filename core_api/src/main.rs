@@ -37,6 +37,11 @@ use handlers::{
     // Asset & Material
     create_asset_type_handler,
     get_asset_types_handler,
+    get_all_assets_handler,
+    create_asset_handler,
+    transfer_asset_handler, // (新增)
+    delete_asset_handler,
+
     create_material_handler,
     get_materials_handler,
     
@@ -180,6 +185,10 @@ async fn main() {
         // Asset/Material
         .route("/api/v1/asset-types", post(create_asset_type_handler))
         .route("/api/v1/asset-types", get(get_asset_types_handler))
+        .route("/api/v1/tenant/assets", get(get_all_assets_handler).post(create_asset_handler))
+        .route("/api/v1/tenant/assets/:id", axum::routing::delete(delete_asset_handler))
+        .route("/api/v1/tenant/assets/:id/transfer", axum::routing::put(transfer_asset_handler))
+        
         .route("/api/v1/materials", post(create_material_handler))
         .route("/api/v1/materials", get(get_materials_handler))
         

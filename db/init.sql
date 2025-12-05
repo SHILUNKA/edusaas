@@ -98,6 +98,9 @@ CREATE TABLE assets (
     model_number VARCHAR(100),
     status asset_status DEFAULT 'in_stock',
     purchase_date DATE,
+    serial_number VARCHAR(100),  -- 序列号 (唯一标识实物)
+    price_in_cents INT DEFAULT 0, -- 资产原值
+    warranty_until DATE,          -- 保修截止日
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

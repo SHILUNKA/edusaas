@@ -329,6 +329,8 @@ pub struct ParticipantDetail {
     pub base_id: Option<Uuid>,   
     pub base_name: Option<String>,
     pub last_class_time: Option<chrono::DateTime<chrono::Utc>>,
+    #[sqlx(default)]
+    pub remaining_counts: Option<i64>,
 }
 
 // 学员统计 (V16.2)
@@ -553,6 +555,8 @@ pub struct ProcurementOrder {
     pub status: ProcurementStatus,
     pub submit_note: Option<String>,
     pub reject_reason: Option<String>,
+    pub logistics_company: Option<String>,
+    pub tracking_number: Option<String>, 
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -582,6 +586,8 @@ pub struct CreateProcurementItemPayload {
 pub struct UpdateProcurementStatusPayload {
     pub status: ProcurementStatus,
     pub reject_reason: Option<String>,
+    pub logistics_company: Option<String>,
+    pub tracking_number: Option<String>,
 }
 
 #[derive(Debug, Serialize, FromRow)]

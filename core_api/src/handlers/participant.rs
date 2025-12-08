@@ -16,7 +16,7 @@ use super::AppState;
 // 导入在 auth.rs 中定义的 Claims
 use super::auth::Claims;
 // 导入 models
-use crate::models::{Participant, CreateParticipantPayload};
+use crate::models::{Participant, CreateParticipantPayload, ParticipantDetail};
 
 
 // (POST /api/v1/participants - 创建一个新学员并关联到家长)
@@ -205,6 +205,64 @@ pub async fn get_participants_handler(
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     }
+
+    Ok(Json(participants))
+}
+
+pub async fn get_base_participants_handler(
+    State(state): State<AppState>,
+    claims: Claims,
+) -> Result<Json<Vec<ParticipantDetail>>, StatusCode> {
+    
+    let base_id = claims.base_id.ok_or(StatusCode::FORBIDDEN)?;
+
+    let participants = match sqlx::query_as::<_, ParticipantDetail>(
+        r#"
+        SELECT 
+            p.id, p.name, p.date_of_birth, p.gender,
+            c.name AS customer_name,
+            c.phone_number AS customer_phone,
+            pp.current_total_points,
+            hr.name_key AS rank_name_key,
+            b.id as base_id,
+            b.name as base_name,
+            
+            -- 最近上课时间
+            (
+                SELECT MAX(cl.start_time)
+                FROM class_enrollments ce
+                JOIN classes cl ON ce.class_id = cl.id
+                WHERE ce.participant_id = p.id AND ce.status = 'completed'
+            ) as last_class_time,
+
+            -- (★ 新增: 剩余总课次 - 统计该学员名下所有有效次卡的剩余次数之和)
+            (
+                SELECT COALESCE(SUM(remaining_uses), 0)
+                FROM customer_memberships cm
+                WHERE cm.participant_id = p.id 
+                  AND cm.is_active = true 
+                  AND (cm.expiry_date IS NULL OR cm.expiry_date > NOW())
+            ) as remaining_counts
+
+        FROM participants p
+        JOIN customers c ON p.customer_id = c.id
+        LEFT JOIN bases b ON c.base_id = b.id
+        LEFT JOIN participant_profiles pp ON p.id = pp.participant_id
+        LEFT JOIN honor_ranks hr ON pp.current_honor_rank_id = hr.id
+        WHERE c.base_id = $1
+        ORDER BY p.created_at DESC
+        "#,
+    )
+    .bind(base_id)
+    .fetch_all(&state.db_pool)
+    .await
+    {
+        Ok(list) => list,
+        Err(e) => {
+            tracing::error!("Failed: {}", e);
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    };
 
     Ok(Json(participants))
 }

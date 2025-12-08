@@ -52,6 +52,7 @@ use handlers::{
     get_participants_for_customer_handler, 
     get_participants_handler,
     get_tenant_participant_stats,
+    get_base_participants_handler,
     
     // Dashboard
     get_dashboard_stats, 
@@ -199,6 +200,7 @@ async fn main() {
         .route("/api/v1/participants", get(get_participants_handler)) 
         .route("/api/v1/customers/:id/participants", get(get_participants_for_customer_handler))
         .route("/api/v1/tenant/participants/stats", get(get_tenant_participant_stats))
+        .route("/api/v1/base/participants", get(get_base_participants_handler))
         
         // Dashboard
         .route("/api/v1/dashboard/stats", get(get_dashboard_stats))

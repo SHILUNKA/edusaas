@@ -33,7 +33,7 @@ export default function NewParticipantPage() {
 
     // 2. 修改 Token 获取
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session?.user as any)?.rawToken;
 
     const currentBaseId = null; 
 

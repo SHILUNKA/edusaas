@@ -43,8 +43,8 @@ interface ProcurementOrder {
 
 export default function CampusDashboardPage() {
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
-    const userBaseName = session?.user?.base_id ? "当前校区" : "";
+    const token = (session?.user as any)?.rawToken;
+    const userBaseName = (session?.user as any)?.base_id ? "当前校区" : "";
 
     const [stats, setStats] = useState<BaseStats | null>(null);
     const [alerts, setAlerts] = useState<StockAlert[]>([]);

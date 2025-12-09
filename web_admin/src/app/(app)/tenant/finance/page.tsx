@@ -9,15 +9,15 @@
  */
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, FormEvent, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import { 
-    PieChart, Activity, TrendingUp, TrendingDown, 
-    Wallet, Filter, Plus, Calendar as CalendarIcon, Download 
+import {
+    PieChart, Activity, TrendingUp, TrendingDown,
+    Wallet, Filter, Plus, Calendar as CalendarIcon, Download
 } from 'lucide-react';
-import { 
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-    AreaChart, Area 
+import {
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+    AreaChart, Area
 } from 'recharts';
 import { API_BASE_URL } from '@/lib/config';
 
@@ -61,14 +61,14 @@ const CATEGORY_MAP: Record<string, string> = {
 
 export default function FinancePage() {
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session?.user as any)?.rawToken;
     const API = API_BASE_URL;
 
     // --- 状态 ---
     const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
     const [bases, setBases] = useState<Base[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     // 筛选
     const [filterBase, setFilterBase] = useState("all");
     const [filterType, setFilterType] = useState("all");
@@ -85,7 +85,7 @@ export default function FinancePage() {
                 fetch(`${API}/finance/transactions`, { headers: { 'Authorization': `Bearer ${token}` } }),
                 fetch(`${API}/bases`, { headers: { 'Authorization': `Bearer ${token}` } })
             ]);
-            
+
             if (txRes.ok) setTransactions(await txRes.json());
             if (baseRes.ok) setBases(await baseRes.json());
         } catch (e) {
@@ -110,7 +110,7 @@ export default function FinancePage() {
         let income = 0; // 现金流入 (办卡)
         let revenue = 0; // 确认营收 (消课)
         let expense = 0; // 支出
-        
+
         filteredData.forEach(t => {
             const amt = t.amount_in_cents;
             if (t.transaction_type === 'income') income += amt;
@@ -130,13 +130,13 @@ export default function FinancePage() {
     // 生成图表数据 (按日期聚合)
     const chartData = useMemo(() => {
         const map = new Map<string, { date: string, income: number, revenue: number, expense: number }>();
-        
+
         // 初始化近 7 天 (或根据数据范围)
         // 这里简单处理：只聚合已有数据
         transactions.forEach(t => {
             const date = new Date(t.created_at).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
             if (!map.has(date)) map.set(date, { date, income: 0, revenue: 0, expense: 0 });
-            
+
             const item = map.get(date)!;
             const val = t.amount_in_cents / 100;
 
@@ -146,7 +146,7 @@ export default function FinancePage() {
         });
 
         // 转数组并按日期排序 (简易排序，生产环境建议按时间戳)
-        return Array.from(map.values()).reverse(); 
+        return Array.from(map.values()).reverse();
     }, [transactions]);
 
     return (
@@ -155,12 +155,12 @@ export default function FinancePage() {
             <div className="flex justify-between items-end">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                        <Wallet className="text-indigo-600" size={32}/> 财务中心 (Financial Center)
+                        <Wallet className="text-indigo-600" size={32} /> 财务中心 (Financial Center)
                     </h1>
                     <p className="text-gray-500 mt-2">
                         实时监控资金流向，掌握机构经营状况。
                         <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded ml-2">
-                            当前展示: {filterBase === 'all' ? '全部分店' : bases.find(b=>b.id===filterBase)?.name}
+                            当前展示: {filterBase === 'all' ? '全部分店' : bases.find(b => b.id === filterBase)?.name}
                         </span>
                     </p>
                 </div>
@@ -168,26 +168,26 @@ export default function FinancePage() {
                     <button onClick={fetchData} className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm">
                         刷新数据
                     </button>
-                    <button 
+                    <button
                         onClick={() => setIsModalOpen(true)}
                         className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-medium flex items-center gap-2 shadow-sm"
                     >
-                        <Plus size={16}/> 记一笔支出
+                        <Plus size={16} /> 记一笔支出
                     </button>
                 </div>
             </div>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <StatCard label="总现金收入 (办卡)" value={stats.cashIn} icon={<TrendingUp className="text-green-600"/>} color="text-green-600" sub="实际入账资金" />
-                <StatCard label="确认营收 (消课)" value={stats.revenue} icon={<Activity className="text-blue-600"/>} color="text-blue-600" sub="履约完成收入" />
-                <StatCard label="总运营支出" value={stats.expense} icon={<TrendingDown className="text-red-600"/>} color="text-red-600" sub="成本与费用" />
-                <StatCard 
-                    label="毛利润" 
-                    value={stats.grossProfit} 
-                    icon={<PieChart className={stats.grossProfit >= 0 ? "text-indigo-600" : "text-red-600"}/>} 
-                    color={stats.grossProfit >= 0 ? "text-indigo-600" : "text-red-600"} 
-                    sub="营收 - 支出" 
+                <StatCard label="总现金收入 (办卡)" value={stats.cashIn} icon={<TrendingUp className="text-green-600" />} color="text-green-600" sub="实际入账资金" />
+                <StatCard label="确认营收 (消课)" value={stats.revenue} icon={<Activity className="text-blue-600" />} color="text-blue-600" sub="履约完成收入" />
+                <StatCard label="总运营支出" value={stats.expense} icon={<TrendingDown className="text-red-600" />} color="text-red-600" sub="成本与费用" />
+                <StatCard
+                    label="毛利润"
+                    value={stats.grossProfit}
+                    icon={<PieChart className={stats.grossProfit >= 0 ? "text-indigo-600" : "text-red-600"} />}
+                    color={stats.grossProfit >= 0 ? "text-indigo-600" : "text-red-600"}
+                    sub="营收 - 支出"
                 />
             </div>
 
@@ -199,38 +199,38 @@ export default function FinancePage() {
                         <AreaChart data={chartData}>
                             <defs>
                                 <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.8}/>
-                                    <stop offset="95%" stopColor="#4F46E5" stopOpacity={0}/>
+                                    <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.8} />
+                                    <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
                                 </linearGradient>
                                 <linearGradient id="colorExp" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#EF4444" stopOpacity={0.8}/>
-                                    <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
+                                    <stop offset="5%" stopColor="#EF4444" stopOpacity={0.8} />
+                                    <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6"/>
-                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}}/>
-                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}}/>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                            <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
                             <Tooltip />
-                            <Legend verticalAlign="top" height={36}/>
+                            <Legend verticalAlign="top" height={36} />
                             <Area type="monotone" dataKey="revenue" name="消课营收" stroke="#4F46E5" fillOpacity={1} fill="url(#colorRev)" />
                             <Area type="monotone" dataKey="expense" name="支出成本" stroke="#EF4444" fillOpacity={1} fill="url(#colorExp)" />
                         </AreaChart>
                     </ResponsiveContainer>
                 </div>
-                
+
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col">
-                     <h3 className="text-sm font-bold text-gray-500 mb-4 uppercase">现金流对比</h3>
-                     <ResponsiveContainer width="100%" height="100%">
+                    <h3 className="text-sm font-bold text-gray-500 mb-4 uppercase">现金流对比</h3>
+                    <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={[{ name: '本期', income: stats.cashIn, out: stats.expense }]}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false}/>
-                            <XAxis dataKey="name" hide/>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                            <XAxis dataKey="name" hide />
                             <YAxis />
-                            <Tooltip cursor={{fill: 'transparent'}}/>
+                            <Tooltip cursor={{ fill: 'transparent' }} />
                             <Legend />
-                            <Bar dataKey="income" name="现金收入" fill="#10B981" radius={[4,4,0,0]} barSize={60}/>
-                            <Bar dataKey="out" name="现金支出" fill="#F59E0B" radius={[4,4,0,0]} barSize={60}/>
+                            <Bar dataKey="income" name="现金收入" fill="#10B981" radius={[4, 4, 0, 0]} barSize={60} />
+                            <Bar dataKey="out" name="现金支出" fill="#F59E0B" radius={[4, 4, 0, 0]} barSize={60} />
                         </BarChart>
-                     </ResponsiveContainer>
+                    </ResponsiveContainer>
                 </div>
             </div>
 
@@ -239,14 +239,14 @@ export default function FinancePage() {
                 <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex flex-wrap gap-4 items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-white border rounded-lg text-sm">
-                            <Filter size={14} className="text-gray-400"/>
+                            <Filter size={14} className="text-gray-400" />
                             <select value={filterBase} onChange={e => setFilterBase(e.target.value)} className="bg-transparent outline-none text-gray-700">
                                 <option value="all">全部分店</option>
                                 {bases.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                             </select>
                         </div>
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-white border rounded-lg text-sm">
-                            <Filter size={14} className="text-gray-400"/>
+                            <Filter size={14} className="text-gray-400" />
                             <select value={filterType} onChange={e => setFilterType(e.target.value)} className="bg-transparent outline-none text-gray-700">
                                 <option value="all">所有类型</option>
                                 <option value="income">收入 (Income)</option>
@@ -256,7 +256,7 @@ export default function FinancePage() {
                         </div>
                     </div>
                     <button className="text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm">
-                        <Download size={14}/> 导出报表
+                        <Download size={14} /> 导出报表
                     </button>
                 </div>
 
@@ -295,10 +295,9 @@ export default function FinancePage() {
                                     <td className="px-6 py-3 text-gray-600">
                                         {t.base_name || '总部'}
                                     </td>
-                                    <td className={`px-6 py-3 text-right font-bold font-mono ${
-                                        t.transaction_type === 'expense' || t.transaction_type === 'refund' 
-                                        ? 'text-red-600' : 'text-green-600'
-                                    }`}>
+                                    <td className={`px-6 py-3 text-right font-bold font-mono ${t.transaction_type === 'expense' || t.transaction_type === 'refund'
+                                            ? 'text-red-600' : 'text-green-600'
+                                        }`}>
                                         {t.transaction_type === 'expense' || t.transaction_type === 'refund' ? '-' : '+'}
                                         ¥{(t.amount_in_cents / 100).toFixed(2)}
                                     </td>
@@ -311,10 +310,10 @@ export default function FinancePage() {
 
             {/* 记账弹窗 */}
             {isModalOpen && (
-                <ManualTransactionModal 
-                    token={token} 
-                    bases={bases} 
-                    onClose={() => setIsModalOpen(false)} 
+                <ManualTransactionModal
+                    token={token}
+                    bases={bases}
+                    onClose={() => setIsModalOpen(false)}
                     onSuccess={fetchData}
                 />
             )}
@@ -391,25 +390,25 @@ function ManualTransactionModal({ token, bases, onClose, onSuccess }: any) {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs text-gray-500 mb-1">类型</label>
-                            <select value={type} onChange={e=>setType(e.target.value)} className="w-full p-2 border rounded">
+                            <select value={type} onChange={e => setType(e.target.value)} className="w-full p-2 border rounded">
                                 <option value="expense">支出 (Expense)</option>
                                 <option value="income">收入 (Income)</option>
                             </select>
                         </div>
                         <div>
                             <label className="block text-xs text-gray-500 mb-1">归属分店</label>
-                            <select value={baseId} onChange={e=>setBaseId(e.target.value)} className="w-full p-2 border rounded">
-                                {bases.map((b:any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            <select value={baseId} onChange={e => setBaseId(e.target.value)} className="w-full p-2 border rounded">
+                                {bases.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
                             </select>
                         </div>
                     </div>
                     <div>
                         <label className="block text-xs text-gray-500 mb-1">金额 (元)</label>
-                        <input type="number" step="0.01" required value={amount} onChange={e=>setAmount(e.target.value)} className="w-full p-2 border rounded text-lg font-bold text-indigo-600"/>
+                        <input type="number" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} className="w-full p-2 border rounded text-lg font-bold text-indigo-600" />
                     </div>
                     <div>
                         <label className="block text-xs text-gray-500 mb-1">科目/类目</label>
-                        <select value={category} onChange={e=>setCategory(e.target.value)} className="w-full p-2 border rounded">
+                        <select value={category} onChange={e => setCategory(e.target.value)} className="w-full p-2 border rounded">
                             <option value="utility">水电杂费</option>
                             <option value="rent">房租物业</option>
                             <option value="salary">员工工资</option>
@@ -419,7 +418,7 @@ function ManualTransactionModal({ token, bases, onClose, onSuccess }: any) {
                     </div>
                     <div>
                         <label className="block text-xs text-gray-500 mb-1">摘要备注</label>
-                        <input type="text" required value={desc} onChange={e=>setDesc(e.target.value)} className="w-full p-2 border rounded"/>
+                        <input type="text" required value={desc} onChange={e => setDesc(e.target.value)} className="w-full p-2 border rounded" />
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">取消</button>

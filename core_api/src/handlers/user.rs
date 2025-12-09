@@ -116,15 +116,24 @@ pub async fn create_tenant_user(
     }
 
     let (final_base_id, final_role_key) = if is_hq {
-        (payload.base_id, payload.role_key)
+        // 总部: 可以指定任意基地，任意角色
+        (payload.base_id, payload.role_key.clone())
     } else {
+        // 基地: 强制锁定当前基地
         let my_base_id = claims.base_id.ok_or(StatusCode::FORBIDDEN)?;
-        (Some(my_base_id), "role.teacher".to_string())
+        
+        // (★ 关键修复: 允许校长创建 教务/财务/老师，但禁止创建总部角色或另一个校长)
+        let allowed_roles = vec!["role.base.academic", "role.base.finance", "role.teacher", "role.base.hr"];
+        if !allowed_roles.contains(&payload.role_key.as_str()) {
+            return Err(StatusCode::FORBIDDEN); // 尝试创建非法角色
+        }
+        (Some(my_base_id), payload.role_key.clone())
     };
 
     let mut tx = state.db_pool.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let plain_password = generate_strong_password();
+    let plain_password = payload.password.clone().unwrap_or_else(generate_strong_password);
+
     let password_hash = hash(&plain_password, DEFAULT_COST).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let user_id: Uuid = sqlx::query_scalar(

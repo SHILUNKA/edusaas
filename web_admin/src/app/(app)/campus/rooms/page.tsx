@@ -12,7 +12,7 @@ interface Room { id: string; name: string; capacity: number; layout_rows: number
 
 export default function CampusRoomsPage() {
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session?.user as any)?.rawToken;
     const API = API_BASE_URL;
 
     const [rooms, setRooms] = useState<Room[]>([]); 
@@ -53,7 +53,7 @@ export default function CampusRoomsPage() {
         if (!token) return;
 
         const payload = {
-            base_id: session?.user?.base_id,
+            base_id: (session?.user as any)?.base_id,
             name: name,
             capacity: parseInt(rows) * parseInt(cols),
             layout_rows: parseInt(rows),

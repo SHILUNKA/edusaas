@@ -8,8 +8,11 @@ import { API_BASE_URL } from '@/lib/config';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { Building2, Users, ClipboardCheck } from 'lucide-react';
 // 引入图表组件
 import ActivityChart from './ActivityChart';
+// 引入新的品牌组件
+import { StatCard } from '@/components/brand/StatCard';
 
 // 定义数据接口
 interface DashboardData {
@@ -20,15 +23,15 @@ interface DashboardData {
     membershipTierCount: number;
     rankCount: number;
     totalParticipantCount: number;
-    pendingProcurementCount: number; 
+    pendingProcurementCount: number;
 }
 
 export default function TenantDashboardPage() {
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session as any)?.user?.rawToken;
 
     const [data, setData] = useState<DashboardData>({
-        baseCount: 0, courseCount: 0, materialCount: 0, 
+        baseCount: 0, courseCount: 0, materialCount: 0,
         assetTypeCount: 0, membershipTierCount: 0, rankCount: 0,
         totalParticipantCount: 0, pendingProcurementCount: 0
     });
@@ -56,7 +59,7 @@ export default function TenantDashboardPage() {
             ]);
 
             const [
-                statsRes, coursesRes, materialsRes, assetsRes, 
+                statsRes, coursesRes, materialsRes, assetsRes,
                 tiersRes, ranksRes, partsRes, procsRes
             ] = results;
 
@@ -91,14 +94,14 @@ export default function TenantDashboardPage() {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-8">
+        <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
             {/* 头部 */}
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">👋 总部驾驶舱</h1>
-                    <p className="text-gray-500 mt-2">全网运营数据实时监控。</p>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">👋 总部驾驶舱</h1>
+                    <p className="text-muted-foreground mt-2">全网运营数据实时监控。</p>
                 </div>
-                <div className="text-sm text-gray-400">
+                <div className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
                     {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
                 </div>
             </div>
@@ -106,47 +109,34 @@ export default function TenantDashboardPage() {
             {/* 1. 核心指标卡片 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* 运营规模 */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-gray-500 mb-1">运营分店 (基地)</p>
-                        <h2 className="text-4xl font-bold text-gray-900">{data.baseCount}</h2>
-                    </div>
-                    <div className="p-4 bg-blue-50 rounded-full text-blue-600 text-2xl">🏢</div>
-                </div>
+                <StatCard
+                    title="运营分店 (基地)"
+                    value={data.baseCount}
+                    icon={<Building2 />}
+                    description="活跃运营中"
+                />
 
                 {/* 用户规模 */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
-                    <div>
-                        <p className="text-sm font-medium text-gray-500 mb-1">全网学员总数</p>
-                        <h2 className="text-4xl font-bold text-gray-900">{data.totalParticipantCount}</h2>
-                    </div>
-                    <div className="p-4 bg-green-50 rounded-full text-green-600 text-2xl">🎓</div>
-                </div>
+                <StatCard
+                    title="全网学员总数"
+                    value={data.totalParticipantCount}
+                    icon={<Users />}
+                    description="较上月增长 12%"
+                    trend="up"
+                    trendValue="+12%"
+                />
 
                 {/* 待办事项: 采购审批 */}
                 <Link href="/tenant/procurement" className="block group">
-                    <div className={`h-full p-6 rounded-xl shadow-sm border transition-all flex items-center justify-between cursor-pointer
-                        ${data.pendingProcurementCount > 0 
-                            ? 'bg-red-50 border-red-200 hover:border-red-300' 
-                            : 'bg-white border-gray-200 hover:border-indigo-300'}`
-                    }>
-                        <div>
-                            <p className={`text-sm font-medium mb-1 ${data.pendingProcurementCount > 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                                供应链待审批
-                            </p>
-                            <h2 className={`text-4xl font-bold ${data.pendingProcurementCount > 0 ? 'text-red-700' : 'text-gray-900'}`}>
-                                {data.pendingProcurementCount}
-                            </h2>
-                            {data.pendingProcurementCount > 0 && (
-                                <span className="text-xs text-red-600 font-medium mt-1 block animate-pulse">
-                                    ● 有新申请需处理
-                                </span>
-                            )}
-                        </div>
-                        <div className={`p-4 rounded-full text-2xl ${data.pendingProcurementCount > 0 ? 'bg-red-100 text-red-600' : 'bg-gray-50 text-gray-400'}`}>
-                            📦
-                        </div>
-                    </div>
+                    <StatCard
+                        title="供应链待审批"
+                        value={data.pendingProcurementCount}
+                        icon={<ClipboardCheck className={data.pendingProcurementCount > 0 ? "text-red-500" : ""} />}
+                        description={data.pendingProcurementCount > 0 ? "需立即处理" : "暂无待办"}
+                        className={data.pendingProcurementCount > 0 ? "border-red-200 bg-red-50/10" : ""}
+                        trend={data.pendingProcurementCount > 0 ? "down" : "neutral"}
+                        trendValue={data.pendingProcurementCount > 0 ? "待处理" : "已清空"}
+                    />
                 </Link>
             </div>
 
@@ -156,7 +146,7 @@ export default function TenantDashboardPage() {
                 <div className="lg:col-span-2">
                     <ActivityChart />
                 </div>
-                
+
                 {/* 右侧: 资源库概览 */}
                 <div className="space-y-4">
                     <h3 className="text-lg font-bold text-gray-800">中央资源库</h3>

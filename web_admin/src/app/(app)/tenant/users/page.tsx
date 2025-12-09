@@ -37,7 +37,7 @@ interface Base { id: string; name: string; }
 
 export default function UsersPage() {
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session?.user as any)?.rawToken;
 
     // 数据状态
     const [allUsers, setAllUsers] = useState<UserDetail[]>([]);

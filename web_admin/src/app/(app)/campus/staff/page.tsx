@@ -36,7 +36,7 @@ interface UserDetail {
 
 export default function CampusStaffPage() {
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session?.user as any)?.rawToken;
     const API = API_BASE_URL; // (★ 使用配置中的 URL)
 
     // --- 状态 ---

@@ -56,7 +56,7 @@ const getColorForCourse = (courseName: string | null | undefined) => {
 
 export default function SchedulePage() {
   const { data: session } = useSession();
-  const token = session?.user?.rawToken;
+  const token = (session?.user as any)?.rawToken;
   const API = API_BASE_URL;
   
   const calendarRef = useRef<FullCalendar>(null);

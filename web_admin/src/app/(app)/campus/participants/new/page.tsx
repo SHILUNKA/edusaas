@@ -8,8 +8,8 @@
 import { useState, useEffect, FormEvent, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { 
-    UserPlus, Baby, Phone, ArrowRight, CheckCircle, 
+import {
+    UserPlus, Baby, Phone, ArrowRight, CheckCircle,
     CreditCard, User, ArrowLeft
 } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/config';
@@ -25,7 +25,7 @@ function NewParticipantContent() {
     const parentIdFromUrl = searchParams.get('parent');
 
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session?.user as any)?.rawToken;
     const API = API_BASE_URL;
 
     // --- 流程状态 ---
@@ -36,7 +36,7 @@ function NewParticipantContent() {
 
     // --- 数据状态 ---
     const [tiers, setTiers] = useState<MembershipTier[]>([]);
-    
+
     // Step 1: 家长
     const [phone, setPhone] = useState("");
     const [parentName, setParentName] = useState("");
@@ -48,7 +48,7 @@ function NewParticipantContent() {
 
     // Step 3: 办卡
     const [selectedTierId, setSelectedTierId] = useState("");
-    
+
     // 1. 初始化加载 (卡种 + 自动识别家长)
     useEffect(() => {
         if (!token) return;
@@ -95,7 +95,7 @@ function NewParticipantContent() {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ phone_number: phone, name: parentName || null, base_id: null })
             });
-            
+
             if (res.status === 409) {
                 throw new Error("该手机号已存在，请直接去'学员与会员'页面添加学员");
             }
@@ -103,7 +103,7 @@ function NewParticipantContent() {
 
             setCreatedCustomer(await res.json());
             setStep(2);
-        } catch (e: any) { setError(e.message); } 
+        } catch (e: any) { setError(e.message); }
         finally { setIsLoading(false); }
     };
 
@@ -115,7 +115,7 @@ function NewParticipantContent() {
 
         setIsLoading(true);
         try {
-            const results = await Promise.all(validStudents.map(s => 
+            const results = await Promise.all(validStudents.map(s =>
                 fetch(`${API}/participants`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -129,9 +129,9 @@ function NewParticipantContent() {
                     })
                 }).then(res => res.json())
             ));
-            
-            setCreatedStudents(results); 
-            setStep(3); 
+
+            setCreatedStudents(results);
+            setStep(3);
         } catch (e: any) { setError(e.message); setIsLoading(false); }
         finally { setIsLoading(false); }
     };
@@ -149,7 +149,7 @@ function NewParticipantContent() {
                 body: JSON.stringify({
                     customer_id: createdCustomer!.id,
                     tier_id: selectedTierId,
-                    participant_id: null 
+                    participant_id: null
                 })
             });
             if (!res.ok) throw new Error("开卡失败");
@@ -178,11 +178,11 @@ function NewParticipantContent() {
                     <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                         <UserPlus className="text-indigo-600" /> 新生接待 SOP
                     </h1>
-                    <p className="text-gray-500 mt-1">标准化录入流程：建立档案 -> 办理会员卡 -> (跳转) 排课。</p>
+                    <p className="text-gray-500 mt-1">标准化录入流程：建立档案 → 办理会员卡 → (跳转) 排课。</p>
                 </div>
                 {/* 返回按钮 */}
                 <button onClick={() => router.back()} className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1">
-                    <ArrowLeft size={16}/> 返回列表
+                    <ArrowLeft size={16} /> 返回列表
                 </button>
             </div>
 
@@ -196,7 +196,7 @@ function NewParticipantContent() {
             </div>
 
             <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200">
-                
+
                 {/* === STEP 1: 家长 === */}
                 {step === 1 && (
                     <form onSubmit={handleCreateCustomer} className="space-y-6 animate-in fade-in slide-in-from-right-4">
@@ -219,7 +219,7 @@ function NewParticipantContent() {
                                 {error && <div className="text-red-500 text-sm">{error}</div>}
                                 <div className="flex justify-end">
                                     <button disabled={isLoading} className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-indigo-700 transition-colors flex items-center gap-2 disabled:opacity-50">
-                                        {isLoading ? '保存中...' : <>下一步 <ArrowRight size={16}/></>}
+                                        {isLoading ? '保存中...' : <>下一步 <ArrowRight size={16} /></>}
                                     </button>
                                 </div>
                             </>
@@ -250,18 +250,18 @@ function NewParticipantContent() {
                             <label className="block text-sm font-medium text-gray-700">学员信息</label>
                             {students.map((s, i) => (
                                 <div key={i} className="flex gap-3">
-                                    <input type="text" required={i===0} value={s.name} onChange={e => updateStudent(i, 'name', e.target.value)} className="flex-1 p-2 border rounded-lg" placeholder="学员姓名" />
+                                    <input type="text" required={i === 0} value={s.name} onChange={e => updateStudent(i, 'name', e.target.value)} className="flex-1 p-2 border rounded-lg" placeholder="学员姓名" />
                                     <select value={s.gender} onChange={e => updateStudent(i, 'gender', e.target.value)} className="w-24 p-2 border rounded-lg bg-white">
                                         <option value="">性别</option><option value="男">男</option><option value="女">女</option>
                                     </select>
                                     <input type="date" value={s.dob} onChange={e => updateStudent(i, 'dob', e.target.value)} className="w-40 p-2 border rounded-lg text-gray-500" />
                                 </div>
                             ))}
-                            <button type="button" onClick={() => setStudents([...students, {name:'',dob:'',gender:''}])} className="text-sm text-indigo-600 flex items-center gap-1">
-                                <Baby size={16}/> 添加另一个孩子
+                            <button type="button" onClick={() => setStudents([...students, { name: '', dob: '', gender: '' }])} className="text-sm text-indigo-600 flex items-center gap-1">
+                                <Baby size={16} /> 添加另一个孩子
                             </button>
                         </div>
-                        
+
                         <div className="flex justify-end gap-3 pt-4">
                             {/* 只有不是直接跳转进来的，才允许上一步 */}
                             {!parentIdFromUrl && (
@@ -278,17 +278,17 @@ function NewParticipantContent() {
                 {step === 3 && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <InfoBanner icon={<User size={18}/>} text={`家长: ${createdCustomer?.name}`} />
-                            <InfoBanner icon={<Baby size={18}/>} text={`学员: ${createdStudents.map(s=>s.name).join(', ')}`} />
+                            <InfoBanner icon={<User size={18} />} text={`家长: ${createdCustomer?.name}`} />
+                            <InfoBanner icon={<Baby size={18} />} text={`学员: ${createdStudents.map(s => s.name).join(', ')}`} />
                         </div>
 
                         <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-100">
                             <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">
-                                <CreditCard size={18}/> 选择会员卡
+                                <CreditCard size={18} /> 选择会员卡
                             </h3>
                             <div className="grid grid-cols-2 gap-3">
                                 {tiers.map(tier => (
-                                    <div 
+                                    <div
                                         key={tier.id}
                                         onClick={() => setSelectedTierId(tier.id)}
                                         className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedTierId === tier.id ? 'border-indigo-500 bg-white shadow-md' : 'border-transparent bg-white/50 hover:bg-white'}`}
@@ -305,13 +305,13 @@ function NewParticipantContent() {
                         </div>
 
                         <div className="flex justify-end gap-3 pt-4">
-                            <button 
-                                onClick={() => router.push('/campus/memberships')} 
+                            <button
+                                onClick={() => router.push('/campus/memberships')}
                                 className="px-4 py-2 text-gray-500 hover:text-gray-700"
                             >
                                 跳过，稍后办理
                             </button>
-                            <button 
+                            <button
                                 onClick={handleBuyCard}
                                 disabled={isLoading || !selectedTierId}
                                 className="bg-green-600 text-white px-8 py-2 rounded-lg hover:bg-green-700 font-bold shadow-md disabled:opacity-50"
@@ -340,7 +340,7 @@ function StepItem({ num, label, active, current, done }: any) {
     return (
         <div className={`flex items-center gap-2 ${active ? 'text-indigo-700' : 'text-gray-400'}`}>
             <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors ${done ? 'bg-green-100 text-green-700 border-green-200' : current ? 'bg-indigo-600 text-white shadow-md' : active ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
-                {done ? <CheckCircle size={16}/> : num}
+                {done ? <CheckCircle size={16} /> : num}
             </span>
             <span className={`font-medium ${current ? 'text-gray-900' : ''}`}>{label}</span>
         </div>

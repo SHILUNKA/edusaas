@@ -39,8 +39,8 @@ export default function LoginPage() {
       // 2. 登录成功后，手动获取最新的 Session 以检查角色
       // (注意: 这里需要 await getSession 确保获取到更新后的状态)
       const session = await getSession();
-      const roles = session?.user?.roles || [];
-      const baseId = session?.user?.base_id;
+      const roles = (session?.user as any)?.roles || [];
+      const baseId = (session?.user as any)?.base_id;
 
       console.log("登录成功，角色:", roles);
 

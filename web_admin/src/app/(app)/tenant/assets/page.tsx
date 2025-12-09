@@ -33,7 +33,7 @@ interface Base { id: string; name: string; }
 // --- 主页面 ---
 export default function TenantAssetsPage() {
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session?.user as any)?.rawToken;
     const API = API_BASE_URL;
 
     // 数据

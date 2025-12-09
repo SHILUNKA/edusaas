@@ -33,7 +33,7 @@ interface ParticipantStats { total_count: number; new_this_month: number; active
 
 export default function TenantParticipantsPage() {
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session?.user as any)?.rawToken;
     const API = API_BASE_URL;
 
     // 数据

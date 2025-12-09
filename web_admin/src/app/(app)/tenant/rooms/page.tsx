@@ -17,7 +17,7 @@ interface Room { id: string; base_id: string; name: string; capacity: number; la
 
 export default function TenantRoomsPage() {
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session?.user as any)?.rawToken;
     const API = API_BASE_URL;
 
     const [rooms, setRooms] = useState<Room[]>([]); 

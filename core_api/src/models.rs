@@ -137,6 +137,7 @@ pub struct CreateUserPayload {
     pub address: Option<String>,
     pub role_key: String,
     pub base_id: Option<Uuid>,
+    pub password: Option<String>,
 }
 
 #[derive(Debug, Serialize, FromRow)]

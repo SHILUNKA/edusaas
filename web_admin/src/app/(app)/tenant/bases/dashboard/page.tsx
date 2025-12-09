@@ -1,88 +1,203 @@
-// (在 src/app/(app)/admin/base/dashboard/page.tsx)
-//
-// 这是一个 React Server Component (RSC), 它在服务器上运行
+/*
+ * 总部管理: 基地管理与校长任命 (V17.6)
+ * 路径: /tenant/bases
+ */
+'use client'; 
 
-import { auth } from "@/lib/auth"; // (假设: 您从 cookie 获取 session 的辅助函数)
-import { api } from "@/lib/api";     // (假设: 您用于获取数据的辅助函数)
-import { StatCard } from "@/components/ui/StatCard";
-import { UpcomingClasses } from "@/components/dash/UpcomingClasses";
-import { StockAlerts } from "@/components/dash/StockAlerts";
+import { useState, useEffect, FormEvent } from 'react';
+import { useSession } from 'next-auth/react';
+import { API_BASE_URL } from '@/lib/config';
+import { Building2, MapPin, Plus, UserPlus, X, ShieldCheck } from 'lucide-react';
 
-// (★ 关键) 我们需要3个新的数据类型
-interface IBaseDashboardStats {
-  participant_count: number;
-  member_count: number;
-  today_class_count: number;
+interface Base { id: string; name: string; address: string | null; }
+
+export default function TenantBasesPage() {
+    const { data: session } = useSession();
+    const token = session?.user?.rawToken;
+    const API = API_BASE_URL;
+
+    const [bases, setBases] = useState<Base[]>([]);
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    
+    // 校长任命弹窗状态
+    const [isAssignOpen, setIsAssignOpen] = useState(false);
+    const [targetBase, setTargetBase] = useState<Base | null>(null);
+
+    // 加载基地
+    const fetchBases = async () => {
+        if (!token) return;
+        try {
+            const res = await fetch(`${API}/bases`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) setBases(await res.json());
+        } catch (e) { console.error(e); }
+    };
+
+    useEffect(() => { fetchBases(); }, [token]);
+
+    return (
+        <div className="p-8 max-w-7xl mx-auto space-y-8">
+            <div className="flex justify-between items-end">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+                        <Building2 className="text-indigo-600" size={32}/> 基地管理
+                    </h1>
+                    <p className="text-gray-500 mt-2">管理所有分校/基地，并任命各校区负责人（校长）。</p>
+                </div>
+                <button onClick={() => setIsCreateOpen(true)} className="bg-black text-white px-5 py-2.5 rounded-full font-bold hover:bg-gray-800 flex items-center gap-2 shadow-lg transition-transform hover:scale-105">
+                    <Plus size={20}/> 新建基地
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {bases.map(base => (
+                    <div key={base.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow group relative overflow-hidden">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                                <Building2 size={24}/>
+                            </div>
+                            {/* 任命按钮 */}
+                            <button 
+                                onClick={() => { setTargetBase(base); setIsAssignOpen(true); }}
+                                className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full font-bold hover:bg-indigo-100 flex items-center gap-1 transition-colors"
+                            >
+                                <UserPlus size={14}/> 任命校长
+                            </button>
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">{base.name}</h3>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                            <MapPin size={16}/>
+                            {base.address || "地址未录入"}
+                        </div>
+                        
+                        <div className="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center text-xs text-gray-400">
+                            <span>ID: {base.id.slice(0,8)}...</span>
+                            <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded">运营中</span>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* 弹窗1: 新建基地 */}
+            {isCreateOpen && <CreateBaseModal token={token} onClose={() => setIsCreateOpen(false)} onSuccess={fetchBases} />}
+
+            {/* 弹窗2: (★ 新增) 任命校长 */}
+            {isAssignOpen && targetBase && (
+                <AssignPrincipalModal 
+                    token={token} 
+                    base={targetBase} 
+                    onClose={() => setIsAssignOpen(false)} 
+                />
+            )}
+        </div>
+    );
 }
-interface IUpcomingClass {
-  id: string;
-  name_key: string; // (我们需要 JOIN courses 表来获取)
-  start_time: string;
-  teacher_name: string; // (我们需要 JOIN teachers 表来获取)
-  room_name: string;    // (我们需要 JOIN rooms 表来获取)
-  enrollment_count: number;
-  max_capacity: number;
+
+// --- 组件: 新建基地 (保持原样，略做美化) ---
+function CreateBaseModal({ token, onClose, onSuccess }: any) {
+    const [name, setName] = useState("");
+    const [addr, setAddr] = useState("");
+    const API = API_BASE_URL;
+
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        const res = await fetch(`${API}/bases`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ name, address: addr })
+        });
+        if (res.ok) { onSuccess(); onClose(); } else alert("创建失败");
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white p-8 rounded-2xl w-full max-w-md shadow-2xl">
+                <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold">新建分校/基地</h3>
+                    <button onClick={onClose}><X className="text-gray-400 hover:text-gray-600"/></button>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-1">基地名称</label>
+                        <input required value={name} onChange={e=>setName(e.target.value)} className="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="例如: 深圳南山旗舰店"/>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-1">详细地址</label>
+                        <input value={addr} onChange={e=>setAddr(e.target.value)} className="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"/>
+                    </div>
+                    <button type="submit" className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 mt-4">确认创建</button>
+                </form>
+            </div>
+        </div>
+    );
 }
-interface IStockAlert {
-  material_name_key: string;
-  remaining_stock: number;
-}
 
+// --- 组件: 任命校长 (★ 核心新增) ---
+function AssignPrincipalModal({ token, base, onClose }: any) {
+    const [email, setEmail] = useState("");
+    const [name, setName] = useState("");
+    const [password, setPassword] = useState("123456");
+    const API = API_BASE_URL;
 
-// (★ 关键) 在服务器组件中并行获取所有数据
-async function getDashboardData(token: string) {
-  // (我们假设 api.get 会自动附加 Authorization: Bearer token)
-  
-  // (我们需要创建这3个 API)
-  const statsPromise = api.get<IBaseDashboardStats>('/base/dashboard/stats', token);
-  const classesPromise = api.get<IUpcomingClass[]>('/base/classes?date=today', token);
-  const stockPromise = api.get<IStockAlert[]>('/base/stock/alerts', token);
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        try {
+            // 调用创建用户接口，并强制指定角色和基地ID
+            const res = await fetch(`${API}/tenant/users`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    email,
+                    full_name: name,
+                    phone_number: null,
+                    gender: null, blood_type: null, date_of_birth: null, address: null,
+                    // ★ 关键点: 指定角色为校长，指定基地ID
+                    role_key: 'role.base.admin',
+                    base_id: base.id
+                })
+            });
 
-  // (并行触发所有请求)
-  const [stats, classes, stock] = await Promise.all([
-    statsPromise,
-    classesPromise,
-    stockPromise
-  ]);
+            if (res.ok) {
+                alert(`✅ 成功任命 [${name}] 为 [${base.name}] 校长！\n默认密码: 123456`);
+                onClose();
+            } else {
+                alert("操作失败，邮箱可能已存在或权限不足");
+            }
+        } catch (e) { alert("网络错误"); }
+    };
 
-  return { stats, classes, stock };
-}
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white p-8 rounded-2xl w-full max-w-md shadow-2xl border-t-4 border-indigo-600">
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-xl font-bold text-gray-900">任命校长</h3>
+                    <button onClick={onClose}><X className="text-gray-400 hover:text-gray-600"/></button>
+                </div>
+                <p className="text-sm text-gray-500 mb-6">
+                    正在为 <span className="font-bold text-indigo-600">{base.name}</span> 创建管理员账号。
+                </p>
 
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-1">登录邮箱 (账号)</label>
+                        <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="例如: principal@sz.com"/>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-1">校长姓名</label>
+                        <input required value={name} onChange={e=>setName(e.target.value)} className="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" placeholder="例如: 王校长"/>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-1">初始密码</label>
+                        <input disabled value={password} className="w-full p-3 border rounded-xl bg-gray-50 text-gray-500 cursor-not-allowed"/>
+                        <p className="text-xs text-gray-400 mt-1">* 默认密码为 123456，登录后建议修改</p>
+                    </div>
 
-// (★ 页面组件 ★)
-export default async function BaseDashboardPage() {
-  // 1. 获取 Session/Token (在服务器上)
-  const session = await auth(); // (例如: 从 authStore 或 cookie)
-  
-  // 2. (★ 关键) 检查角色
-  // (如果 session.user.base_id 为 null, 说明是总部, 重定向到 /admin/tenant)
-  if (!session?.user?.base_id) {
-     // redirect("/admin/tenant/dashboard");
-     // (或者显示一个“您是总部”的视图)
-  }
-  
-  // 3. (★ 关键) 获取数据
-  // (这会在页面加载时在服务器上运行, 速度很快)
-  const { stats, classes, stock } = await getDashboardData(session.token);
-
-  return (
-    <div className="flex flex-col gap-6 p-6">
-      <h1 className="text-3xl font-bold">分店看板 ( {session.user.base_name} )</h1>
-
-      {/* --- 组件 A: 关键指标 --- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="活跃学员" value={stats.participant_count} />
-        <StatCard title="活跃会员" value={stats.member_count} />
-        <StatCard title="今日排课" value={stats.today_class_count} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* --- 组件 B: 今日待办 --- */}
-        <UpcomingClasses classes={classes} />
-
-        {/* --- 组件 C: 运营警报 --- */}
-        <StockAlerts alerts={stock} />
-      </div>
-    </div>
-  );
+                    <div className="pt-2">
+                        <button type="submit" className="w-full bg-black text-white py-3 rounded-xl font-bold hover:bg-gray-800 flex items-center justify-center gap-2">
+                            <ShieldCheck size={18}/> 确认授权
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
 }

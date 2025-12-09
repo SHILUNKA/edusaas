@@ -28,7 +28,7 @@ interface Rank {
 
 export default function HonorRanksPage() {
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session as any)?.user?.rawToken;
     const API = API_BASE_URL;
 
     const [ranks, setRanks] = useState<Rank[]>([]);

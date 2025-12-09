@@ -29,7 +29,7 @@ interface Tier {
 
 export default function MembershipTiersPage() {
     const { data: session } = useSession();
-    const token = session?.user?.rawToken;
+    const token = (session?.user as any)?.rawToken;
     const API = API_BASE_URL;
 
     // 数据状态

@@ -32,6 +32,7 @@ CREATE TABLE bases (
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL, 
     address TEXT,
+    logo_url TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -244,7 +245,7 @@ CREATE TABLE rooms (
     layout_columns INT DEFAULT 6
 );
 
-CREATE TABLE courses (
+CREATE TABLE IF NOT EXISTS courses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     name_key VARCHAR(255) NOT NULL, 
@@ -253,9 +254,11 @@ CREATE TABLE courses (
     default_duration_minutes INT NOT NULL DEFAULT 60,
     points_awarded INT NOT NULL DEFAULT 0,
     prerequisite_course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
-    is_active BOOLEAN DEFAULT true
-    cover_url TEXT,       -- 课程封面图 URL
-    introduction TEXT     -- 课程详情简介 (Markdown/HTML)
+    is_active BOOLEAN DEFAULT true,
+    cover_url TEXT,       
+    introduction TEXT,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE course_required_materials (
@@ -483,19 +486,51 @@ CREATE INDEX idx_finance_category ON financial_transactions(transaction_type, ca
 ====================================================================
 */
 
-INSERT INTO tenants (name) VALUES ('默认测试品牌') ON CONFLICT DO NOTHING;
+/*
+====================================================================
+--- Seed Data: 角色与权限预设 (V17.6 业务流版) ---
+====================================================================
+*/
+
+-- 1. 确保默认租户存在
+INSERT INTO tenants (name) VALUES ('EduSaaS 示范集团') ON CONFLICT DO NOTHING;
+
+-- 2. 预设核心角色 (关键步骤)
+-- 我们使用 name_key 作为代码里的判断依据，description_key 用于前端展示
+
+-- === 总部角色 (HQ) ===
+INSERT INTO roles (tenant_id, name_key, description_key)
+SELECT id, 'role.tenant.admin', '总部-总经理 (全权)' 
+FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
 
 INSERT INTO roles (tenant_id, name_key, description_key)
-SELECT id, 'role.tenant.admin', '总部超级管理员' FROM tenants LIMIT 1
-ON CONFLICT DO NOTHING;
+SELECT id, 'role.tenant.finance', '总部-财务总监 (资金/审批)' 
+FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
 
 INSERT INTO roles (tenant_id, name_key, description_key)
-SELECT id, 'role.base.admin', '分基地/校区管理员' FROM tenants LIMIT 1
-ON CONFLICT DO NOTHING;
+SELECT id, 'role.tenant.operation', '总部-运营/教研 (课程/资产)' 
+FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
 
 INSERT INTO roles (tenant_id, name_key, description_key)
-SELECT id, 'role.teacher', '普通教师/员工' FROM tenants LIMIT 1
-ON CONFLICT DO NOTHING;
+SELECT id, 'role.tenant.hr', '总部-人事 (员工管理)' 
+FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
+
+-- === 基地角色 (Campus) ===
+INSERT INTO roles (tenant_id, name_key, description_key)
+SELECT id, 'role.base.admin', '校区-校长 (校区全权)' 
+FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
+
+INSERT INTO roles (tenant_id, name_key, description_key)
+SELECT id, 'role.base.academic', '校区-教务主管 (排课/学员)' 
+FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
+
+INSERT INTO roles (tenant_id, name_key, description_key)
+SELECT id, 'role.base.finance', '校区-财务/前台 (收费/采购)' 
+FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
+
+INSERT INTO roles (tenant_id, name_key, description_key)
+SELECT id, 'role.teacher', '校区-普通教师 (上课/查看课表)' 
+FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
 
 -- 预设 19 级军衔体系
 INSERT INTO honor_ranks (tenant_id, name_key, rank_level, points_required, badge_icon_url)

@@ -15,7 +15,7 @@ interface StockItem {
 
 export default function StockPage() {
   const { data: session } = useSession();
-  const token = session?.user?.rawToken;
+  const token = (session?.user as any)?.rawToken;
 
   const [alerts, setAlerts] = useState<StockItem[]>([]);
   const [allStocks, setAllStocks] = useState<StockItem[]>([]); // (★ 改名)

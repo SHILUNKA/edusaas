@@ -1,18 +1,18 @@
 /*
  * src/handlers/user.rs
- * 职责: 员工与权限管理
- * (★ V14.1 - 修复 UserDetail 初始化缺失 base_id ★)
+ * 修复逻辑:
+ * 1. get_tenant_users: SQL 查询增加 u.staff_status::text
+ * 2. create_tenant_user: 返回的 UserDetail JSON 中增加 staff_status
  */
 use axum::{extract::State, http::StatusCode, Json};
 use uuid::Uuid;
 use bcrypt::{hash, DEFAULT_COST};
-use crate::models::{UserDetail, CreateUserPayload};
-use super::{AppState, auth::Claims};
+use crate::models::{Claims, UserDetail, CreateUserPayload, UpdateStatusPayload, UpdateUserPayload};
+use super::{AppState};
 
 use sqlx::{QueryBuilder};
 use rand::{seq::SliceRandom};
 
-// --- 强密码生成工具函数 ---
 fn generate_strong_password() -> String {
     let mut rng = rand::thread_rng();
     let upper: Vec<char> = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".chars().collect();
@@ -30,7 +30,7 @@ fn generate_strong_password() -> String {
     password.into_iter().collect()
 }
 
-// (GET) 获取员工列表 (含技能与实时状态 + base_id)
+// (GET) 获取员工列表
 pub async fn get_tenant_users(
     State(state): State<AppState>,
     claims: Claims,
@@ -44,25 +44,27 @@ pub async fn get_tenant_users(
         return Err(StatusCode::FORBIDDEN);
     }
 
-    // (★ V14.0 更新: 增加 u.base_id 查询)
+    // ★★★ [修复 1] SQL 查询增加 u.staff_status::text ★★★
+    // 同时也补上了 skills 和 is_teaching_now 的查询逻辑
     let mut query_builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
         r#"
         SELECT 
             u.id, u.email, u.full_name, u.is_active, u.created_at,
             u.phone_number, u.gender, u.blood_type, u.date_of_birth, u.address,
-            u.base_id, -- (★ 关键: 必须查出来)
+            
+            u.staff_status::text, -- <--- 关键修复: 查出状态
+
+            u.base_id,
             b.name as base_name,
             (SELECT r.name_key FROM roles r 
              JOIN user_roles ur ON r.id = ur.role_id 
              WHERE ur.user_id = u.id LIMIT 1) as role_name,
              
-            -- (1. 获取技能)
             (SELECT STRING_AGG(c.name_key, ', ')
              FROM teacher_qualified_courses tqc
              JOIN courses c ON tqc.course_id = c.id
              WHERE tqc.teacher_id = u.id) as skills,
              
-            -- (2. 获取实时状态)
             EXISTS (
                 SELECT 1 FROM classes cl
                 JOIN class_teachers ct ON cl.id = ct.class_id
@@ -116,16 +118,12 @@ pub async fn create_tenant_user(
     }
 
     let (final_base_id, final_role_key) = if is_hq {
-        // 总部: 可以指定任意基地，任意角色
         (payload.base_id, payload.role_key.clone())
     } else {
-        // 基地: 强制锁定当前基地
         let my_base_id = claims.base_id.ok_or(StatusCode::FORBIDDEN)?;
-        
-        // (★ 关键修复: 允许校长创建 教务/财务/老师，但禁止创建总部角色或另一个校长)
         let allowed_roles = vec!["role.base.academic", "role.base.finance", "role.teacher", "role.base.hr"];
         if !allowed_roles.contains(&payload.role_key.as_str()) {
-            return Err(StatusCode::FORBIDDEN); // 尝试创建非法角色
+            return Err(StatusCode::FORBIDDEN);
         }
         (Some(my_base_id), payload.role_key.clone())
     };
@@ -133,9 +131,9 @@ pub async fn create_tenant_user(
     let mut tx = state.db_pool.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let plain_password = payload.password.clone().unwrap_or_else(generate_strong_password);
-
     let password_hash = hash(&plain_password, DEFAULT_COST).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    // 这里 INSERT 默认用数据库的 staff_status='active'，所以不用改 SQL
     let user_id: Uuid = sqlx::query_scalar(
         r#"
         INSERT INTO users (
@@ -204,6 +202,7 @@ pub async fn create_tenant_user(
 
     tx.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
+    // ★★★ [修复 2] 这里构造 JSON 时补上 staff_status ★★★
     Ok(Json(UserDetail {
         id: user_id,
         email: payload.email,
@@ -214,8 +213,10 @@ pub async fn create_tenant_user(
         date_of_birth: payload.date_of_birth,
         address: payload.address,
         is_active: true,
-        base_name: None, // 刷新后会有
-        // (★ 修复: 补上 base_id)
+        
+        staff_status: Some("active".to_string()), // 默认创建就是在职
+
+        base_name: None, 
         base_id: final_base_id, 
         role_name: Some(final_role_key),
         created_at: chrono::Utc::now(),
@@ -223,4 +224,114 @@ pub async fn create_tenant_user(
         skills: None, 
         is_teaching_now: Some(false),
     }))
+}
+
+// ... Update 相关的函数已经是对的，保持原样即可 ...
+pub async fn update_user_status_handler(
+    State(state): State<AppState>,
+    claims: Claims,
+    axum::extract::Path(user_id): axum::extract::Path<Uuid>,
+    Json(payload): Json<UpdateStatusPayload>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    
+    let is_hq_admin = claims.roles.contains(&"role.tenant.admin".to_string());
+    let is_base_admin = claims.roles.contains(&"role.base.admin".to_string());
+
+    if !is_hq_admin && !is_base_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let result = sqlx::query(
+        "UPDATE users SET is_active = $1 WHERE id = $2 AND tenant_id = $3"
+    )
+    .bind(payload.is_active)
+    .bind(user_id)
+    .bind(claims.tenant_id)
+    .execute(&state.db_pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to update user status: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    if result.rows_affected() == 0 {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+pub async fn update_user_handler(
+    State(state): State<AppState>,
+    claims: Claims,
+    axum::extract::Path(user_id): axum::extract::Path<Uuid>,
+    Json(payload): Json<UpdateUserPayload>,
+) -> Result<Json<serde_json::Value>, StatusCode> {
+    
+    let mut tx = state.db_pool.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let new_is_active = if let Some(status) = &payload.staff_status {
+        match status.as_str() {
+            "resigned" => Some(false), 
+            "active" => Some(true),    
+            _ => None,                 
+        }
+    } else {
+        None
+    };
+
+    if payload.full_name.is_some() || payload.phone_number.is_some() || payload.staff_status.is_some() {
+        let _ = sqlx::query(
+            r#"
+            UPDATE users 
+            SET 
+                full_name = COALESCE($1, full_name),
+                phone_number = COALESCE($2, phone_number),
+                staff_status = COALESCE($3::staff_status, staff_status),
+                is_active = COALESCE($4, is_active)
+            WHERE id = $5 AND tenant_id = $6
+            "#
+        )
+        .bind(&payload.full_name)
+        .bind(&payload.phone_number)
+        .bind(&payload.staff_status)
+        .bind(new_is_active)
+        .bind(user_id)
+        .bind(claims.tenant_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| {
+            tracing::error!("Update user failed: {}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    }
+
+    if let Some(new_role_key) = &payload.role_key {
+        let role_id = sqlx::query_scalar::<_, Uuid>("SELECT id FROM roles WHERE name_key = $1")
+            .bind(new_role_key)
+            .fetch_optional(&mut *tx)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+            .ok_or(StatusCode::BAD_REQUEST)?;
+
+        let result = sqlx::query("UPDATE user_roles SET role_id = $1 WHERE user_id = $2")
+            .bind(role_id)
+            .bind(user_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            
+        if result.rows_affected() == 0 {
+             let _ = sqlx::query("INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)")
+                .bind(user_id)
+                .bind(role_id)
+                .execute(&mut *tx)
+                .await
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        }
+    }
+
+    tx.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(serde_json::json!({ "success": true })))
 }

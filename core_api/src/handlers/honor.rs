@@ -11,8 +11,7 @@ use axum::{
 use uuid::Uuid; 
 
 use super::AppState;
-use super::auth::Claims; 
-use crate::models::{HonorRank, CreateHonorRankPayload, UpdateHonorRankPayload};
+use crate::models::{Claims, HonorRank, CreateHonorRankPayload, UpdateHonorRankPayload};
 
 // (GET /api/v1/honor-ranks)
 pub async fn get_honor_ranks(

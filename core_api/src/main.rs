@@ -1,6 +1,6 @@
 /*
  * src/main.rs
- * (★ V16.3 - 修复路由冲突 Panic ★)
+ * (★ V20.1 - 修复 Dashboard 路由引用错误 ★)
  */
 use axum::{
     routing::{get, post, patch},
@@ -11,18 +11,14 @@ use axum::{
 use std::net::SocketAddr;
 use std::env;
 use dotenvy::dotenv;
-
-// --- 导入 TraceLayer (日志) ---
 use tower_http::trace::TraceLayer;
-
-// --- 导入 CorsLayer (CORS) ---
 use tower_http::cors::CorsLayer;
 use axum::http::header; 
 
-// --- 模块 ---
 mod handlers;
 mod models;
 
+// ★ 1. 在这里把所有用到的 Handler 都引入进来
 use handlers::{
     AppState,
     db_health_handler,
@@ -39,7 +35,7 @@ use handlers::{
     get_asset_types_handler,
     get_all_assets_handler,
     create_asset_handler,
-    transfer_asset_handler, // (新增)
+    transfer_asset_handler, 
     delete_asset_handler,
 
     create_material_handler,
@@ -53,11 +49,14 @@ use handlers::{
     get_participants_handler,
     get_tenant_participant_stats,
     get_base_participants_handler,
-    
-    // Dashboard
-    get_dashboard_stats, 
-    get_base_dashboard_stats, 
     get_all_tenant_participants,
+    
+    // Dashboard (★ 修正这里: 引入正确的函数名)
+    get_dashboard_stats_handler, 
+    get_base_dashboard_stats_handler,
+    // ↓ 新增的三个函数名
+    get_dashboard_advanced_stats_handler, 
+    get_pending_staff_list_handler,
     
     // Membership & CRM
     create_membership_tier_handler,
@@ -78,7 +77,7 @@ use handlers::{
     delete_room_handler,
     get_base_teachers_handler, 
     
-    // Class & Enrollment (排课)
+    // Class & Enrollment
     create_base_class_handler, 
     get_base_classes_handler, 
     update_class_handler, 
@@ -94,6 +93,7 @@ use handlers::{
     update_honor_rank,
     get_tenant_users,
     create_tenant_user,
+    update_user_handler,
     
     // Stock & Procurement
     get_stock_alerts_handler,
@@ -110,7 +110,7 @@ use handlers::{
     delete_teacher_availability_handler,
     trigger_auto_schedule_handler,
 
-    // Finacial
+    // Financial
     get_financial_records_handler,
     create_manual_transaction_handler,
 };
@@ -120,12 +120,10 @@ async fn main() {
     dotenv().ok();
     tracing_subscriber::fmt::init();
 
-    // 1. 基础配置
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let jwt_secret = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     let ai_api_url = env::var("AI_API_URL").unwrap_or_else(|_| "http://edusaas_ai_api:8000".to_string());
     
-    // 2. 动态 CORS 配置
     let cors_origins_str = env::var("CORS_ALLOWED_ORIGINS")
         .unwrap_or_else(|_| "http://localhost:3000".to_string());
 
@@ -134,9 +132,6 @@ async fn main() {
         .map(|s| s.trim().parse::<axum::http::HeaderValue>().expect("Invalid CORS origin URL"))
         .collect();
 
-    tracing::info!("🌐 CORS allowed origins: {:?}", allowed_origins);
-
-    // 3. App State
     let http_client = reqwest::Client::new();
     let pool = sqlx::postgres::PgPoolOptions::new()
         .max_connections(5)
@@ -151,7 +146,6 @@ async fn main() {
         http_client,
     };
 
-    // 4. 构建 CORS Layer
     let cors = CorsLayer::new()
         .allow_origin(allowed_origins)
         .allow_methods([
@@ -170,7 +164,6 @@ async fn main() {
         .allow_credentials(true)
         .max_age(std::time::Duration::from_secs(86400));
 
-    // 5. 定义路由
     let app = Router::new()
         .route("/health/db", get(db_health_handler))
         .route("/health/ai", get(ai_health_handler))
@@ -202,13 +195,23 @@ async fn main() {
         .route("/api/v1/tenant/participants/stats", get(get_tenant_participant_stats))
         .route("/api/v1/base/participants", get(get_base_participants_handler))
         
-        // Dashboard
-        .route("/api/v1/dashboard/stats", get(get_dashboard_stats))
+        // === ★ Dashboard 路由修复 ★ ===
+        // 1. 分店看板
+        .route("/api/v1/base/dashboard/stats", get(get_base_dashboard_stats_handler))
+        // 2. 总部基础看板
+        .route("/api/v1/tenant/dashboard/stats", get(get_dashboard_stats_handler))
+        // 3. 总部高级分析 (新) - 这里的 handler 名称要匹配上面的 use
+        .route("/api/v1/tenant/dashboard/analytics", get(get_dashboard_advanced_stats_handler))
+        // 4. HR 待入职名单 (新)
+        .route("/api/v1/tenant/dashboard/pending-staff", get(get_pending_staff_list_handler))
+
+        // 其他 User/Participant 路由
         .route("/api/v1/tenant/participants", get(get_all_tenant_participants))
         .route("/api/v1/tenant/users", get(get_tenant_users))
         .route("/api/v1/tenant/users", post(create_tenant_user))
+        .route("/api/v1/tenant/users/:id", axum::routing::put(update_user_handler))
 
-        // Membership & CRM
+        // Membership
         .route("/api/v1/membership-tiers", post(create_membership_tier_handler))
         .route("/api/v1/membership-tiers", get(get_membership_tiers_handler))
         .route("/api/v1/customer-memberships", post(assign_membership_handler)) 
@@ -222,48 +225,39 @@ async fn main() {
         .route("/api/v1/courses", get(get_courses_handler))
         .route("/api/v1/courses/:id/status", axum::routing::patch(toggle_course_status_handler))
         
-        // (★ 修复: 移除重复的路由定义)
-        // 无论是总部还是基地，都访问这两个接口，Handler 内部区分权限
         .route("/api/v1/rooms", get(get_rooms_handler).post(create_room_handler))
         .route("/api/v1/rooms/:id", axum::routing::put(update_room_handler).delete(delete_room_handler))
-        
-        // (为了兼容旧前端代码，保留这两个路径的别名)
         .route("/api/v1/tenant/rooms", get(get_rooms_handler).post(create_room_handler))
         .route("/api/v1/base/rooms", get(get_rooms_handler))
         
         .route("/api/v1/base/teachers", get(get_base_teachers_handler))
 
-        // Class (排课)
+        // Class & Enrollment
         .route("/api/v1/base/classes", post(create_base_class_handler)) 
         .route("/api/v1/base/classes", get(get_base_classes_handler))
         .route("/api/v1/base/classes/:id", patch(update_class_handler))
         .route("/api/v1/base/classes/:id", axum::routing::delete(delete_class_handler))
         
-        // Enrollment
         .route("/api/v1/enrollments", post(create_enrollment_handler))
         .route("/api/v1/classes/:id/enrollments", get(get_enrollments_for_class_handler))
         .route("/api/v1/enrollments/:id/complete", patch(complete_enrollment_handler))
         .route("/api/v1/enrollments/:id", axum::routing::delete(delete_enrollment_handler))
 
-        // Honor Rank
+        // Honor
         .route("/api/v1/honor-ranks", post(create_honor_rank))
         .route("/api/v1/honor-ranks", get(get_honor_ranks))
         .route("/api/v1/honor-ranks/:id", axum::routing::put(update_honor_rank))
 
-        // Stock
+        // Stock & Procurement
         .route("/api/v1/base/stock/alerts", get(get_stock_alerts_handler))
         .route("/api/v1/base/stock", get(get_base_stock_handler))
 
-        // Procurement
         .route("/api/v1/procurements", post(create_procurement_order))
         .route("/api/v1/procurements", get(get_procurement_orders))
         .route("/api/v1/procurements/:id/items", get(get_procurement_details))
         .route("/api/v1/procurements/:id/status", axum::routing::put(update_procurement_status))
 
-        // Phase 4 看板 (分店)
-        .route("/api/v1/base/dashboard/stats", get(get_base_dashboard_stats))
-
-        // AI Scheduling & Teacher Config
+        // AI Scheduling
         .route("/api/v1/teachers/:id/config", get(get_teacher_config_handler))
         .route("/api/v1/teachers/:id/skills", axum::routing::put(update_teacher_skills_handler))
         .route("/api/v1/teachers/:id/availability", post(add_teacher_availability_handler))

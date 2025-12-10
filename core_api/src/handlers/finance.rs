@@ -10,8 +10,7 @@ use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 use super::AppState;
-use super::auth::Claims;
-use crate::models::{FinancialTransaction, CreateTransactionPayload, TransactionType};
+use crate::models::{Claims, FinancialTransaction, CreateTransactionPayload, TransactionType};
 
 // 查询参数
 #[derive(Debug, Deserialize)]

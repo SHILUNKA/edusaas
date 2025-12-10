@@ -14,11 +14,10 @@ use serde::Deserialize;
 use sqlx::FromRow;
 use uuid::Uuid;
 
-use super::auth::Claims;
 use super::AppState;
 // (★ 引入 AssetStatus)
 use crate::models::{
-    Asset, AssetDetail, AssetQuery, AssetStatus, AssetType, CreateAssetPayload, CreateAssetTypePayload, TransferAssetPayload,
+    Asset, AssetDetail, AssetQuery, AssetStatus, AssetType, Claims, CreateAssetPayload, CreateAssetTypePayload, TransferAssetPayload,
 };
 
 // (GET) 总部查看全网资产台账

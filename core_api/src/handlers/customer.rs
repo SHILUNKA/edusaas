@@ -11,10 +11,8 @@ use axum::{
 
 // 导入在 mod.rs 中定义的 AppState
 use super::AppState;
-// 导入在 auth.rs 中定义的 Claims
-use super::auth::Claims;
 // 导入 models
-use crate::models::{Customer, CreateCustomerPayload};
+use crate::models::{Claims, Customer, CreateCustomerPayload};
 
 // (POST /api/v1/customers - B端创建家长)
 pub async fn create_customer_handler(

@@ -13,10 +13,8 @@ use uuid::Uuid;
 
 // 导入在 mod.rs 中定义的 AppState
 use super::AppState;
-// 导入在 auth.rs 中定义的 Claims
-use super::auth::Claims;
 // 导入 models
-use crate::models::{Participant, CreateParticipantPayload, ParticipantDetail};
+use crate::models::{Claims, Participant, CreateParticipantPayload, ParticipantDetail};
 
 
 // (POST /api/v1/participants - 创建一个新学员并关联到家长)

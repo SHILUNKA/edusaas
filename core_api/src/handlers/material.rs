@@ -9,9 +9,8 @@ use axum::{extract::State, http::StatusCode, Json};
 
 // 【修改】导入 AppState 和 Claims
 use super::AppState;
-use super::auth::Claims; // <-- 我们需要“钥匙”
 // 导入 models
-use crate::models::{Material, CreateMaterialPayload};
+use crate::models::{Claims, Material, CreateMaterialPayload};
 
 
 // (GET /api/v1/materials - 获取所有物料定义)

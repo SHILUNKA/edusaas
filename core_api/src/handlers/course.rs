@@ -11,9 +11,9 @@ use axum::{
 };
 use uuid::Uuid;
 
-use super::{AppState, auth::Claims, toggle_status_common};
+use super::{AppState, toggle_status_common};
 // (★ 修复: 添加 UpdateStatusPayload)
-use crate::models::{Course, CreateCoursePayload, UpdateStatusPayload, UpdateCoursePayload};
+use crate::models::{Claims, Course, CreateCoursePayload, UpdateStatusPayload, UpdateCoursePayload};
 
 // (GET)
 pub async fn get_courses_handler(

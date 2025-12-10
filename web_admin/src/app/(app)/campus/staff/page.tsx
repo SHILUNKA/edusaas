@@ -1,230 +1,318 @@
 /*
- * 校区端: 教职工管理 (V13.3 - 网络适配完整版)
- * 路径: /campus/staff
- * 功能:
- * 1. 员工卡片墙: 显示头像、角色、联系方式。
- * 2. 实时状态: 🟢空闲 / 🔴上课中 / ⚫️离职。
- * 3. 技能展示: 显示该老师能教的课程标签。
- * 4. 教学配置: 复用总部的 TeacherConfigModal。
- * 5. 网络适配: 使用 API_BASE_URL。
+ * 校区教职工管理 (V21.3 - 颜色视觉增强版)
+ * 路径: web_admin/src/app/(app)/campus/staff/page.tsx
  */
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
+import { API_BASE_URL } from '@/lib/config';
 import { 
-    Users, UserPlus, Mail, Phone, BookOpen, 
-    Clock, CheckCircle, PauseCircle, Settings 
+    UserPlus, Filter, Briefcase, GraduationCap, Calculator, ShieldCheck, 
+    MoreHorizontal, Mail, Phone, Calendar, Edit3, User
 } from 'lucide-react';
-import { API_BASE_URL } from '@/lib/config'; // (★ 引入配置)
-// 复用总部定义的配置弹窗
-import TeacherConfigModal from '@/app/(app)/tenant/users/TeacherConfigModal';
 
-// --- 类型定义 ---
-interface UserDetail {
+// === 1. 定义角色与颜色配置 ===
+const CAMPUS_ROLES = [
+    // 标准角色
+    { key: 'role.base.academic', label: '教务/教师', icon: GraduationCap, color: 'blue', desc: '排课、上课' },
+    { key: 'role.base.finance', label: '财务专员', icon: Calculator, color: 'emerald', desc: '收费、报销' }, // emerald 是更像钱的绿色
+    { key: 'role.base.hr', label: '行政人事', icon: Briefcase, color: 'orange', desc: '考勤、后勤' },
+    { key: 'role.base.admin', label: '校长/主管', icon: ShieldCheck, color: 'purple', desc: '校区管理' },
+    
+    // ★ 兼容旧数据角色 (灰色)
+    { key: 'role.teacher', label: '普通教师(旧)', icon: User, color: 'gray', desc: '请编辑修正角色' },
+];
+
+// 辅助函数：解决 Tailwind 动态类名无法被扫描的问题
+// 我们显式返回颜色类名，保证生产环境样式不丢失
+const getRoleStyle = (color: string) => {
+    switch (color) {
+        case 'blue': return { bg: 'bg-blue-100', text: 'text-blue-700', iconBg: 'bg-blue-500' };
+        case 'emerald': return { bg: 'bg-emerald-100', text: 'text-emerald-700', iconBg: 'bg-emerald-500' };
+        case 'orange': return { bg: 'bg-orange-100', text: 'text-orange-700', iconBg: 'bg-orange-500' };
+        case 'purple': return { bg: 'bg-purple-100', text: 'text-purple-700', iconBg: 'bg-purple-500' };
+        default: return { bg: 'bg-gray-100', text: 'text-gray-600', iconBg: 'bg-gray-400' };
+    }
+};
+
+interface Staff {
     id: string;
     email: string;
     full_name: string;
-    phone_number: string | null;
-    role_name: string | null;
-    is_active: boolean;
-    initial_password?: string;
-    // (V13.1 新增)
-    skills?: string;
-    is_teaching_now?: boolean;
+    role_name: string;
+    phone_number?: string;
+    staff_status: 'active' | 'pending' | 'resigned';
+    created_at: string;
 }
 
 export default function CampusStaffPage() {
     const { data: session } = useSession();
-    const token = (session?.user as any)?.rawToken;
-    const API = API_BASE_URL; // (★ 使用配置中的 URL)
+    const token = session?.user?.rawToken;
+    const baseId = session?.user?.base_id;
 
-    // --- 状态 ---
-    const [users, setUsers] = useState<UserDetail[]>([]);
+    const [staffList, setStaffList] = useState<Staff[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [filterRole, setFilterRole] = useState('all');
     
-    // 弹窗与表单
-    const [isCreating, setIsCreating] = useState(false);
-    const [configTeacher, setConfigTeacher] = useState<{id: string, full_name: string} | null>(null);
-    
-    // 创建表单数据
-    const [email, setEmail] = useState("");
-    const [fullName, setFullName] = useState("");
-    const [phone, setPhone] = useState("");
+    // 弹窗状态
+    const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [editingStaff, setEditingStaff] = useState<Staff | null>(null);
 
-    // --- 1. 数据获取 ---
-    const fetchData = async () => {
+    // ★ 修复加载逻辑：只要有 Token 就尝试加载，不做 baseId 强校验
+    const fetchStaff = async () => {
         if (!token) return;
         setIsLoading(true);
         try {
-            // 调用通用接口，后端会自动根据 base_id 过滤
-            const res = await fetch(`${API}/tenant/users`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            const query = baseId ? `?base_id=${baseId}` : ''; 
+            const res = await fetch(`${API_BASE_URL}/tenant/users${query}`, { 
+                headers: { 'Authorization': `Bearer ${token}` } 
             });
-            if (res.ok) setUsers(await res.json());
-        } catch (e) { 
-            console.error(e); 
-        } finally { 
-            setIsLoading(false); 
-        }
+            if (res.ok) setStaffList(await res.json());
+        } catch (e) { console.error(e); } 
+        finally { setIsLoading(false); }
     };
 
-    useEffect(() => { fetchData(); }, [token]);
+    useEffect(() => { if(token) fetchStaff(); }, [token, baseId]);
 
-    // --- 2. 创建员工 ---
-    const handleSubmit = async (e: FormEvent) => {
-        e.preventDefault();
-        if (!token) return;
-        try {
-            const res = await fetch(`${API}/tenant/users`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    email, full_name: fullName, phone_number: phone,
-                    role_key: "role.teacher", // 校区只能创建普通老师
-                    base_id: null // 后端自动填充当前基地
-                })
-            });
-
-            if (!res.ok) throw new Error("创建失败");
-            
-            const newUser = await res.json();
-            alert(`✅ 教师入职成功！\n\n账号: ${newUser.email}\n初始密码: ${newUser.initial_password}\n\n请务必复制并告知老师！`);
-            
-            setIsCreating(false);
-            setEmail(""); setFullName(""); setPhone("");
-            fetchData();
-        } catch (e) { alert("创建失败，请检查邮箱是否重复"); }
-    };
+    const filteredList = staffList.filter(u => filterRole === 'all' || u.role_name === filterRole);
 
     return (
-        <div className="p-6 max-w-7xl mx-auto space-y-6">
-            {/* 顶部工具栏 */}
-            <div className="flex justify-between items-center bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+        <div className="p-8 max-w-7xl mx-auto space-y-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                        <Users className="text-indigo-600"/> 教职工管理
+                        <Briefcase className="text-indigo-600" size={28}/> 教职工管理
                     </h1>
-                    <p className="text-sm text-gray-500 mt-1">管理本校区的教师团队，配置排课技能与时间。</p>
+                    <p className="text-gray-500 mt-1">管理本校区的全职、兼职员工及访问权限。</p>
                 </div>
-                <button 
-                    onClick={() => setIsCreating(!isCreating)} 
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 text-sm font-medium shadow-sm transition-colors"
-                >
-                    {isCreating ? "取消录入" : <><UserPlus size={16}/> 录入新教师</>}
-                </button>
+                <div className="flex gap-3">
+                    <div className="relative">
+                        <select 
+                            value={filterRole} 
+                            onChange={e => setFilterRole(e.target.value)}
+                            className="appearance-none bg-white border border-gray-200 pl-4 pr-10 py-2.5 rounded-xl text-sm font-bold text-gray-600 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        >
+                            <option value="all">全岗位</option>
+                            {CAMPUS_ROLES.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+                        </select>
+                        <Filter className="absolute right-3 top-3 text-gray-400 pointer-events-none" size={16}/>
+                    </div>
+                    <button onClick={() => setIsCreateOpen(true)} className="bg-black text-white px-5 py-2.5 rounded-xl font-bold hover:bg-gray-800 flex items-center gap-2 shadow-lg hover:scale-105 transition-transform">
+                        <UserPlus size={18}/> 新增员工
+                    </button>
+                </div>
             </div>
 
-            {/* 创建表单 (折叠区域) */}
-            {isCreating && (
-                <div className="bg-white p-6 rounded-xl shadow-md border-2 border-indigo-50 animate-in slide-in-from-top-4">
-                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <span className="w-1 h-4 bg-indigo-600 rounded-full"></span> 填写新教师信息
-                    </h3>
-                    <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label className="text-xs font-medium text-gray-500 mb-1 block">姓名 *</label>
-                            <input type="text" required value={fullName} onChange={e=>setFullName(e.target.value)} className="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="真实姓名"/>
-                        </div>
-                        <div>
-                            <label className="text-xs font-medium text-gray-500 mb-1 block">登录邮箱 (账号) *</label>
-                            <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="teacher@school.com"/>
-                        </div>
-                        <div>
-                            <label className="text-xs font-medium text-gray-500 mb-1 block">联系电话</label>
-                            <input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="选填"/>
-                        </div>
-                        <div className="md:col-span-3 flex justify-end pt-2">
-                            <button type="submit" className="bg-green-600 text-white px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-green-700 shadow-sm transition-colors">确认入职</button>
-                        </div>
-                    </form>
-                </div>
-            )}
+            {/* List */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredList.map(staff => {
+                    // 1. 找到对应的配置
+                    const roleConfig = CAMPUS_ROLES.find(r => r.key === staff.role_name) || CAMPUS_ROLES[CAMPUS_ROLES.length - 1]; // 找不到就用最后一个(灰色)
+                    const RoleIcon = roleConfig.icon;
+                    // 2. 获取颜色样式
+                    const styles = getRoleStyle(roleConfig.color);
 
-            {/* 员工卡片网格 */}
-            {isLoading ? (
-                <div className="text-center py-20 text-gray-400">加载中...</div>
-            ) : users.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50 rounded-xl border border-dashed text-gray-400">暂无员工数据</div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                    {users.map(u => (
-                        <div key={u.id} className="bg-white rounded-xl border border-gray-200 hover:shadow-md transition-all overflow-hidden flex flex-col group">
-                            
-                            {/* Header: 身份与状态 */}
-                            <div className="p-5 flex justify-between items-start border-b border-gray-50">
+                    return (
+                        <div key={staff.id} className="bg-white border border-gray-200 rounded-2xl p-5 hover:border-indigo-300 transition-colors group relative">
+                            <div className="flex justify-between items-start mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold shadow-sm ${u.role_name === 'role.base.admin' ? 'bg-slate-800 text-white' : 'bg-indigo-100 text-indigo-600'}`}>
-                                        {u.full_name?.[0] || u.email[0].toUpperCase()}
+                                    {/* 头像背景色 */}
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-md ${styles.iconBg}`}>
+                                        {staff.full_name[0]}
                                     </div>
                                     <div>
-                                        <h4 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                                            {u.full_name || '未命名'}
-                                            {u.role_name === 'role.base.admin' && <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">校长</span>}
-                                        </h4>
-                                        
-                                        {/* 实时状态指示 */}
-                                        <div className="flex items-center gap-1.5 mt-1 text-xs font-medium">
-                                            {!u.is_active ? (
-                                                <span className="text-gray-400 flex items-center gap-1"><PauseCircle size={12}/> 已离职</span>
-                                            ) : u.is_teaching_now ? (
-                                                <span className="text-red-500 flex items-center gap-1 animate-pulse"><Clock size={12}/> 上课中</span>
-                                            ) : (
-                                                <span className="text-green-600 flex items-center gap-1"><CheckCircle size={12}/> 空闲</span>
-                                            )}
+                                        <div className="font-bold text-gray-900 text-lg">{staff.full_name}</div>
+                                        {/* 标签背景色 & 文字色 */}
+                                        <div className={`text-xs font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1 mt-1 ${styles.bg} ${styles.text}`}>
+                                            <RoleIcon size={12}/> {roleConfig.label}
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            
-                            {/* Body: 技能标签 */}
-                            <div className="p-5 flex-1 bg-gray-50/50">
-                                <h5 className="text-xs font-bold text-gray-400 uppercase mb-2 flex items-center gap-1">
-                                    <BookOpen size={12}/> 教学技能
-                                </h5>
-                                <div className="flex flex-wrap gap-2">
-                                    {u.skills ? (
-                                        u.skills.split(', ').map((skill, idx) => (
-                                            <span key={idx} className="px-2 py-1 bg-white border border-indigo-100 text-indigo-600 text-xs rounded-md shadow-sm">
-                                                {skill}
-                                            </span>
-                                        ))
-                                    ) : (
-                                        <span className="text-xs text-gray-400 italic">暂未配置课程</span>
-                                    )}
-                                </div>
+                                <button onClick={() => setEditingStaff(staff)} className="text-gray-300 hover:text-indigo-600 transition-colors">
+                                    <Edit3 size={20}/>
+                                </button>
                             </div>
 
-                            {/* Footer: 操作 */}
-                            <div className="p-4 border-t border-gray-100 bg-white">
-                                <div className="space-y-1 mb-4 text-xs text-gray-500">
-                                    <div className="flex items-center gap-2"><Mail size={12}/> {u.email}</div>
-                                    <div className="flex items-center gap-2"><Phone size={12}/> {u.phone_number || '-'}</div>
-                                </div>
-                                
-                                {/* 只有教学人员显示配置按钮 */}
-                                {(u.role_name === 'role.teacher' || u.role_name === 'role.base.admin') && (
-                                    <button 
-                                        onClick={() => setConfigTeacher({ id: u.id, full_name: u.full_name || u.email })}
-                                        className="w-full py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center justify-center gap-2"
-                                    >
-                                        <Settings size={14}/> 技能与排班配置
-                                    </button>
-                                )}
+                            <div className="space-y-2 text-sm text-gray-500">
+                                <div className="flex items-center gap-2"><Mail size={14} className="text-gray-400"/> {staff.email}</div>
+                                <div className="flex items-center gap-2"><Phone size={14} className="text-gray-400"/> {staff.phone_number || '未录入电话'}</div>
+                                <div className="flex items-center gap-2"><Calendar size={14} className="text-gray-400"/> {new Date(staff.created_at).toLocaleDateString()} 入职</div>
+                            </div>
+
+                            <div className="mt-5 pt-4 border-t border-gray-100 flex justify-between items-center">
+                                <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                                    staff.staff_status === 'active' ? 'bg-green-100 text-green-700' : 
+                                    staff.staff_status === 'pending' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500'
+                                }`}>
+                                    {staff.staff_status === 'active' ? '● 在职' : staff.staff_status === 'pending' ? '○ 待入职' : '× 已离职'}
+                                </span>
+                                <button onClick={() => setEditingStaff(staff)} className="text-xs font-bold text-indigo-600 hover:underline">
+                                    编辑详情
+                                </button>
                             </div>
                         </div>
-                    ))}
-                </div>
-            )}
+                    );
+                })}
+            </div>
 
-            {/* 复用弹窗组件 */}
-            {configTeacher && token && (
-                <TeacherConfigModal 
-                    token={token}
-                    teacher={configTeacher}
-                    onClose={() => { setConfigTeacher(null); fetchData(); }} // 关闭后刷新以更新 UI 状态
+            {/* Modal: Create */}
+            {isCreateOpen && (
+                <StaffModal 
+                    token={token} 
+                    baseId={baseId} 
+                    mode="create"
+                    onClose={() => setIsCreateOpen(false)} 
+                    onSuccess={fetchStaff} 
                 />
             )}
+
+            {/* Modal: Edit */}
+            {editingStaff && (
+                <StaffModal 
+                    token={token} 
+                    baseId={baseId} 
+                    mode="edit"
+                    initialData={editingStaff}
+                    onClose={() => setEditingStaff(null)} 
+                    onSuccess={fetchStaff} 
+                />
+            )}
+        </div>
+    );
+}
+
+// === 通用表单组件 (Create & Edit) ===
+interface ModalProps {
+    token: string;
+    baseId: string;
+    mode: 'create' | 'edit';
+    initialData?: Staff;
+    onClose: () => void;
+    onSuccess: () => void;
+}
+
+function StaffModal({ token, baseId, mode, initialData, onClose, onSuccess }: ModalProps) {
+    const [formData, setFormData] = useState({
+        email: initialData?.email || '',
+        full_name: initialData?.full_name || '',
+        role_key: initialData?.role_name || 'role.base.academic',
+        phone_number: initialData?.phone_number || '',
+        password: Math.random().toString(36).slice(-8) + "!Aa1",
+        staff_status: initialData?.staff_status || 'active'
+    });
+
+    const isEdit = mode === 'edit';
+
+    const handleSubmit = async (e: FormEvent) => {
+        e.preventDefault();
+        try {
+            const url = isEdit 
+                ? `${API_BASE_URL}/tenant/users/${initialData?.id}` // PUT
+                : `${API_BASE_URL}/tenant/users`; // POST
+            
+            const method = isEdit ? 'PUT' : 'POST';
+
+            const res = await fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({
+                    ...formData,
+                    base_id: baseId, 
+                    password: isEdit ? undefined : formData.password
+                })
+            });
+
+            if (res.ok) {
+                if (!isEdit) alert(`✅ 员工创建成功！\n账号: ${formData.email}\n密码: ${formData.password}`);
+                else alert("✅ 修改成功！");
+                onSuccess();
+                onClose();
+            } else {
+                alert("操作失败");
+            }
+        } catch (e) { alert("网络错误"); }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <div className="bg-white p-8 rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+                <h3 className="text-xl font-bold mb-1">{isEdit ? '编辑员工档案' : '新增校区员工'}</h3>
+                <p className="text-sm text-gray-500 mb-6">{isEdit ? '更新员工的岗位、联系方式或状态。' : '为本校区添加新的工作伙伴。'}</p>
+                
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* 角色选择 (带颜色的单选框) */}
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 block mb-1 uppercase">岗位角色</label>
+                        <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                            {CAMPUS_ROLES.map(role => {
+                                const styles = getRoleStyle(role.color);
+                                return (
+                                    <label key={role.key} className={`flex items-center gap-3 p-2 border rounded-xl cursor-pointer transition-all ${formData.role_key === role.key ? `border-${role.color}-500 bg-${role.color}-50 ring-1 ring-${role.color}-500` : 'hover:bg-gray-50'}`}>
+                                        <input 
+                                            type="radio" 
+                                            name="role" 
+                                            value={role.key} 
+                                            checked={formData.role_key === role.key}
+                                            onChange={e => setFormData({...formData, role_key: e.target.value})}
+                                            className="hidden"
+                                        />
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${styles.iconBg} text-white`}>
+                                            <role.icon size={14}/>
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-bold text-gray-900">{role.label}</div>
+                                            <div className="text-xs text-gray-400">{role.desc}</div>
+                                        </div>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 block mb-1 uppercase">姓名</label>
+                            <input required value={formData.full_name} onChange={e=>setFormData({...formData, full_name: e.target.value})} className="w-full p-2.5 border rounded-lg"/>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 block mb-1 uppercase">状态</label>
+                            <select value={formData.staff_status} onChange={e=>setFormData({...formData, staff_status: e.target.value as any})} className="w-full p-2.5 border rounded-lg bg-white">
+                                <option value="active">在职</option>
+                                <option value="pending">待报到</option>
+                                <option value="resigned">离职</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 block mb-1 uppercase">电话</label>
+                        <input value={formData.phone_number} onChange={e=>setFormData({...formData, phone_number: e.target.value})} className="w-full p-2.5 border rounded-lg" placeholder="138..."/>
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 block mb-1 uppercase">登录邮箱</label>
+                        <input type="email" required readOnly={isEdit} value={formData.email} onChange={e=>setFormData({...formData, email: e.target.value})} className={`w-full p-2.5 border rounded-lg ${isEdit ? 'bg-gray-100 text-gray-500' : ''}`} placeholder="name@campus.com"/>
+                    </div>
+
+                    {!isEdit && (
+                        <div className="pt-2">
+                            <label className="text-xs font-bold text-gray-500 block mb-1 uppercase">初始密码</label>
+                            <div className="p-3 bg-gray-100 rounded-lg font-mono text-center text-gray-600 tracking-widest select-all">
+                                {formData.password}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex gap-2 justify-end mt-6">
+                        <button type="button" onClick={onClose} className="px-5 py-2.5 text-gray-500 font-bold hover:bg-gray-100 rounded-xl transition-colors">取消</button>
+                        <button type="submit" className="px-6 py-2.5 bg-black text-white rounded-xl font-bold hover:bg-gray-800 transition-colors shadow-lg">
+                            {isEdit ? '保存修改' : '确认添加'}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     );
 }

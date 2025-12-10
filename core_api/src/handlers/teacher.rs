@@ -9,9 +9,8 @@ use axum::{extract::State, http::StatusCode, Json};
 
 // 【修改】导入 AppState 和 Claims
 use super::AppState;
-use super::auth::Claims; // <-- 我们需要“钥匙”
 // 导入 models
-use crate::models::Teacher;
+use crate::models::{Claims, Teacher};
 
 // (GET /api/v1/base/teachers - 获取 "本基地" 可用的教师列表)
 // (★ V2 - 基地安全加固 ★)

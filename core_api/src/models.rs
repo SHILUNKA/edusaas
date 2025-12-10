@@ -8,6 +8,35 @@ use uuid::Uuid;
 use chrono::{DateTime, NaiveDate, Utc};
 
 // ==========================================
+// ★ 认证与令牌 (Auth & Token) - 从 auth.rs 移入
+// ==========================================
+
+// Token Claims (JWT 载荷)
+#[derive(Debug, Serialize, Deserialize, Clone)] // 建议加上 Clone
+pub struct Claims {
+    pub sub: String,
+    pub roles: Vec<String>,
+    pub tenant_id: Uuid,
+    pub base_id: Option<Uuid>,
+    pub base_name: Option<String>,
+    pub base_logo: Option<String>,
+    pub exp: usize,
+}
+
+// 登录请求体
+#[derive(Debug, Deserialize)]
+pub struct AuthBody {
+    pub email: String,
+    pub password: String,
+}
+
+// 登录响应体
+#[derive(Debug, Serialize)]
+pub struct AuthResponse {
+    pub token: String,
+}
+
+// ==========================================
 // 基础枚举定义
 // ==========================================
 
@@ -98,6 +127,27 @@ pub struct UpdateStatusPayload {
 // ==========================================
 // 用户与权限 (User, Teacher, Honor)
 // ==========================================
+#[derive(Debug, Serialize, FromRow)]
+pub struct User {
+    pub id: Uuid,
+    pub email: String,
+    pub full_name: String,
+    pub tenant_id: Uuid,
+    pub base_id: Option<Uuid>,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    
+    pub phone_number: Option<String>,
+
+    // ★ 关键字段: 员工状态 (active, pending, resigned)
+    // 使用 Option<String> 兼容旧数据，并加 #[sqlx(default)] 防止查询崩溃
+    #[sqlx(default)] 
+    pub staff_status: Option<String>, 
+    
+    // 角色名 (通常是连表查出来的)
+    #[sqlx(default)]
+    pub role_name: Option<String>, 
+}
 
 #[derive(Debug, Serialize, FromRow)]
 pub struct UserDetail {
@@ -114,6 +164,9 @@ pub struct UserDetail {
     pub base_name: Option<String>,
     pub role_name: Option<String>,
     pub created_at: DateTime<Utc>,
+
+    #[sqlx(default)]
+    pub staff_status: Option<String>,
     
     #[serde(skip_serializing_if = "Option::is_none")]
     #[sqlx(default)] 
@@ -124,6 +177,14 @@ pub struct UserDetail {
     pub skills: Option<String>, 
     #[sqlx(default)]
     pub is_teaching_now: Option<bool>, 
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateUserPayload {
+    pub full_name: Option<String>,
+    pub phone_number: Option<String>,
+    pub role_key: Option<String>, // 如果要改角色
+    pub staff_status: Option<String>, // active, pending, resigned
 }
 
 #[derive(Debug, Deserialize)]
@@ -679,4 +740,28 @@ pub struct BaseDashboardStats {
     pub participant_count: i64, 
     pub member_count: i64,
     pub today_class_count: i64,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+pub struct AdvancedDashboardStats {
+    // 运营指标
+    pub trial_class_count: i64,      // 本周体验课节数
+    pub new_leads_count: i64,        // 本周新增潜客
+    pub new_members_count: i64,      // 本周新转正会员
+    pub conversion_rate: f64,        // 转化率 (百分比)
+    
+    // 质量指标
+    pub active_rate: f64,            // 校区活跃度 (签到率)
+    
+    // HR 指标
+    pub staff_pending_count: i64,    // 待入职人数
+    pub staff_total_count: i64,      // 总员工数
+}
+
+// 待入职员工列表
+#[derive(Debug, Serialize, FromRow)]
+pub struct PendingStaff {
+    pub full_name: String,
+    pub role_name: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }

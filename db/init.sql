@@ -19,6 +19,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 --- Phase 0: SaaS 基础 (租户, B端员工, 角色) ---
 ====================================================================
 */
+CREATE TYPE staff_status AS ENUM ('active', 'pending', 'resigned');
 
 CREATE TABLE tenants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -45,6 +46,8 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(100),
     is_active BOOLEAN DEFAULT true,
+
+    staff_status staff_status DEFAULT 'active',
     
     -- 详细档案字段
     phone_number VARCHAR(50),
@@ -223,6 +226,7 @@ CREATE TABLE point_transactions (
 --- Phase 2: 教务 (教师, 课程, 排课) ---
 ====================================================================
 */
+CREATE TYPE course_type AS ENUM ('regular', 'trial');
 
 CREATE TABLE teachers (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -249,7 +253,8 @@ CREATE TABLE IF NOT EXISTS courses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     name_key VARCHAR(255) NOT NULL, 
-    description_key TEXT, 
+    description_key TEXT,
+    type course_type DEFAULT 'regular',
     target_audience_key VARCHAR(100), 
     default_duration_minutes INT NOT NULL DEFAULT 60,
     points_awarded INT NOT NULL DEFAULT 0,
@@ -531,6 +536,17 @@ FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description
 INSERT INTO roles (tenant_id, name_key, description_key)
 SELECT id, 'role.teacher', '校区-普通教师 (上课/查看课表)' 
 FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
+
+-- 1. 预设一门体验课
+INSERT INTO courses (tenant_id, name_key, description_key, type, points_awarded)
+SELECT id, '航天科学-0元体验课', '用于引流的公开课', 'trial', 0
+FROM tenants LIMIT 1;
+
+-- 2. 预设一个待入职员工
+INSERT INTO users (tenant_id, email, password_hash, full_name, staff_status, role_key)
+SELECT id, 'pending_hr@hq.com', 'hashed_pw', '王后备', 'pending', 'role.teacher'
+FROM tenants LIMIT 1;
+
 
 -- 预设 19 级军衔体系
 INSERT INTO honor_ranks (tenant_id, name_key, rank_level, points_required, badge_icon_url)

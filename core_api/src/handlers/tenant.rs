@@ -4,8 +4,7 @@
  */
 use axum::{extract::State, http::StatusCode, Json};
 use super::AppState;
-use super::auth::Claims;
-use crate::models::ParticipantDetail;
+use crate::models::{Claims, ParticipantDetail};
 
 // (GET /api/v1/tenant/participants)
 // (★ V16.3 - 增加 last_class_time)

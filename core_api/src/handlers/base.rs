@@ -9,9 +9,8 @@ use axum::{extract::State, http::StatusCode, Json};
 
 // 【修改】导入 AppState 和 Claims
 use super::AppState;
-use super::auth::Claims; // <-- 我们需要“钥匙”
 // 导入 models
-use crate::models::{Base, CreateBasePayload};
+use crate::models::{Base, Claims, CreateBasePayload};
 
 
 // (GET /api/v1/bases - 获取所有基地列表)

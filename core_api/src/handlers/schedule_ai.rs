@@ -12,8 +12,8 @@ use chrono::{Datelike, Utc, DateTime};
 
 
 use super::AppState;
-use super::auth::Claims;
 use crate::models::{
+    Claims,
     TeacherSkill, TeacherAvailability, 
     UpdateTeacherSkillsPayload, CreateAvailabilityPayload
 };

@@ -12,9 +12,8 @@ use axum::{
 use uuid::Uuid; // (★ 修复: 添加 Uuid)
 
 use super::AppState;
-use super::auth::Claims;
 // (★ 修复: 添加 UpdateRoomPayload)
-use crate::models::{Room, CreateRoomPayload, UpdateRoomPayload};
+use crate::models::{Claims, Room, CreateRoomPayload, UpdateRoomPayload};
 
 // (GET) 获取教室
 pub async fn get_rooms_handler(

@@ -1,7 +1,7 @@
 /*
- * 全局布局 (V17.9 - SVG 组件化 Logo 版)
+ * 全局布局 (V19.2 - 侧边栏严格权限过滤版)
  * 路径: web_admin/src/app/(app)/layout.tsx
- * 更新: 弃用图片 URL，改用 HqLogo 和 DynamicBaseLogo 组件实时渲染
+ * 修复: 只有拥有对应角色的用户，才能在侧边栏看到对应的菜单入口
  */
 'use client';
 
@@ -10,39 +10,126 @@ import Link from 'next/link';
 import { 
     LayoutDashboard, Building2, Users, BookOpen, 
     Package, CreditCard, Award, Settings, LogOut,
-    Bell, Calendar, GraduationCap, School, ShoppingCart
+    Bell, Calendar, GraduationCap, School, ShoppingCart, Briefcase
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { jwtDecode } from 'jwt-decode';
 import { useMemo, useState, useEffect } from 'react';
 
-// ★ 1. 引入我们封装好的 Logo 组件
+// 引入 Logo 组件
 import HqLogo from '@/components/HqLogo';
 import DynamicBaseLogo from '@/components/DynamicBaseLogo';
 
-// 菜单配置 (保持不变)
+// === 1. 定义菜单配置 (严格绑定角色) ===
 const MENU_CONFIG = [
-    { name: '全局看板', href: '/tenant/dashboard', icon: LayoutDashboard, allowedRoles: ['role.tenant.admin', 'role.tenant.operation', 'role.tenant.finance'] },
-    { name: '财务中心', href: '/tenant/finance', icon: CreditCard, allowedRoles: ['role.tenant.admin', 'role.tenant.finance'] },
-    { name: '基地管理', href: '/tenant/bases', icon: Building2, allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] },
-    { name: '学员总览', href: '/tenant/participants', icon: Users, allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] },
-    { name: '中央课程库', href: '/tenant/courses', icon: BookOpen, allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] },
-    { name: '固定资产', href: '/tenant/assets', icon: Package, allowedRoles: ['role.tenant.admin', 'role.tenant.operation', 'role.tenant.finance'] },
-    { name: '采购审批', href: '/tenant/procurements', icon: ShoppingCart, allowedRoles: ['role.tenant.admin', 'role.tenant.finance', 'role.tenant.operation'] },
-    { name: '荣誉体系', href: '/admin/honor-ranks', icon: Award, allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] },
-    { name: '会员卡种', href: '/tenant/membership-tiers', icon: CreditCard, allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] },
-    { name: '员工权限', href: '/tenant/users', icon: Settings, allowedRoles: ['role.tenant.admin', 'role.tenant.hr'] },
+    // --- 总部菜单 (Tenant) ---
+    { 
+        name: '全局看板', 
+        href: '/tenant/dashboard', 
+        icon: LayoutDashboard, 
+        allowedRoles: ['role.tenant.admin', 'role.tenant.operation', 'role.tenant.finance', 'role.tenant.hr'] 
+    },
+    { 
+        name: '财务中心', 
+        href: '/tenant/finance', 
+        icon: CreditCard, 
+        allowedRoles: ['role.tenant.admin', 'role.tenant.finance'] 
+    },
+    { 
+        name: '基地管理', 
+        href: '/tenant/bases', 
+        icon: Building2, 
+        allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] 
+    },
+    { 
+        name: '学员总览', 
+        href: '/tenant/participants', 
+        icon: Users, 
+        allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] 
+    },
+    { 
+        name: '中央课程库', 
+        href: '/tenant/courses', 
+        icon: BookOpen, 
+        allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] 
+    },
+    { 
+        name: '固定资产', 
+        href: '/tenant/assets', 
+        icon: Package, 
+        allowedRoles: ['role.tenant.admin', 'role.tenant.operation', 'role.tenant.finance'] 
+    },
+    { 
+        name: '采购审批', 
+        href: '/tenant/procurements', 
+        icon: ShoppingCart, 
+        allowedRoles: ['role.tenant.admin', 'role.tenant.finance', 'role.tenant.operation'] 
+    },
+    { 
+        name: '荣誉体系', 
+        href: '/tenant/honor-ranks', 
+        icon: Award, 
+        allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] 
+    },
+    { 
+        name: '会员卡种', 
+        href: '/tenant/membership-tiers', 
+        icon: CreditCard, 
+        allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] 
+    },
+    { 
+        name: '员工权限', // 总部员工管理
+        href: '/tenant/users', 
+        icon: Settings, 
+        allowedRoles: ['role.tenant.admin', 'role.tenant.hr'] 
+    },
 
-    { name: '校区工作台', href: '/campus/dashboard', icon: LayoutDashboard, allowedRoles: ['role.base.admin', 'role.base.academic', 'role.base.finance'] },
-    { name: '排课/课表', href: '/campus/schedule', icon: Calendar, allowedRoles: ['role.base.admin', 'role.base.academic'] },
-    { name: '教务班级', href: '/campus/classes', icon: School, allowedRoles: ['role.base.admin', 'role.base.academic'] },
-    { name: '本校学员', href: '/campus/students', icon: GraduationCap, allowedRoles: ['role.base.admin', 'role.base.academic', 'role.base.finance'] },
-    { name: '教职工管理', href: '/campus/staff', icon: Users, allowedRoles: ['role.base.admin', 'role.base.hr'] },
-    { name: '教室管理', href: '/campus/rooms', icon: Building2, allowedRoles: ['role.base.admin', 'role.base.academic'] },
-    { name: '采购申请', href: '/campus/procurements', icon: Package, allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] },
+    // --- 校区菜单 (Campus) ---
+    { 
+        name: '校区工作台', 
+        href: '/campus/dashboard', 
+        icon: LayoutDashboard, 
+        allowedRoles: ['role.base.admin', 'role.base.academic', 'role.base.finance', 'role.base.hr'] 
+    },
+    { 
+        name: '排课/课表', 
+        href: '/campus/schedule', 
+        icon: Calendar, 
+        allowedRoles: ['role.base.admin', 'role.base.academic'] 
+    },
+    { 
+        name: '教务班级', 
+        href: '/campus/classes', 
+        icon: School, 
+        allowedRoles: ['role.base.admin', 'role.base.academic'] 
+    },
+    { 
+        name: '本校学员', // 包含收费功能
+        href: '/campus/students', 
+        icon: GraduationCap, 
+        allowedRoles: ['role.base.admin', 'role.base.academic', 'role.base.finance'] 
+    },
+    { 
+        name: '教职工管理', // 校区 HR 功能
+        href: '/campus/staff', 
+        icon: Briefcase, 
+        allowedRoles: ['role.base.admin', 'role.base.hr'] 
+    },
+    { 
+        name: '教室管理', 
+        href: '/campus/rooms', 
+        icon: Building2, 
+        allowedRoles: ['role.base.admin', 'role.base.academic'] 
+    },
+    { 
+        name: '采购申请', 
+        href: '/campus/procurements', 
+        icon: Package, 
+        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
+    },
 ];
 
-// 实时时钟组件 (保持不变)
+// 实时时钟组件
 function RealTimeClock() {
     const [time, setTime] = useState(new Date());
     const [mounted, setMounted] = useState(false);
@@ -76,21 +163,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             const decoded: any = jwtDecode(token);
             const userRoles: string[] = decoded.roles || [];
 
-            // 1. 过滤菜单
+            // === 2. 核心过滤逻辑 ===
+            // 只有当 item.allowedRoles 包含当前用户的任意一个角色时，才显示该菜单
             const filtered = MENU_CONFIG.filter(item => 
-                item.allowedRoles.some(role => userRoles.includes(role))
+                item.allowedRoles.some(allowed => userRoles.includes(allowed))
             );
 
-            // 2. 识别身份
+            // 识别身份
             const isTenant = userRoles.some(r => r.startsWith('role.tenant'));
-            
-            // 3. 决定标题 (基地名 或 集团名)
             const displayTitle = isTenant ? 'EduSaaS 集团总部' : (decoded.base_name || 'EduSaaS 智慧校区');
 
-            // 4. 头衔
-            let title = '普通用户';
+            // 头衔显示
+            let title = '员工';
             if (userRoles.includes('role.tenant.admin')) title = '总经理';
+            else if (userRoles.includes('role.tenant.finance')) title = '财务总监';
+            else if (userRoles.includes('role.tenant.operation')) title = '运营总监';
+            else if (userRoles.includes('role.tenant.hr')) title = '人事主管';
             else if (userRoles.includes('role.base.admin')) title = '校区校长';
+            else if (userRoles.includes('role.base.finance')) title = '校区财务';
             else if (userRoles.includes('role.base.academic')) title = '教务主管';
 
             return {
@@ -106,7 +196,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }
     }, [session]);
 
-    // 样式辅助
+    // 样式配置
     const isIndigo = theme === 'indigo';
     const activeBgClass = isIndigo ? 'bg-indigo-600' : 'bg-emerald-600';
     const logoBgClass = isIndigo ? 'bg-indigo-500' : 'bg-emerald-500';
@@ -116,29 +206,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             
             {/* Sidebar */}
             <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20 transition-all duration-500">
-                {/* 1. Logo 区域 (V17.9 核心修改) */}
+                
+                {/* Logo Area */}
                 <div className="h-20 flex items-center px-6 border-b border-slate-800 bg-slate-950/30">
-                    
-                    {/* Logo 容器: 增加 overflow-hidden 以适配圆角 */}
                     <div className="w-10 h-10 mr-3 shadow-lg rounded-lg overflow-hidden relative bg-slate-800 flex items-center justify-center">
                         {isTenantUser ? (
-                            // A. 总部: 使用 HqLogo 组件
-                            <HqLogo 
-                                className="w-full h-full object-cover" 
-                                viewBox="0 0 600 400" 
-                                // 如果不想显示原SVG的深蓝背景，可以在这里通过CSS覆盖，或者保留原样
-                            />
+                            <HqLogo className="w-full h-full object-cover" viewBox="0 0 600 400" />
                         ) : (
-                            // B. 基地: 使用 DynamicBaseLogo 组件
-                            // location 传入 "北京朝阳..."，组件内部会自动匹配 "北京" 并显示长城
-                            <DynamicBaseLogo 
-                                location={appTitle} 
-                                hideText={true} 
-                                className="w-full h-full object-cover"
-                            />
+                            <DynamicBaseLogo location={appTitle} hideText={true} className="w-full h-full object-cover"/>
                         )}
                     </div>
-
                     <div className="flex flex-col">
                         <span className="font-bold text-sm tracking-wide text-slate-100 leading-tight">
                             {appTitle}
@@ -177,9 +254,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         </div>
                         <div className="flex-1 overflow-hidden">
                             <p className="text-sm font-medium text-slate-200 truncate">{session?.user?.email}</p>
-                            <p className="text-xs text-slate-500">{userTitle}</p>
+                            <p className="text-xs text-slate-500 truncate" title={userTitle}>{userTitle}</p>
                         </div>
-                        <button onClick={() => signOut({ callbackUrl: '/login' })} className="p-1.5 text-slate-500 hover:text-red-400 rounded hover:bg-slate-800 transition-colors">
+                        <button onClick={() => signOut({ callbackUrl: '/login' })} className="p-1.5 text-slate-500 hover:text-red-400 rounded hover:bg-slate-800 transition-colors" title="退出登录">
                             <LogOut size={16} />
                         </button>
                     </div>

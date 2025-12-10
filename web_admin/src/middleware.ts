@@ -1,36 +1,43 @@
-import { withAuth } from "next-auth/middleware"
-import { NextResponse } from "next/server"
+import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
 
 export default withAuth(
-  // 'withAuth' 接收一个 middleware 函数，可以在这里做精细的权限判断
   function middleware(req) {
-    // 获取用户 token (NextAuth 自动解析)
     const token = req.nextauth.token;
     const path = req.nextUrl.pathname;
     const userRoles = (token?.roles as string[]) || [];
 
+    // 打印日志方便调试 (上线可删)
+    // console.log(`[Middleware] Path: ${path}, Roles: ${userRoles}`);
+
     // --- 1. 保护总部路由 (/tenant) ---
-    // 只有 'role.tenant.admin' 才能访问
+    // 规则：只要拥有任意一个 "role.tenant.xxx" 的角色，就允许进入总部区域
+    // (具体的页面权限，如“财务只能看钱”，由页面内部逻辑控制)
     if (path.startsWith("/tenant")) {
-      if (!userRoles.includes("role.tenant.admin")) {
-        // 权限不足，重定向到校区看板(或者一个403页面)
-        // 这里我们简单处理：如果他是基地管理员，踢回基地；否则踢回登录
-        if (userRoles.includes("role.base.admin") || userRoles.includes("role.teacher")) {
-           return NextResponse.redirect(new URL("/campus/dashboard", req.url));
+      const isTenantStaff = userRoles.some(r => r.startsWith("role.tenant"));
+      
+      if (!isTenantStaff) {
+        // 如果是误入的校区员工，送回校区看板
+        if (userRoles.some(r => r.startsWith("role.base"))) {
+            return NextResponse.redirect(new URL("/campus/dashboard", req.url));
         }
+        // 否则踢回登录
         return NextResponse.redirect(new URL("/login", req.url));
       }
     }
 
-    // --- 2. 保护分店路由 (/campus) ---
-    // 必须是 'role.base.admin' 或 'role.teacher' 或 'role.tenant.admin'(视业务而定)
+    // --- 2. 保护分校路由 (/campus) ---
+    // 规则：只要拥有任意 "role.base.xxx" 角色，或者是总部老板(admin)，就允许进入
     if (path.startsWith("/campus")) {
-      const hasAccess = 
-        userRoles.includes("role.base.admin") || 
-        userRoles.includes("role.teacher") ||
-        userRoles.includes("role.tenant.admin"); // 假设总部也能看分店
+      const isBaseStaff = userRoles.some(r => r.startsWith("role.base"));
+      const isBoss = userRoles.includes("role.tenant.admin"); 
+      // 假设总部运营也能看分校，可以在这里加 || userRoles.includes("role.tenant.operation")
 
-      if (!hasAccess) {
+      if (!isBaseStaff && !isBoss) {
+        // 如果是误入的总部财务(他不需要看分校)，送回总部看板
+        if (userRoles.some(r => r.startsWith("role.tenant"))) {
+            return NextResponse.redirect(new URL("/tenant/dashboard", req.url));
+        }
         return NextResponse.redirect(new URL("/login", req.url));
       }
     }
@@ -38,25 +45,21 @@ export default withAuth(
     return NextResponse.next();
   },
   {
-    // --- 配置项 ---
     callbacks: {
-      // authorized 返回 true 表示“已登录”，才会进入上面的 middleware 函数逻辑
-      // 返回 false 则直接跳到登录页
       authorized: ({ token }) => !!token,
     },
     pages: {
-      signIn: "/login", // 指定未登录时跳转的地址
+      signIn: "/login",
     },
   }
-)
+);
 
-// --- 路由匹配规则 ---
 export const config = {
   matcher: [
-    // 只有匹配这些路径的请求才会被中间件拦截
     "/tenant/:path*",
     "/campus/:path*",
     "/admin/:path*", 
-    // (注意：不要包含 /login 或 /api/auth，否则会死循环)
+    // 保护 dashboard 防止未登录访问
+    "/dashboard/:path*" 
   ]
-}
+};

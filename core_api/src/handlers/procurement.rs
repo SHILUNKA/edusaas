@@ -10,9 +10,9 @@ use axum::{
 use sqlx::Row;
 use uuid::Uuid;
 
-use super::auth::Claims;
 use super::AppState;
 use crate::models::{
+    Claims,
     CreateProcurementPayload, ProcurementItem, ProcurementOrder, ProcurementStatus,
     UpdateProcurementStatusPayload,
 };

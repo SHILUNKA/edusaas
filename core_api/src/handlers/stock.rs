@@ -5,8 +5,7 @@
 use axum::{extract::State, http::StatusCode, Json};
 
 use super::AppState;
-use super::auth::Claims;
-use crate::models::StockAlert; 
+use crate::models::{Claims, StockAlert}; 
 
 // (GET /api/v1/base/stock/alerts)
 pub async fn get_stock_alerts_handler(

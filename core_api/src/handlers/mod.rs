@@ -53,7 +53,7 @@ pub mod course;
 pub use course::*;
 
 pub mod dashboard;
-pub use dashboard::{get_dashboard_stats, get_base_dashboard_stats};
+pub use dashboard::*;
 
 pub mod tenant;
 pub use tenant::*;

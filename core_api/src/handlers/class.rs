@@ -15,8 +15,7 @@ use uuid::Uuid;
 use chrono::{DateTime, Utc, Duration};
 
 use super::AppState;
-use super::auth::Claims; 
-use crate::models::{Class, CreateClassPayload, ClassDetail};
+use crate::models::{Claims, Class, CreateClassPayload, ClassDetail};
 
 // --- DTO: 查询参数 ---
 #[derive(Debug, Deserialize)]

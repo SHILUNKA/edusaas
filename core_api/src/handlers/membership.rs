@@ -12,8 +12,9 @@ use axum::{
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
-use super::{auth::Claims, toggle_status_common, AppState};
+use super::{toggle_status_common, AppState};
 use crate::models::{
+    Claims,
     CreateCustomerMembershipPayload,
     CreateMembershipTierPayload,
     CustomerMembership,

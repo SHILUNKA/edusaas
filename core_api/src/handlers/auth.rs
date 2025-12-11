@@ -9,7 +9,7 @@ use axum::{
     Json,
     async_trait,
 };
-use sqlx::{FromRow, Row};
+use sqlx::{Row};
 use uuid::Uuid;
 use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{encode, decode, Header, EncodingKey, Validation, DecodingKey};

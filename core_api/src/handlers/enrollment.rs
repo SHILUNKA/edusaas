@@ -11,7 +11,6 @@ use axum::{
 };
 use sqlx::Row;
 use uuid::Uuid;
-use chrono::{Utc, DateTime};
 
 use super::AppState;
 use crate::models::{

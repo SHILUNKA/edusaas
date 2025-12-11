@@ -1,6 +1,6 @@
 /*
  * core_api/src/models.rs
- * (★ V16.6 - 终极完整版: 包含财务 + 资产实物枚举 + CRM增强 + 课程营销 ★)
+ * (★ V23.0 - 业财一体化完整版: 包含财务 V23 + 资产 + CRM + 员工状态修复 ★)
  */
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
@@ -8,11 +8,10 @@ use uuid::Uuid;
 use chrono::{DateTime, NaiveDate, Utc};
 
 // ==========================================
-// ★ 认证与令牌 (Auth & Token) - 从 auth.rs 移入
+// 1. 认证与令牌 (Auth & Token)
 // ==========================================
 
-// Token Claims (JWT 载荷)
-#[derive(Debug, Serialize, Deserialize, Clone)] // 建议加上 Clone
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
     pub sub: String,
     pub roles: Vec<String>,
@@ -23,79 +22,65 @@ pub struct Claims {
     pub exp: usize,
 }
 
-// 登录请求体
 #[derive(Debug, Deserialize)]
 pub struct AuthBody {
     pub email: String,
     pub password: String,
 }
 
-// 登录响应体
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
     pub token: String,
 }
 
 // ==========================================
-// 基础枚举定义
+// 2. 全局枚举定义 (Enums)
 // ==========================================
 
+// --- 基础枚举 ---
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq, Eq, Clone, Copy)]
 #[sqlx(type_name = "membership_tier_type", rename_all = "snake_case")]          
 #[serde(rename_all = "snake_case")]
-pub enum MembershipTierType {
-    TimeBased,
-    UsageBased,
-}
+pub enum MembershipTierType { TimeBased, UsageBased }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq, Eq, Clone, Copy)]
 #[sqlx(type_name = "asset_status", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum AssetStatus {
-    InStock,
-    InUse,
-    InClass,
-    InMaintenance,
-    Retired,
-}
+pub enum AssetStatus { InStock, InUse, InClass, InMaintenance, Retired }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq, Eq, Clone, Copy)]
 #[sqlx(type_name = "procurement_status", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum ProcurementStatus {
-    Pending,  // 待审批
-    Approved, // 已批准
-    Rejected, // 已拒绝
-    Shipped,  // 已发货
-    Received, // 已收货
-}
+pub enum ProcurementStatus { Pending, Approved, Rejected, Shipped, Received }
 
+// --- 财务枚举 (V15 & V23) ---
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq, Eq, Clone, Copy)]
 #[sqlx(type_name = "transaction_type", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum TransactionType {
-    Income,
-    Expense,
-    Refund,
-    Usage,
-    Adjustment,
-}
+pub enum TransactionType { Income, Expense, Refund, Usage, Adjustment }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq, Eq, Clone, Copy)]
 #[sqlx(type_name = "transaction_category", rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
-pub enum TransactionCategory {
-    MembershipSale,
-    ProcurementCost,
-    CourseRevenue,
-    Salary,
-    Utility,
-    Rent,
-    Other,
-}
+pub enum TransactionCategory { MembershipSale, ProcurementCost, CourseRevenue, Salary, Utility, Rent, Other }
+
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq, Eq, Clone, Copy)]
+#[sqlx(type_name = "order_type", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum OrderType { B2b, B2c, B2g }
+
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq, Eq, Clone, Copy)]
+#[sqlx(type_name = "order_status", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum OrderStatus { Pending, PartialPaid, Paid, Completed, Refunded, Cancelled }
+
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, PartialEq, Eq, Clone, Copy)]
+#[sqlx(type_name = "cost_category", rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+pub enum CostCategory { Transport, Catering, Accommodation, Labor, Material, Insurance, Other }
 
 // ==========================================
-// 基础资源 (Base, Tenant, Common)
+// 3. 基础资源 (Tenant, Base)
 // ==========================================
 
 #[derive(Debug, Serialize, FromRow)]
@@ -118,15 +103,15 @@ pub struct CreateBasePayload {
     pub address: Option<String>,
 }
 
-// 通用状态更新 Payload (上下架)
 #[derive(Debug, Deserialize)]
 pub struct UpdateStatusPayload {
     pub is_active: bool,
 }
 
 // ==========================================
-// 用户与权限 (User, Teacher, Honor)
+// 4. 用户与权限 (User, Teacher)
 // ==========================================
+
 #[derive(Debug, Serialize, FromRow)]
 pub struct User {
     pub id: Uuid,
@@ -136,15 +121,9 @@ pub struct User {
     pub base_id: Option<Uuid>,
     pub is_active: bool,
     pub created_at: DateTime<Utc>,
-    
     pub phone_number: Option<String>,
-
-    // ★ 关键字段: 员工状态 (active, pending, resigned)
-    // 使用 Option<String> 兼容旧数据，并加 #[sqlx(default)] 防止查询崩溃
     #[sqlx(default)] 
     pub staff_status: Option<String>, 
-    
-    // 角色名 (通常是连表查出来的)
     #[sqlx(default)]
     pub role_name: Option<String>, 
 }
@@ -164,15 +143,11 @@ pub struct UserDetail {
     pub base_name: Option<String>,
     pub role_name: Option<String>,
     pub created_at: DateTime<Utc>,
-
     #[sqlx(default)]
     pub staff_status: Option<String>,
-    
     #[serde(skip_serializing_if = "Option::is_none")]
     #[sqlx(default)] 
     pub initial_password: Option<String>,
-
-    // V13.1 新增: 技能与状态
     #[sqlx(default)]
     pub skills: Option<String>, 
     #[sqlx(default)]
@@ -183,8 +158,8 @@ pub struct UserDetail {
 pub struct UpdateUserPayload {
     pub full_name: Option<String>,
     pub phone_number: Option<String>,
-    pub role_key: Option<String>, // 如果要改角色
-    pub staff_status: Option<String>, // active, pending, resigned
+    pub role_key: Option<String>,
+    pub staff_status: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -237,7 +212,7 @@ pub struct UpdateHonorRankPayload {
 }
 
 // ==========================================
-// 资产与物料 (Asset, Material) - V16.4+
+// 5. 资产与物料 (Asset, Material)
 // ==========================================
 
 #[derive(Debug, Serialize, FromRow)]
@@ -264,13 +239,10 @@ pub struct AssetDetail {
     pub name: String,
     pub model_number: Option<String>,
     pub serial_number: Option<String>, 
-    
-    pub status: AssetStatus, // (注意: 这里使用了 AssetStatus 枚举)
-    
+    pub status: AssetStatus,
     pub purchase_date: Option<NaiveDate>,
     pub warranty_until: Option<NaiveDate>, 
     pub price_in_cents: i32,               
-    
     pub type_name: Option<String>,         
     pub base_name: Option<String>,         
     pub base_id: Option<Uuid>,
@@ -279,7 +251,7 @@ pub struct AssetDetail {
 #[derive(Debug, Deserialize)]
 pub struct AssetQuery {
     pub base_id: Option<Uuid>,
-    pub status: Option<String>, // (查询参数通常保持 String 以便处理 "all" 或非法值)
+    pub status: Option<String>,
     pub keyword: Option<String>, 
 }
 
@@ -297,7 +269,6 @@ pub struct CreateAssetTypePayload {
     pub description_key: Option<String>,
 }
 
-// 资产实物 (V16.6 Enums)
 #[derive(Debug, Serialize, FromRow)]
 pub struct Asset {
     pub id: Uuid,
@@ -332,7 +303,7 @@ pub struct TransferAssetPayload {
 }
 
 // ==========================================
-// 会员与客户 (CRM, Membership)
+// 6. 客户与会员 (CRM)
 // ==========================================
 
 #[derive(Debug, Serialize, FromRow)]
@@ -377,7 +348,6 @@ pub struct CreateParticipantPayload {
     pub avatar_url: Option<String>,
 }
 
-// 学员详情视图 (V16.3)
 #[derive(Debug, Serialize, FromRow)]
 pub struct ParticipantDetail {
     pub id: Uuid,
@@ -395,7 +365,6 @@ pub struct ParticipantDetail {
     pub remaining_counts: Option<i64>,
 }
 
-// 学员统计 (V16.2)
 #[derive(Debug, Serialize, FromRow)]
 pub struct TenantParticipantStats {
     pub total_count: i64,
@@ -448,10 +417,9 @@ pub struct CreateCustomerMembershipPayload {
 }
 
 // ==========================================
-// 教务与排课 (Course, Class, Schedule)
+// 7. 教务 (Course, Class)
 // ==========================================
 
-// 课程 (V16.1 营销版)
 #[derive(Debug, Serialize, FromRow)]
 pub struct Course {
     pub id: Uuid,
@@ -463,8 +431,8 @@ pub struct Course {
     pub points_awarded: i32, 
     pub prerequisite_course_id: Option<Uuid>, 
     pub is_active: bool,
-    pub cover_url: Option<String>,    // V16.1
-    pub introduction: Option<String>, // V16.1
+    pub cover_url: Option<String>,
+    pub introduction: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -475,8 +443,8 @@ pub struct CreateCoursePayload {
     pub default_duration_minutes: Option<i32>,
     pub points_awarded: Option<i32>,
     pub prerequisite_course_id: Option<Uuid>,
-    pub cover_url: Option<String>,    // V16.1
-    pub introduction: Option<String>, // V16.1
+    pub cover_url: Option<String>,
+    pub introduction: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -490,7 +458,6 @@ pub struct UpdateCoursePayload {
     pub introduction: Option<String>,
 }
 
-// 教室 (V12.0 布局版)
 #[derive(Debug, Serialize, FromRow)]
 pub struct Room {
     pub id: Uuid,
@@ -520,7 +487,6 @@ pub struct UpdateRoomPayload {
     pub layout_columns: i32,
 }
 
-// 排课 Class
 #[derive(Debug, Serialize, FromRow)]
 pub struct Class {
     pub id: Uuid,
@@ -590,7 +556,6 @@ pub struct UpdateEnrollmentPayload {
     pub teacher_feedback: Option<String>,
 }
 
-// 报名详情 (花名册)
 #[derive(Debug, Serialize, FromRow)]
 pub struct EnrollmentDetail {
     pub id: Uuid,
@@ -604,7 +569,7 @@ pub struct EnrollmentDetail {
 }
 
 // ==========================================
-// 运营: 采购与库存 (Procurement, Stock)
+// 8. 运营 (Procurement, Stock)
 // ==========================================
 
 #[derive(Debug, Serialize, FromRow)]
@@ -660,7 +625,7 @@ pub struct StockAlert {
 }
 
 // ==========================================
-// 智能排课 (AI & Teacher Config)
+// 9. 智能排课 (AI)
 // ==========================================
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
@@ -699,7 +664,7 @@ pub struct AutoScheduleRequest {
 }
 
 // ==========================================
-// 财务中心 (Finance) - V15.0
+// 10. 财务中心 (Finance) - V23.0 业财一体化
 // ==========================================
 
 #[derive(Debug, Serialize, FromRow)]
@@ -726,8 +691,55 @@ pub struct CreateTransactionPayload {
     pub description: String,
 }
 
+// ★ V23.0 核心财务模型
+#[derive(Debug, Serialize, FromRow)]
+pub struct OrderDetail {
+    pub id: Uuid,
+    pub order_no: String,
+    pub type_: OrderType, // sqlx 映射 type
+    pub status: OrderStatus,
+    pub customer_name: Option<String>,
+    pub contact_name: Option<String>,
+    pub event_date: Option<NaiveDate>,
+    pub expected_attendees: Option<i32>,
+    pub actual_attendees: Option<i32>,
+
+    // 财务核心
+    pub total_amount_cents: i32,
+    pub paid_amount_cents: i32,
+    
+    // 动态计算数据
+    pub total_cost_cents: Option<i64>,   // 总成本
+    pub gross_profit_cents: Option<i64>, // 毛利
+    pub gross_margin: Option<f64>,       // 毛利率 %
+
+    pub sales_name: Option<String>,
+    pub base_name: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateOrderPayload {
+    pub base_id: Option<Uuid>,
+    pub type_: OrderType,
+    pub customer_id: Option<Uuid>,
+    pub contact_name: String,
+    pub expected_attendees: i32,
+    pub total_amount: f64, 
+    pub event_date: NaiveDate,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RecordCostPayload {
+    pub order_id: Uuid,
+    pub category: CostCategory,
+    pub amount: f64, 
+    pub supplier_name: Option<String>,
+    pub description: Option<String>,
+}
+
 // ==========================================
-// 看板 (Dashboard)
+// 11. 看板统计 (Dashboard)
 // ==========================================
 
 #[derive(Debug, Serialize, FromRow)]
@@ -744,21 +756,15 @@ pub struct BaseDashboardStats {
 
 #[derive(Debug, Serialize, FromRow)]
 pub struct AdvancedDashboardStats {
-    // 运营指标
-    pub trial_class_count: i64,      // 本周体验课节数
-    pub new_leads_count: i64,        // 本周新增潜客
-    pub new_members_count: i64,      // 本周新转正会员
-    pub conversion_rate: f64,        // 转化率 (百分比)
-    
-    // 质量指标
-    pub active_rate: f64,            // 校区活跃度 (签到率)
-    
-    // HR 指标
-    pub staff_pending_count: i64,    // 待入职人数
-    pub staff_total_count: i64,      // 总员工数
+    pub trial_class_count: i64,      
+    pub new_leads_count: i64,        
+    pub new_members_count: i64,      
+    pub conversion_rate: f64,        
+    pub active_rate: f64,            
+    pub staff_pending_count: i64,    
+    pub staff_total_count: i64,      
 }
 
-// 待入职员工列表
 #[derive(Debug, Serialize, FromRow)]
 pub struct PendingStaff {
     pub full_name: String,

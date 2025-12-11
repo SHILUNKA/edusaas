@@ -113,6 +113,9 @@ use handlers::{
     // Financial
     get_financial_records_handler,
     create_manual_transaction_handler,
+    get_orders_handler,
+    create_order_handler,
+    record_cost_handler,
 };
 
 #[tokio::main]
@@ -265,6 +268,11 @@ async fn main() {
         .route("/api/v1/base/schedule/auto-generate", post(trigger_auto_schedule_handler))
 
         // Finance
+        // 1. 订单管理 (收入)
+        .route("/api/v1/finance/orders", get(get_orders_handler).post(create_order_handler))
+        // 2. 成本管理 (支出)
+        .route("/api/v1/finance/costs", post(record_cost_handler))
+        // 3. 资金流水 (保留)
         .route("/api/v1/finance/transactions", get(get_financial_records_handler).post(create_manual_transaction_handler))
 
         .layer(cors)

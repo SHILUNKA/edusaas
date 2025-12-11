@@ -10,7 +10,8 @@ import Link from 'next/link';
 import { 
     LayoutDashboard, Building2, Users, BookOpen, 
     Package, CreditCard, Award, Settings, LogOut,
-    Bell, Calendar, GraduationCap, School, ShoppingCart, Briefcase
+    Bell, Calendar, GraduationCap, School, ShoppingCart, Briefcase,
+    FileCheck, ShoppingBag
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { jwtDecode } from 'jwt-decode';
@@ -126,6 +127,18 @@ const MENU_CONFIG = [
         href: '/campus/procurements', 
         icon: Package, 
         allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
+    },
+    { 
+        name: '订单管理', 
+        href: '/campus/orders', 
+        icon: FileCheck, 
+        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
+    },
+    { 
+        name: '财务审核', 
+        href: '/campus/audit', 
+        icon: FileCheck, 
+        allowedRoles: ['role.base.admin', 'role.base.finance'] 
     },
 ];
 

@@ -40,42 +40,6 @@ impl IntoResponse for CustomAuthError {
     }
 }
 
-// ★ Claims 的提取逻辑 (FromRequestParts) 依然保留在这里
-// 因为它包含具体的业务校验逻辑
-#[async_trait]
-impl<S> FromRequestParts<S> for Claims
-where
-    S: Send + Sync,
-    AppState: FromRef<S>,
-{
-    type Rejection = CustomAuthError;
-
-    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let app_state = AppState::from_ref(state);
-        let jwt_secret = app_state.jwt_secret.as_bytes();
-        let decoding_key = DecodingKey::from_secret(jwt_secret);
-
-        let headers = parts.headers
-            .get("Authorization")
-            .ok_or(CustomAuthError::TokenMissing)?;
-        
-        let auth_header = headers.to_str()
-            .map_err(|_| CustomAuthError::TokenInvalid)?;
-        
-        let token = auth_header.strip_prefix("Bearer ")
-            .ok_or(CustomAuthError::TokenInvalid)?;
-
-        let validation = Validation::default();
-        let token_data = decode::<Claims>(token, &decoding_key, &validation)
-            .map_err(|e| {
-                tracing::warn!("Token validation failed: {}", e);
-                CustomAuthError::TokenInvalid
-            })?;
-
-        Ok(token_data.claims)
-    }
-}
-
 // (注册接口)
 pub async fn register_handler(
     State(state): State<AppState>,

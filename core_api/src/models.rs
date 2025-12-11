@@ -7,6 +7,12 @@ use sqlx::FromRow;
 use uuid::Uuid;
 use chrono::{DateTime, NaiveDate, Utc};
 
+use axum::{
+    async_trait,
+    extract::FromRequestParts,
+    http::{request::Parts, StatusCode},
+};
+
 // ==========================================
 // 1. 认证与令牌 (Auth & Token)
 // ==========================================
@@ -20,6 +26,23 @@ pub struct Claims {
     pub base_name: Option<String>,
     pub base_logo: Option<String>,
     pub exp: usize,
+}
+
+#[async_trait]
+impl<S> FromRequestParts<S> for Claims
+where
+    S: Send + Sync,
+{
+    type Rejection = StatusCode;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        // 从 Extension 中提取 Middleware 放进去的 Claims
+        parts
+            .extensions
+            .get::<Claims>()
+            .cloned()
+            .ok_or(StatusCode::UNAUTHORIZED)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -770,4 +793,42 @@ pub struct PendingStaff {
     pub full_name: String,
     pub role_name: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SubmitPaymentProofPayload {
+    pub order_id: Uuid,
+    
+    pub amount: f64, 
+    
+    pub payer_name: String,
+    pub proof_url: String,
+}
+
+// VerifyPaymentPayload 不需要改，因为它只传 ID 和 Action
+#[derive(Debug, Deserialize, Serialize)]
+pub struct VerifyPaymentPayload {
+    pub payment_record_id: Uuid,
+    pub action: String, 
+}
+#[derive(Debug, Serialize, FromRow)]
+pub struct PendingPaymentRecord {
+    pub id: Uuid,
+    pub order_id: Uuid,
+    pub order_no: String,        // 方便财务核对
+    pub customer_name: String,   // 方便财务核对
+    pub sales_name: Option<String>,
+    pub payer_name: Option<String>,
+    pub amount_cents: i32,
+    pub channel: String,
+    pub proof_image_url: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub status: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OrderQueryParams {
+    pub base_id: Option<Uuid>,
+    pub status: Option<String>,
+    pub id: Option<Uuid>, // ★ 新增这一行
 }

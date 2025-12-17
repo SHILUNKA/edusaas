@@ -25,7 +25,7 @@ pub async fn create_participant_handler(
     Json(payload): Json<CreateParticipantPayload>,
 ) -> Result<Json<Participant>, StatusCode> {
     
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
 
     // --- (★ 关键: 启动数据库事务 ★) ---
     let mut tx = match state.db_pool.begin().await {
@@ -38,10 +38,10 @@ pub async fn create_participant_handler(
 
     // --- (★ 事务内: 安全校验 ★) ---
     let parent_check = sqlx::query(
-        "SELECT id FROM customers WHERE id = $1 AND tenant_id = $2"
+        "SELECT id FROM customers WHERE id = $1 AND hq_id = $2"
     )
     .bind(payload.customer_id)
-    .bind(tenant_id)
+    .bind(hq_id)
     .fetch_optional(&mut *tx) // (★ 关键: 使用事务 'tx')
     .await;
 
@@ -53,7 +53,7 @@ pub async fn create_participant_handler(
     
     if parent_check.unwrap().is_none() {
         tracing::warn!(
-            "User {} tried to create participant for non-existent or cross-tenant customer_id {}",
+            "User {} tried to create participant for non-existent or cross-hq customer_id {}",
             claims.sub,
             payload.customer_id
         );
@@ -65,12 +65,12 @@ pub async fn create_participant_handler(
     let new_participant = match sqlx::query_as::<_, Participant>(
         r#"
         INSERT INTO participants 
-            (tenant_id, customer_id, name, date_of_birth, gender, school_name, notes)
+            (hq_id, customer_id, name, date_of_birth, gender, school_name, notes)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
         "#,
     )
-    .bind(tenant_id)
+    .bind(hq_id)
     .bind(payload.customer_id)
     .bind(payload.name)
     .bind(payload.date_of_birth)
@@ -93,12 +93,12 @@ pub async fn create_participant_handler(
     let profile_result = sqlx::query(
         r#"
         INSERT INTO participant_profiles
-            (participant_id, tenant_id, current_total_points, current_honor_rank_id)
+            (participant_id, hq_id, current_total_points, current_honor_rank_id)
         VALUES ($1, $2, 0, NULL)
         "#,
     )
     .bind(new_participant.id) // (★ 关键) 使用新创建的学员ID
-    .bind(tenant_id)
+    .bind(hq_id)
     .execute(&mut *tx) // (★ 关键: 使用事务 'tx')
     .await;
 
@@ -127,17 +127,17 @@ pub async fn get_participants_for_customer_handler(
     Path(customer_id): Path<Uuid>, // <-- 从 URL 路径中提取 'customer_id'
 ) -> Result<Json<Vec<Participant>>, StatusCode> {
     
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
     
     let participants = match sqlx::query_as::<_, Participant>(
         r#"
         SELECT * FROM participants
-        WHERE customer_id = $1 AND tenant_id = $2
+        WHERE customer_id = $1 AND hq_id = $2
         ORDER BY name ASC
         "#,
     )
     .bind(customer_id)
-    .bind(tenant_id)
+    .bind(hq_id)
     .fetch_all(&state.db_pool) // (★ 'GET' 操作不需要事务)
     .await
     {
@@ -160,7 +160,7 @@ pub async fn get_participants_handler(
 ) -> Result<Json<Vec<Participant>>, StatusCode> {
     
     let participants: Vec<Participant>;
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
     
     if let Some(base_id) = claims.base_id {
         // --- 场景 A: 基地员工 (Base Employee) ---
@@ -171,11 +171,11 @@ pub async fn get_participants_handler(
             SELECT p.*
             FROM participants p
             JOIN customers c ON p.customer_id = c.id
-            WHERE p.tenant_id = $1 AND c.base_id = $2
+            WHERE p.hq_id = $1 AND c.base_id = $2
             ORDER BY p.name ASC
             "#,
         )
-        .bind(tenant_id)
+        .bind(hq_id)
         .bind(base_id)
         .fetch_all(&state.db_pool) // (★ 'GET' 操作不需要事务)
         .await
@@ -186,20 +186,20 @@ pub async fn get_participants_handler(
 
     } else {
         // --- 场景 B: 租户管理员 (Tenant Admin) ---
-        tracing::debug!("Fetching all participants for tenant_id: {}", tenant_id);
+        tracing::debug!("Fetching all participants for hq_id: {}", hq_id);
         
         participants = sqlx::query_as::<_, Participant>(
             r#"
             SELECT * FROM participants
-            WHERE tenant_id = $1
+            WHERE hq_id = $1
             ORDER BY name ASC
             "#,
         )
-        .bind(tenant_id)
+        .bind(hq_id)
         .fetch_all(&state.db_pool) // (★ 'GET' 操作不需要事务)
         .await
         .map_err(|e| {
-            tracing::error!("Failed to fetch all tenant participants: {}", e);
+            tracing::error!("Failed to fetch all hq participants: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     }

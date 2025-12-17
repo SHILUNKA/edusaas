@@ -6,4 +6,5 @@
 *.log
 
 # Docker Volumes (防止本地挂载的数据被提交)
+uploads/
 postgres_data/

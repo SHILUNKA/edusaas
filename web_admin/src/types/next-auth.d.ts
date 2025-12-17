@@ -11,7 +11,7 @@ declare module "next-auth" {
     user: {
       id: string;
       rawToken: string;
-      tenant_id: string;
+      hq_id: string;
       base_id: string | null;
       // ★ 新增字段
       base_name: string | null;
@@ -26,7 +26,7 @@ declare module "next-auth" {
   interface User {
     id: string;
     rawToken: string;
-    tenant_id: string;
+    hq_id: string;
     base_id: string | null;
     base_name: string | null;
     base_logo: string | null;
@@ -41,7 +41,7 @@ declare module "next-auth/jwt" {
   interface JWT {
     sub: string;
     rawToken: string;
-    tenant_id: string;
+    hq_id: string;
     base_id: string | null;
     base_name: string | null;
     base_logo: string | null;

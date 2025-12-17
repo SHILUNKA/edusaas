@@ -14,8 +14,8 @@ export default function LoginPage() {
     const router = useRouter();
 
     const getRedirectPath = (roles: string[]): string => {
-        if (roles.some(r => r.startsWith('role.tenant'))) return '/tenant/dashboard';
-        if (roles.some(r => r.startsWith('role.base'))) return '/campus/dashboard';
+        if (roles.some(r => r.startsWith('role.hq'))) return '/hq/dashboard';
+        if (roles.some(r => r.startsWith('role.base'))) return '/base/dashboard';
         return '/'; 
     };
 
@@ -47,7 +47,7 @@ export default function LoginPage() {
             if (roles.length === 0) {
                  console.warn("Session 未及时同步，尝试强制跳转");
                  // 默认尝试跳总部的，或者根据邮箱猜测（不推荐），这里直接刷新让 middleware 处理
-                 router.push('/tenant/dashboard'); 
+                 router.push('/hq/dashboard'); 
             } else {
                  const target = getRedirectPath(roles);
                  console.log(`登录成功 [${roles}], 跳转 -> ${target}`);

@@ -6,7 +6,7 @@ import { jwtDecode } from "jwt-decode";
 // 1. 完善接口定义 (与 Rust Claims 对应)
 interface ITokenClaims {
   sub: string;
-  tenant_id: string;
+  hq_id: string;
   base_id: string | null;
   // ★ 新增
   base_name: string | null; 
@@ -70,7 +70,7 @@ export const authOptions: AuthOptions = {
       if (user) {
         token.sub = user.id;
         token.rawToken = user.rawToken;
-        token.tenant_id = user.tenant_id;
+        token.hq_id = user.hq_id;
         token.base_id = user.base_id;
         token.roles = user.roles;
         // ★ 关键补充
@@ -84,7 +84,7 @@ export const authOptions: AuthOptions = {
     async session({ session, token }) {
       session.user.id = token.sub;
       session.user.rawToken = token.rawToken;
-      session.user.tenant_id = token.tenant_id;
+      session.user.hq_id = token.hq_id;
       session.user.base_id = token.base_id;
       session.user.roles = token.roles;
       // ★ 关键补充

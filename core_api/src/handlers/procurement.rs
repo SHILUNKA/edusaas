@@ -23,7 +23,7 @@ pub async fn create_procurement_order(
     claims: Claims,
     Json(payload): Json<CreateProcurementPayload>,
 ) -> Result<Json<ProcurementOrder>, StatusCode> {
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
 
     // 1. 必须是基地用户
     let base_id = match claims.base_id {
@@ -42,12 +42,12 @@ pub async fn create_procurement_order(
     // 2. 创建主订单
     let order_id: Uuid = sqlx::query_scalar(
         r#"
-        INSERT INTO procurement_orders (tenant_id, base_id, applicant_id, status, submit_note)
+        INSERT INTO procurement_orders (hq_id, base_id, applicant_id, status, submit_note)
         VALUES ($1, $2, $3, 'pending', $4)
         RETURNING id
         "#,
     )
-    .bind(tenant_id)
+    .bind(hq_id)
     .bind(base_id)
     .bind(Uuid::parse_str(&claims.sub).unwrap_or_default())
     .bind(submit_note_clone)
@@ -81,7 +81,7 @@ pub async fn create_procurement_order(
     // 4. 返回
     Ok(Json(ProcurementOrder {
         id: order_id,
-        tenant_id,
+        hq_id,
         base_id,
         base_name: None,
         applicant_name: None,
@@ -101,7 +101,7 @@ pub async fn get_procurement_orders(
     State(state): State<AppState>,
     claims: Claims,
 ) -> Result<Json<Vec<ProcurementOrder>>, StatusCode> {
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
 
     let sql = r#"
         SELECT 
@@ -111,7 +111,7 @@ pub async fn get_procurement_orders(
         FROM procurement_orders o
         LEFT JOIN bases b ON o.base_id = b.id
         LEFT JOIN users u ON o.applicant_id = u.id
-        WHERE o.tenant_id = $1
+        WHERE o.hq_id = $1
     "#;
 
     let orders = if let Some(base_id) = claims.base_id {
@@ -119,13 +119,13 @@ pub async fn get_procurement_orders(
             "{} AND o.base_id = $2 ORDER BY o.created_at DESC",
             sql
         ))
-        .bind(tenant_id)
+        .bind(hq_id)
         .bind(base_id)
         .fetch_all(&state.db_pool)
         .await
     } else {
         sqlx::query_as::<_, ProcurementOrder>(&format!("{} ORDER BY o.created_at DESC", sql))
-            .bind(tenant_id)
+            .bind(hq_id)
             .fetch_all(&state.db_pool)
             .await
     };

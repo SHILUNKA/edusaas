@@ -1,7 +1,7 @@
 /*
- * 全局布局 (V19.2 - 侧边栏严格权限过滤版)
+ * 全局布局 (V19.3 - 供应链闭环菜单更新版)
  * 路径: web_admin/src/app/(app)/layout.tsx
- * 修复: 只有拥有对应角色的用户，才能在侧边栏看到对应的菜单入口
+ * 更新: 增加[我的进货单]和[库存变动记录]入口，完善 B2B 业务闭环
  */
 'use client';
 
@@ -11,7 +11,7 @@ import {
     LayoutDashboard, Building2, Users, BookOpen, 
     Package, CreditCard, Award, Settings, LogOut,
     Bell, Calendar, GraduationCap, School, ShoppingCart, Briefcase,
-    FileCheck, ShoppingBag
+    FileCheck, ShoppingBag, Truck, ClipboardList // ★ 新增图标引入
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { jwtDecode } from 'jwt-decode';
@@ -23,120 +23,162 @@ import DynamicBaseLogo from '@/components/DynamicBaseLogo';
 
 // === 1. 定义菜单配置 (严格绑定角色) ===
 const MENU_CONFIG = [
+    // =================================
     // --- 总部菜单 (Tenant) ---
+    // =================================
     { 
         name: '全局看板', 
-        href: '/tenant/dashboard', 
+        href: '/hq/dashboard', 
         icon: LayoutDashboard, 
-        allowedRoles: ['role.tenant.admin', 'role.tenant.operation', 'role.tenant.finance', 'role.tenant.hr'] 
+        allowedRoles: ['role.hq.admin', 'role.hq.operation', 'role.hq.finance', 'role.hq.hr'] 
     },
     { 
         name: '财务中心', 
-        href: '/tenant/finance', 
+        href: '/hq/finance', 
         icon: CreditCard, 
-        allowedRoles: ['role.tenant.admin', 'role.tenant.finance'] 
+        allowedRoles: ['role.hq.admin', 'role.hq.finance'] 
     },
     { 
         name: '基地管理', 
-        href: '/tenant/bases', 
+        href: '/hq/bases', 
         icon: Building2, 
-        allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] 
+        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
     },
     { 
         name: '学员总览', 
-        href: '/tenant/participants', 
+        href: '/hq/participants', 
         icon: Users, 
-        allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] 
+        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
     },
     { 
         name: '中央课程库', 
-        href: '/tenant/courses', 
+        href: '/hq/courses', 
         icon: BookOpen, 
-        allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] 
+        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
     },
     { 
         name: '固定资产', 
-        href: '/tenant/assets', 
+        href: '/hq/assets', 
         icon: Package, 
-        allowedRoles: ['role.tenant.admin', 'role.tenant.operation', 'role.tenant.finance'] 
+        allowedRoles: ['role.hq.admin', 'role.hq.operation', 'role.hq.finance'] 
+    },
+    // --- 供应链 (总部端) ---
+    { 
+        name: '商品管理', 
+        href: '/hq/supply/products', 
+        icon: Package, 
+        allowedRoles: ['role.hq.admin', 'role.hq.operation', 'role.hq.finance'] 
     },
     { 
         name: '采购审批', 
-        href: '/tenant/procurements', 
+        href: '/hq/supply/orders', 
         icon: ShoppingCart, 
-        allowedRoles: ['role.tenant.admin', 'role.tenant.finance', 'role.tenant.operation'] 
+        allowedRoles: ['role.hq.admin', 'role.hq.finance', 'role.hq.operation'] 
     },
+    // --- 其他 ---
     { 
         name: '荣誉体系', 
-        href: '/tenant/honor-ranks', 
+        href: '/hq/honor-ranks', 
         icon: Award, 
-        allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] 
+        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
     },
     { 
         name: '会员卡种', 
-        href: '/tenant/membership-tiers', 
+        href: '/hq/membership-tiers', 
         icon: CreditCard, 
-        allowedRoles: ['role.tenant.admin', 'role.tenant.operation'] 
+        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
     },
     { 
-        name: '员工权限', // 总部员工管理
-        href: '/tenant/users', 
+        name: '员工权限', 
+        href: '/hq/users', 
         icon: Settings, 
-        allowedRoles: ['role.tenant.admin', 'role.tenant.hr'] 
+        allowedRoles: ['role.hq.admin', 'role.hq.hr'] 
     },
 
+    // =================================
     // --- 校区菜单 (Campus) ---
+    // =================================
     { 
         name: '校区工作台', 
-        href: '/campus/dashboard', 
+        href: '/base/dashboard', 
         icon: LayoutDashboard, 
         allowedRoles: ['role.base.admin', 'role.base.academic', 'role.base.finance', 'role.base.hr'] 
     },
     { 
         name: '排课/课表', 
-        href: '/campus/schedule', 
+        href: '/base/schedule', 
         icon: Calendar, 
         allowedRoles: ['role.base.admin', 'role.base.academic'] 
     },
     { 
         name: '教务班级', 
-        href: '/campus/classes', 
+        href: '/base/classes', 
         icon: School, 
         allowedRoles: ['role.base.admin', 'role.base.academic'] 
     },
     { 
-        name: '本校学员', // 包含收费功能
-        href: '/campus/students', 
+        name: '本校学员', 
+        href: '/base/students', 
         icon: GraduationCap, 
         allowedRoles: ['role.base.admin', 'role.base.academic', 'role.base.finance'] 
     },
     { 
-        name: '教职工管理', // 校区 HR 功能
-        href: '/campus/staff', 
+        name: '教职工管理', 
+        href: '/base/staff', 
         icon: Briefcase, 
         allowedRoles: ['role.base.admin', 'role.base.hr'] 
     },
     { 
         name: '教室管理', 
-        href: '/campus/rooms', 
+        href: '/base/rooms', 
         icon: Building2, 
         allowedRoles: ['role.base.admin', 'role.base.academic'] 
     },
+    
+    // --- ★★★ 供应链采购 (对外) ★★★ ---
     { 
-        name: '采购申请', 
-        href: '/campus/procurements', 
+        name: '采购商城', 
+        href: '/base/supply/market', 
+        icon: ShoppingBag, 
+        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
+    },
+    { 
+        name: '我的进货单', // 新增：用于付款、物流、收货
+        href: '/base/supply/my-orders', 
+        icon: Truck, 
+        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
+    },
+
+    // --- ★★★ 库存管理 (对内) ★★★ ---
+    { 
+        name: '库存台账', 
+        href: '/base/inventory/stock', 
         icon: Package, 
         allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
     },
     { 
-        name: '订单管理', 
-        href: '/campus/orders', 
+        name: '库存变动记录', // 新增：用于审计领用流水
+        href: '/base/inventory/requests', 
+        icon: ClipboardList, 
+        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
+    },
+
+    // --- 财务与销售 ---
+    { 
+        name: '财务支出', 
+        href: '/base/finance/expenses', 
+        icon: Calendar, 
+        allowedRoles: ['role.base.admin', 'role.base.finance'] 
+    },
+    { 
+        name: '销售订单管理', // To C 销售
+        href: '/base/finance/orders', 
         icon: FileCheck, 
         allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
     },
     { 
         name: '财务审核', 
-        href: '/campus/audit', 
+        href: '/base/audit', 
         icon: FileCheck, 
         allowedRoles: ['role.base.admin', 'role.base.finance'] 
     },
@@ -183,15 +225,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             );
 
             // 识别身份
-            const isTenant = userRoles.some(r => r.startsWith('role.tenant'));
+            const isTenant = userRoles.some(r => r.startsWith('role.hq'));
             const displayTitle = isTenant ? 'EduSaaS 集团总部' : (decoded.base_name || 'EduSaaS 智慧校区');
 
             // 头衔显示
             let title = '员工';
-            if (userRoles.includes('role.tenant.admin')) title = '总经理';
-            else if (userRoles.includes('role.tenant.finance')) title = '财务总监';
-            else if (userRoles.includes('role.tenant.operation')) title = '运营总监';
-            else if (userRoles.includes('role.tenant.hr')) title = '人事主管';
+            if (userRoles.includes('role.hq.admin')) title = '总经理';
+            else if (userRoles.includes('role.hq.finance')) title = '财务总监';
+            else if (userRoles.includes('role.hq.operation')) title = '运营总监';
+            else if (userRoles.includes('role.hq.hr')) title = '人事主管';
             else if (userRoles.includes('role.base.admin')) title = '校区校长';
             else if (userRoles.includes('role.base.finance')) title = '校区财务';
             else if (userRoles.includes('role.base.academic')) title = '教务主管';

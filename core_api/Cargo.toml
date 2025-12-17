@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.7"
+axum = { version = "0.7", features = ["multipart", "macros"] }
 tokio = { version = "1", features = ["full"] }
 dotenvy = "0.15"
 serde = { version = "1.0", features = ["derive"] }
@@ -14,7 +14,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 reqwest = { version = "0.12", features = ["json"] }
 
 # --- 确保下面这两行存在 ---
-tower-http = { version = "0.5", features = ["trace", "cors"] }
+tower-http = { version = "0.5", features = ["trace", "cors", "fs"] }
 uuid = { version = "1.8", features = ["v4", "serde"] }
 
 # --- 新增: 用于 JWT (JSON Web Tokens) ---

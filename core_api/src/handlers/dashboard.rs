@@ -1,172 +1,76 @@
 /*
  * src/handlers/dashboard.rs
- * 职责: 看板统计
- * (★ V4 - 已添加“分店看板”API ★)
+ * 职责: 看板统计聚合 (HQ + Base V2.0)
+ * 修复: 解决 SQL Join、类型推断及日期处理问题
  */
 
 use axum::{extract::State, http::StatusCode, Json};
+use chrono::{Datelike, Utc}; 
+use super::AppState;
+use crate::models::{
+    Claims, 
+    DashboardStats, AdvancedDashboardStats, PendingStaff,
+    BaseDashboardFullData, DashboardTodoItem, UpcomingEventItem, CompositionItem
+};
 
-// 【修改】导入 AppState 和 Claims
-use super::AppState; // <-- 我们需要“钥匙”
+// ==========================================
+// A. 总部 (HQ) 看板接口 - 【保留原有逻辑】
+// ==========================================
 
-use crate::models::{Claims, AdvancedDashboardStats, BaseDashboardStats, DashboardStats, PendingStaff};
-
-// (GET /api/v1/dashboard/stats - 获取 *总部* 统计数据)
-// (★ V3 - 角色安全加固 ★)
 pub async fn get_dashboard_stats_handler(
     State(state): State<AppState>,
-    claims: Claims, // <-- 必须出示“钥匙”
+    claims: Claims,
 ) -> Result<Json<DashboardStats>, StatusCode> {
-    // --- (★ 角色安全守卫 ★) ---
-    let is_authorized = claims.roles.iter().any(|role| role == "role.tenant.admin");
-    if !is_authorized {
-        tracing::warn!(
-            "Unauthorized attempt to access dashboard stats by user {} (roles: {:?})",
-            claims.sub,
-            claims.roles
-        );
-        return Err(StatusCode::FORBIDDEN); // 403 Forbidden
-    }
-    // --- (守卫结束) ---
+    let is_authorized = claims.roles.iter().any(|r| r == "role.hq.admin" || r == "role.hq.operation");
+    if !is_authorized { return Err(StatusCode::FORBIDDEN); }
 
-    let tenant_id = claims.tenant_id;
-
-    let stats = match sqlx::query_as::<_, DashboardStats>(
-        r#"
-        SELECT 
-            (SELECT COUNT(*) FROM bases WHERE tenant_id = $1) AS total_bases
-        "#,
+    let stats = sqlx::query_as::<_, DashboardStats>(
+        r#"SELECT (SELECT COUNT(*) FROM bases WHERE hq_id = $1) AS total_bases"#
     )
-    .bind(tenant_id)
+    .bind(claims.hq_id)
     .fetch_one(&state.db_pool)
     .await
-    {
-        Ok(stats) => stats,
-        Err(e) => {
-            tracing::error!("Failed to fetch dashboard stats: {}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
+    .map_err(|e| {
+        tracing::error!("HQ stats failed: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
     Ok(Json(stats))
 }
 
-// --- 【新增 API】 ---
-
-// (GET /api/v1/base/dashboard/stats - 获取 *分店* 统计数据)
-// (★ V2 - 基地安全加固 ★)
-pub async fn get_base_dashboard_stats_handler(
-    State(state): State<AppState>,
-    claims: Claims, // <-- 必须出示“钥匙”
-) -> Result<Json<BaseDashboardStats>, StatusCode> {
-    let tenant_id = claims.tenant_id;
-
-    // --- (★ 安全校验 1: 必须是基地员工) ---
-    // 只有基地员工才能访问“分店”看板
-    let base_id = match claims.base_id {
-        Some(id) => id,
-        None => {
-            tracing::warn!(
-                "Tenant admin (user {}) without base_id tried to access base dashboard",
-                claims.sub
-            );
-            // 403 Forbidden: 总部管理员不允许此操作
-            return Err(StatusCode::FORBIDDEN);
-        }
-    };
-
-    // --- (★ 核心逻辑: 并发查询三个指标) ---
-    // (我们使用 'CURRENT_DATE' 来获取今天的日期, 它会使用数据库服务器的时区)
-    let stats = match sqlx::query_as::<_, BaseDashboardStats>(
-        r#"
-        SELECT
-            (
-                SELECT COUNT(DISTINCT p.id) 
-                FROM participants p 
-                JOIN customers c ON p.customer_id = c.id 
-                WHERE c.base_id = $1 AND p.tenant_id = $2
-            ) AS participant_count,
-            (
-                SELECT COUNT(cm.id) 
-                FROM customer_memberships cm 
-                JOIN customers c ON cm.customer_id = c.id 
-                WHERE c.base_id = $1 AND cm.tenant_id = $2 AND cm.is_active = true
-            ) AS member_count,
-            (
-                SELECT COUNT(id) 
-                FROM classes 
-                WHERE base_id = $1 AND tenant_id = $2 AND start_time::date = CURRENT_DATE
-            ) AS today_class_count
-        "#,
-    )
-    .bind(base_id) // $1
-    .bind(tenant_id) // $2
-    .fetch_one(&state.db_pool)
-    .await
-    {
-        Ok(stats) => stats,
-        Err(e) => {
-            tracing::error!("Failed to fetch base dashboard stats: {}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
-
-    Ok(Json(stats))
-}
-
-// GET /api/v1/tenant/dashboard/analytics
 pub async fn get_dashboard_advanced_stats_handler(
     State(state): State<AppState>,
-    // 真实场景这里要从 Claims 获取 tenant_id，这里简化
+    claims: Claims,
 ) -> Result<Json<AdvancedDashboardStats>, String> {
-    // 1. [运营] 计算本周体验课数
+    if !claims.roles.iter().any(|r| r.starts_with("role.hq")) {
+        return Err("Forbidden".into());
+    }
+
+    // 1. 本周体验课
     let trial_count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM classes c 
-         JOIN courses co ON c.course_id = co.id 
-         WHERE co.type = 'trial' 
-         AND c.start_time > NOW() - INTERVAL '7 days'",
-    )
-    .fetch_one(&state.db_pool)
-    .await
-    .unwrap_or(0);
+        "SELECT COUNT(*) FROM classes c JOIN courses co ON c.course_id = co.id 
+         WHERE co.type_ = 'trial' AND c.start_time > NOW() - INTERVAL '7 days'"
+    ).fetch_one(&state.db_pool).await.unwrap_or(0);
 
-    // 2. [运营] 计算转化率 (本周办卡数 / 本周新增客户数)
-    // 简单算法：(新会员 / 新潜客) * 100
+    // 2. 本周线索转化
     let new_leads: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM customers WHERE created_at > NOW() - INTERVAL '7 days'",
-    )
-    .fetch_one(&state.db_pool)
-    .await
-    .unwrap_or(1); // 避免除以0
-
+        "SELECT COUNT(*) FROM customers WHERE created_at > NOW() - INTERVAL '7 days'"
+    ).fetch_one(&state.db_pool).await.unwrap_or(1);
+    
     let new_members: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM customer_memberships WHERE created_at > NOW() - INTERVAL '7 days'",
-    )
-    .fetch_one(&state.db_pool)
-    .await
-    .unwrap_or(0);
+        "SELECT COUNT(*) FROM customer_memberships WHERE created_at > NOW() - INTERVAL '7 days'"
+    ).fetch_one(&state.db_pool).await.unwrap_or(0);
 
-    let conversion = if new_leads > 0 {
-        (new_members as f64 / new_leads as f64) * 100.0
-    } else {
-        0.0
-    };
+    let conversion = if new_leads > 0 { (new_members as f64 / new_leads as f64) * 100.0 } else { 0.0 };
 
-    // 3. [质量] 校区活跃度 (本周签到人次 / (总课次 * 容量))
-    // 这里简化为：实际签到率
-    let active_rate: f64 = 92.5; // 复杂 SQL 略，暂且模拟，真实逻辑需统计 class_enrollments
+    // 3. 活跃度 (Mock)
+    let active_rate = 92.5;
 
-    // 4. [HR] 待入职人数
-    let pending_staff: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE staff_status = 'pending'")
-            .fetch_one(&state.db_pool)
-            .await
-            .unwrap_or(0);
-
+    // 4. HR 数据
+    let pending_staff: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE staff_status = 'pending'")
+        .fetch_one(&state.db_pool).await.unwrap_or(0);
     let total_staff: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE is_active = true")
-        .fetch_one(&state.db_pool)
-        .await
-        .unwrap_or(0);
+        .fetch_one(&state.db_pool).await.unwrap_or(0);
 
     Ok(Json(AdvancedDashboardStats {
         trial_class_count: trial_count,
@@ -179,24 +83,183 @@ pub async fn get_dashboard_advanced_stats_handler(
     }))
 }
 
-// GET /api/v1/tenant/dashboard/pending-staff
 pub async fn get_pending_staff_list_handler(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<PendingStaff>>, String> {
     let list = sqlx::query_as::<_, PendingStaff>(
         r#"
-        SELECT u.full_name, r.name_key as role_name, u.created_at
-        FROM users u
-        JOIN user_roles ur ON u.id = ur.user_id
-        JOIN roles r ON ur.role_id = r.id
-        WHERE u.staff_status = 'pending'
-        ORDER BY u.created_at DESC
+        SELECT u.full_name, '员工' as role_name, u.created_at
+        FROM users u WHERE u.staff_status = 'pending'
+        ORDER BY u.created_at DESC LIMIT 5
+        "#
+    ).fetch_all(&state.db_pool).await.unwrap_or(vec![]);
+    Ok(Json(list))
+}
+
+// ==========================================
+// B. 基地 (Base) 看板接口 V2.0 - 【修复版】
+// ==========================================
+
+pub async fn get_base_dashboard_overview_handler(
+    State(state): State<AppState>,
+    claims: Claims,
+) -> Result<Json<BaseDashboardFullData>, StatusCode> {
+    let base_id = claims.base_id.ok_or(StatusCode::FORBIDDEN)?;
+
+    // 1. 本月接待人数 & 营收 (基于 orders 表的 event_date)
+    // 逻辑：统计当月发生的非取消订单
+    let current_month_stats = sqlx::query!(
+        r#"
+        SELECT 
+            COALESCE(SUM(expected_attendees), 0) as total_people,
+            COALESCE(SUM(total_amount_cents), 0) as total_money
+        FROM orders
+        WHERE base_id = $1 
+          AND status != 'cancelled'
+          AND date_trunc('month', event_date) = date_trunc('month', CURRENT_DATE)
+        "#,
+        base_id
+    )
+    .fetch_one(&state.db_pool).await.map_err(|e| {
+        tracing::error!("Dashboard stats error: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    let month_headcount = current_month_stats.total_people.unwrap_or(0) as i64;
+    let month_revenue = current_month_stats.total_money.unwrap_or(0) as i64;
+
+    // 2. 应收账款 (B2B/B2G 未结款)
+    // ★ 修复: type::TEXT 避免枚举类型推断错误
+    let pending_payment_amount = sqlx::query_scalar!(
+        r#"
+        SELECT COALESCE(SUM(total_amount_cents), 0)
+        FROM orders
+        WHERE base_id = $1 
+          AND type::TEXT IN ('b2b', 'b2g')
+          AND status IN ('pending', 'partial_paid')
+        "#,
+        base_id
+    ).fetch_one(&state.db_pool).await.unwrap_or(Some(0)).unwrap_or(0) as i64;
+
+    // 3. 客群结构分析
+    // ★ 修复: type::TEXT
+    let composition_rows = sqlx::query!(
+        r#"
+        SELECT type::TEXT as "type_", COUNT(*) as count
+        FROM orders
+        WHERE base_id = $1 AND status != 'cancelled'
+        GROUP BY type
+        "#,
+        base_id
+    ).fetch_all(&state.db_pool).await.unwrap_or(vec![]);
+
+    let mut customer_composition = Vec::new();
+    for row in composition_rows {
+        // row.type_ 现在是 Option<String>
+        let (name, color) = match row.type_.as_deref() {
+            Some("b2b") => ("企业团建", "#3b82f6"), // Blue
+            Some("b2g") => ("党建/政务", "#ef4444"), // Red
+            Some("b2c") => ("散客/研学", "#10b981"), // Green
+            _ => ("其他", "#9ca3af")
+        };
+        customer_composition.push(CompositionItem {
+            name: name.to_string(),
+            value: row.count.unwrap_or(0) as i32,
+            color: color.to_string(),
+        });
+    }
+
+    // 4. 未来 7 天接待预告
+    // ★ 修复: JOIN customers 表以获取 customer_name，解决 "column does not exist"
+    let upcoming_orders = sqlx::query!(
+        r#"
+        SELECT 
+            c.name as customer_name, 
+            o.contact_name, 
+            o.type::TEXT as "type_", 
+            o.expected_attendees, 
+            o.event_date, 
+            o.status::TEXT as "status"
+        FROM orders o
+        LEFT JOIN customers c ON o.customer_id = c.id
+        WHERE o.base_id = $1 
+          AND o.status != 'cancelled'
+          AND o.event_date >= CURRENT_DATE 
+          AND o.event_date <= CURRENT_DATE + INTERVAL '7 days'
+        ORDER BY o.event_date ASC
         LIMIT 5
         "#,
-    )
-    .fetch_all(&state.db_pool)
-    .await
-    .unwrap_or(vec![]);
+        base_id
+    ).fetch_all(&state.db_pool).await.unwrap_or(vec![]);
 
-    Ok(Json(list))
+    // ★ 修复: 显式指定闭包参数类型 |d: chrono::NaiveDate|
+    let upcoming_events = upcoming_orders.into_iter().map(|o| UpcomingEventItem {
+        date: o.event_date.map(|d: chrono::NaiveDate| d.format("%m-%d").to_string()).unwrap_or_default(),
+        // 优先显示客户名(B2C/关联客户)，没有则显示联系人(B2B临时)
+        customer_name: o.customer_name.or(o.contact_name).unwrap_or("未知客户".into()),
+        type_name: match o.type_.as_deref() { Some("b2b")=>"团建", Some("b2g")=>"党建", _=>"参观" }.into(),
+        headcount: o.expected_attendees.unwrap_or(0),
+        status: o.status.unwrap_or("pending".into()),
+    }).collect();
+
+    // 5. 待办事项聚合
+    let mut todos = Vec::new();
+
+    // 5.1 待审批采购单
+    // ★ 修复: created_at 可能是 Option
+    let pending_procurements = sqlx::query!(
+        r#"SELECT id, submit_note, created_at FROM procurement_orders WHERE base_id = $1 AND status = 'pending' LIMIT 3"#,
+        base_id
+    ).fetch_all(&state.db_pool).await.unwrap_or(vec![]);
+
+    for p in pending_procurements {
+        let date_str = match p.created_at {
+            Some(dt) => dt.format("%Y-%m-%d").to_string(),
+            None => "未知日期".to_string()
+        };
+
+        todos.push(DashboardTodoItem {
+            id: p.id.to_string(),
+            title: format!("审批采购: {}", p.submit_note.unwrap_or("无备注".into())),
+            tag: "采购".into(),
+            tag_color: "blue".into(),
+            date: date_str,
+        });
+    }
+
+    // 5.2 库存预警
+    let low_stock_count = sqlx::query_scalar!(
+        r#"SELECT COUNT(*) FROM base_inventory WHERE base_id = $1 AND quantity < 10"#,
+        base_id
+    ).fetch_one(&state.db_pool).await.unwrap_or(Some(0)).unwrap_or(0);
+
+    if low_stock_count > 0 {
+        todos.push(DashboardTodoItem {
+            id: "stock-alert".into(),
+            title: format!("{} 种物资库存不足", low_stock_count),
+            tag: "库存".into(),
+            tag_color: "red".into(),
+            date: Utc::now().format("%Y-%m-%d").to_string(),
+        });
+    }
+
+    // 6. 趋势 Mock (实际项目建议用 generate_series 生成日期补全数据)
+    let trend_labels = vec!["W1".into(), "W2".into(), "W3".into(), "W4".into()];
+    let trend_headcount = vec![120, 200, 150, month_headcount]; 
+    let trend_revenue = vec![5000000, 8000000, 6000000, month_revenue];
+
+    Ok(Json(BaseDashboardFullData {
+        month_revenue,
+        revenue_growth: 0.15,
+        month_headcount,
+        headcount_growth: 0.22,
+        pending_payment_amount,
+        pending_alerts: low_stock_count + todos.len() as i64,
+        trend_labels,
+        trend_headcount,
+        trend_revenue,
+        customer_composition,
+        upcoming_events,
+        todo_list: todos,
+    }))
 }

@@ -19,16 +19,16 @@ pub async fn get_honor_ranks(
     claims: Claims, 
 ) -> Result<Json<Vec<HonorRank>>, StatusCode> {
     
-    let tenant_id = claims.tenant_id; 
+    let hq_id = claims.hq_id; 
 
     let ranks = match sqlx::query_as::<_, HonorRank>(
         r#"
         SELECT * FROM honor_ranks
-        WHERE tenant_id = $1
+        WHERE hq_id = $1
         ORDER BY rank_level ASC
         "#,
     )
-    .bind(tenant_id) 
+    .bind(hq_id) 
     .fetch_all(&state.db_pool)
     .await
     {
@@ -51,7 +51,7 @@ pub async fn create_honor_rank(
     
     // 1. 权限检查
     let is_authorized = claims.roles.iter().any(|role| 
-        role == "role.tenant.admin"
+        role == "role.hq.admin"
     );
 
     if !is_authorized {
@@ -63,17 +63,17 @@ pub async fn create_honor_rank(
         return Err(StatusCode::FORBIDDEN); 
     }
     
-    let tenant_id = claims.tenant_id; 
+    let hq_id = claims.hq_id; 
 
     // 2. 插入数据
     let new_rank = match sqlx::query_as::<_, HonorRank>(
         r#"
-        INSERT INTO honor_ranks (tenant_id, name_key, rank_level, points_required, badge_icon_url)
+        INSERT INTO honor_ranks (hq_id, name_key, rank_level, points_required, badge_icon_url)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *
         "#,
     )
-    .bind(tenant_id)
+    .bind(hq_id)
     .bind(&payload.name_key)
     .bind(payload.rank_level)
     .bind(payload.points_required)
@@ -107,7 +107,7 @@ pub async fn update_honor_rank(
 ) -> Result<Json<HonorRank>, StatusCode> {
     
     // 1. 权限检查
-    let is_authorized = claims.roles.iter().any(|role| role == "role.tenant.admin");
+    let is_authorized = claims.roles.iter().any(|role| role == "role.hq.admin");
     if !is_authorized { return Err(StatusCode::FORBIDDEN); }
 
     // 2. 执行更新
@@ -115,13 +115,13 @@ pub async fn update_honor_rank(
         r#"
         UPDATE honor_ranks 
         SET points_required = $1
-        WHERE id = $2 AND tenant_id = $3
+        WHERE id = $2 AND hq_id = $3
         RETURNING *
         "#,
     )
     .bind(payload.points_required)
     .bind(rank_id)
-    .bind(claims.tenant_id)
+    .bind(claims.hq_id)
     .fetch_optional(&state.db_pool) 
     .await
     {

@@ -23,7 +23,7 @@ pub async fn get_all_assets_handler(
     claims: Claims,
     Query(params): Query<AssetQuery>,
 ) -> Result<Json<Vec<AssetDetail>>, StatusCode> {
-    if !claims.roles.contains(&"role.tenant.admin".to_string()) {
+    if !claims.roles.contains(&"role.hq.admin".to_string()) {
         return Err(StatusCode::FORBIDDEN);
     }
 
@@ -38,7 +38,7 @@ pub async fn get_all_assets_handler(
         FROM assets a
         LEFT JOIN asset_types t ON a.asset_type_id = t.id
         LEFT JOIN bases b ON a.base_id = b.id
-        WHERE a.tenant_id = $1
+        WHERE a.hq_id = $1
         "#,
     );
 
@@ -63,7 +63,7 @@ pub async fn get_all_assets_handler(
     query.push_str(" ORDER BY a.created_at DESC LIMIT 500");
 
     let assets = sqlx::query_as::<_, AssetDetail>(&query)
-        .bind(claims.tenant_id)
+        .bind(claims.hq_id)
         .fetch_all(&state.db_pool)
         .await
         .map_err(|e| {
@@ -80,7 +80,7 @@ pub async fn create_asset_handler(
     claims: Claims,
     Json(payload): Json<CreateAssetPayload>,
 ) -> Result<Json<Asset>, StatusCode> {
-    if !claims.roles.contains(&"role.tenant.admin".to_string()) {
+    if !claims.roles.contains(&"role.hq.admin".to_string()) {
         return Err(StatusCode::FORBIDDEN);
     }
 
@@ -91,14 +91,14 @@ pub async fn create_asset_handler(
     let new_asset = sqlx::query_as::<_, Asset>(
         r#"
         INSERT INTO assets (
-            tenant_id, base_id, asset_type_id, name, model_number, 
+            hq_id, base_id, asset_type_id, name, model_number, 
             serial_number, status, purchase_date, warranty_until, price_in_cents
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
         "#,
     )
-    .bind(claims.tenant_id)
+    .bind(claims.hq_id)
     .bind(payload.base_id)
     .bind(payload.asset_type_id)
     .bind(&payload.name)
@@ -125,16 +125,16 @@ pub async fn transfer_asset_handler(
     Path(id): Path<Uuid>,
     Json(payload): Json<TransferAssetPayload>,
 ) -> Result<StatusCode, StatusCode> {
-    if !claims.roles.contains(&"role.tenant.admin".to_string()) {
+    if !claims.roles.contains(&"role.hq.admin".to_string()) {
         return Err(StatusCode::FORBIDDEN);
     }
 
     let result = sqlx::query(
-        "UPDATE assets SET base_id = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3",
+        "UPDATE assets SET base_id = $1, updated_at = NOW() WHERE id = $2 AND hq_id = $3",
     )
     .bind(payload.target_base_id)
     .bind(id)
-    .bind(claims.tenant_id)
+    .bind(claims.hq_id)
     .execute(&state.db_pool)
     .await
     .map_err(|e| {
@@ -154,13 +154,13 @@ pub async fn delete_asset_handler(
     claims: Claims,
     Path(id): Path<Uuid>,
 ) -> Result<StatusCode, StatusCode> {
-    if !claims.roles.contains(&"role.tenant.admin".to_string()) {
+    if !claims.roles.contains(&"role.hq.admin".to_string()) {
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let res = sqlx::query("DELETE FROM assets WHERE id = $1 AND tenant_id = $2")
+    let res = sqlx::query("DELETE FROM assets WHERE id = $1 AND hq_id = $2")
         .bind(id)
-        .bind(claims.tenant_id)
+        .bind(claims.hq_id)
         .execute(&state.db_pool)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -179,17 +179,17 @@ pub async fn get_asset_types_handler(
 ) -> Result<Json<Vec<AssetType>>, StatusCode> {
     
     // (HACK 已移除!)
-    let tenant_id = claims.tenant_id; // <-- 【修改】使用“钥匙”中的租户ID
+    let hq_id = claims.hq_id; // <-- 【修改】使用“钥匙”中的租户ID
 
     let asset_types = match sqlx::query_as::<_, AssetType>(
         r#"
-        SELECT id, tenant_id, name_key, description_key
+        SELECT id, hq_id, name_key, description_key
         FROM asset_types
-        WHERE tenant_id = $1
+        WHERE hq_id = $1
         ORDER BY name_key ASC
         "#,
     )
-    .bind(tenant_id) // <-- 【修改】绑定“钥匙”中的ID
+    .bind(hq_id) // <-- 【修改】绑定“钥匙”中的ID
     .fetch_all(&state.db_pool)
     .await
     {
@@ -213,7 +213,7 @@ pub async fn create_asset_type_handler(
     
     // --- (★ 新增：角色安全守卫 ★) ---
     let is_authorized = claims.roles.iter().any(|role| 
-        role == "role.tenant.admin"
+        role == "role.hq.admin"
     );
 
     if !is_authorized {
@@ -227,16 +227,16 @@ pub async fn create_asset_type_handler(
     // --- (守卫结束) ---
 
     // (HACK 已移除!)
-    let tenant_id = claims.tenant_id; // <-- 【修改】使用“钥匙”中的租户ID
+    let hq_id = claims.hq_id; // <-- 【修改】使用“钥匙”中的租户ID
 
     let new_asset_type = match sqlx::query_as::<_, AssetType>(
         r#"
-        INSERT INTO asset_types (tenant_id, name_key, description_key)
+        INSERT INTO asset_types (hq_id, name_key, description_key)
         VALUES ($1, $2, $3)
         RETURNING *
         "#,
     )
-    .bind(tenant_id) // <-- 【修改】绑定“钥匙”中的ID
+    .bind(hq_id) // <-- 【修改】绑定“钥匙”中的ID
     .bind(&payload.name_key)
     .bind(payload.description_key)
     .fetch_one(&state.db_pool)

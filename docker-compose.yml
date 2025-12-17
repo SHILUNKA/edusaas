@@ -32,6 +32,7 @@ services:
     volumes:
       - ./core_api:/app
       - /app/target
+      - ./uploads:/app/uploads
     depends_on:
       - db
     restart: unless-stopped

@@ -21,7 +21,7 @@ pub async fn create_customer_handler(
     Json(payload): Json<CreateCustomerPayload>,
 ) -> Result<Json<Customer>, StatusCode> {
     
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
 
     let base_id = match claims.base_id {
         Some(id) => id,
@@ -33,12 +33,12 @@ pub async fn create_customer_handler(
 
     let new_customer = match sqlx::query_as::<_, Customer>(
         r#"
-        INSERT INTO customers (tenant_id, base_id, name, phone_number)
+        INSERT INTO customers (hq_id, base_id, name, phone_number)
         VALUES ($1, $2, $3, $4)
         RETURNING *
         "#,
     )
-    .bind(tenant_id)
+    .bind(hq_id)
     .bind(base_id)
     .bind(payload.name)
     .bind(&payload.phone_number)
@@ -75,11 +75,11 @@ pub async fn get_customers_handler(
         customers = sqlx::query_as::<_, Customer>(
             r#"
             SELECT * FROM customers
-            WHERE tenant_id = $1 AND base_id = $2
+            WHERE hq_id = $1 AND base_id = $2
             ORDER BY created_at DESC
             "#,
         )
-        .bind(claims.tenant_id)
+        .bind(claims.hq_id)
         .bind(base_id)
         .fetch_all(&state.db_pool)
         .await
@@ -90,19 +90,19 @@ pub async fn get_customers_handler(
         
     } else {
         // --- 场景 B: 租户管理员 (无 base_id) ---
-        tracing::debug!("Fetching all customers for tenant_id: {}", claims.tenant_id);
+        tracing::debug!("Fetching all customers for hq_id: {}", claims.hq_id);
         customers = sqlx::query_as::<_, Customer>(
             r#"
             SELECT * FROM customers
-            WHERE tenant_id = $1
+            WHERE hq_id = $1
             ORDER BY base_id, created_at DESC
             "#,
         )
-        .bind(claims.tenant_id)
+        .bind(claims.hq_id)
         .fetch_all(&state.db_pool)
         .await
         .map_err(|e| {
-            tracing::error!("Failed to fetch all tenant customers: {}", e);
+            tracing::error!("Failed to fetch all hq customers: {}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
     }

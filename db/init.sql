@@ -1,12 +1,11 @@
 /*
 ====================================================================
---- 数据库初始化脚本 (V23.0 - 业财一体化完整版) ---
---- 包含: 
---- 1. 基础: 租户, 基地, 员工, 角色
---- 2. 教务: 课程, 班级, 排课
---- 3. 业务: CRM, 会员, 积分
---- 4. 运营: 物资, 采购
---- 5. 财务: 订单(B2B/C), 成本, 资金流水 (★ 重点升级)
+--- 数据库初始化脚本 (V25.0 - 最终精简优化版) ---
+--- 核心设计:
+--- 1. 收入中心: orders (B2C/B2B/B2G)
+--- 2. 成本中心: supply_orders (采购) + expenses (运营支出)
+--- 3. 资金中心: finance_payment_records (实际流水)
+--- 4. 彻底移除旧版总账表，实现轻量化 SaaS 架构
 ====================================================================
 */
 
@@ -15,12 +14,12 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 /*
 ====================================================================
---- Phase 0: SaaS 基础 (租户, 员工, 角色) ---
+--- Phase 0: 基础架构 (租户, 基地, 员工, 角色) ---
 ====================================================================
 */
 CREATE TYPE staff_status AS ENUM ('active', 'pending', 'resigned');
 
-CREATE TABLE tenants (
+CREATE TABLE hqs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL, 
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -29,17 +28,24 @@ CREATE TABLE tenants (
 
 CREATE TABLE bases (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL, 
+    code VARCHAR(20), -- 订单前缀 (如 SZ1)
     address TEXT,
     logo_url TEXT,
+    
+    -- 运营状态: active(运营), preparing(筹备), suspended(停业), closed(关闭)
+    status VARCHAR(20) DEFAULT 'active' NOT NULL,
+    -- 经营模式: direct(直营), franchise(加盟), partner(合作)
+    operation_mode VARCHAR(20) DEFAULT 'direct' NOT NULL,
+
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     base_id UUID REFERENCES bases(id),
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
@@ -60,10 +66,10 @@ CREATE TABLE users (
 
 CREATE TABLE roles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     name_key VARCHAR(100) NOT NULL, 
     description_key TEXT, 
-    UNIQUE(tenant_id, name_key)
+    UNIQUE(hq_id, name_key)
 );
 
 CREATE TABLE user_roles (
@@ -81,15 +87,15 @@ CREATE TYPE asset_status AS ENUM ('in_stock', 'in_use', 'in_class', 'in_maintena
 
 CREATE TABLE asset_types (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     name_key VARCHAR(255) NOT NULL, 
     description_key TEXT,
-    UNIQUE(tenant_id, name_key)
+    UNIQUE(hq_id, name_key)
 );
 
 CREATE TABLE assets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     base_id UUID REFERENCES bases(id),
     asset_type_id UUID REFERENCES asset_types(id) ON DELETE SET NULL,
     name VARCHAR(255) NOT NULL, 
@@ -105,7 +111,7 @@ CREATE TABLE assets (
 
 CREATE TABLE materials (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     name_key VARCHAR(255) NOT NULL, 
     description_key TEXT, 
     sku VARCHAR(100),
@@ -130,7 +136,7 @@ CREATE TABLE material_stock_changes (
 */
 CREATE TABLE customers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     base_id UUID REFERENCES bases(id),
     name VARCHAR(255), 
     phone_number VARCHAR(50) NOT NULL,
@@ -138,12 +144,12 @@ CREATE TABLE customers (
     avatar_url TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(tenant_id, phone_number)
+    UNIQUE(hq_id, phone_number)
 );
 
 CREATE TABLE participants (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL, 
     date_of_birth DATE,
@@ -159,7 +165,7 @@ CREATE TYPE membership_tier_type AS ENUM ('time_based', 'usage_based');
 
 CREATE TABLE membership_tiers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     name_key VARCHAR(255) NOT NULL, 
     description_key TEXT, 
     tier_type membership_tier_type NOT NULL DEFAULT 'time_based',
@@ -176,7 +182,7 @@ CREATE TABLE customer_memberships (
     customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
     participant_id UUID REFERENCES participants(id) ON DELETE CASCADE,
     tier_id UUID NOT NULL REFERENCES membership_tiers(id) ON DELETE CASCADE,
-    tenant_id UUID NOT NULL REFERENCES tenants(id),
+    hq_id UUID NOT NULL REFERENCES hqs(id),
     start_date TIMESTAMPTZ NOT NULL,
     expiry_date TIMESTAMPTZ,
     remaining_uses INT,
@@ -186,18 +192,18 @@ CREATE TABLE customer_memberships (
 
 CREATE TABLE honor_ranks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     name_key VARCHAR(100) NOT NULL, 
     rank_level INT NOT NULL,
     points_required INT NOT NULL DEFAULT 0,
     badge_icon_url TEXT,
-    UNIQUE(tenant_id, rank_level),
-    UNIQUE(tenant_id, name_key)
+    UNIQUE(hq_id, rank_level),
+    UNIQUE(hq_id, name_key)
 );
 
 CREATE TABLE participant_profiles (
     participant_id UUID PRIMARY KEY REFERENCES participants(id) ON DELETE CASCADE,
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     current_total_points INT NOT NULL DEFAULT 0,
     current_honor_rank_id UUID REFERENCES honor_ranks(id),
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -206,7 +212,7 @@ CREATE TABLE participant_profiles (
 CREATE TABLE point_transactions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     participant_id UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     points_change INT NOT NULL,
     reason_key VARCHAR(255) NOT NULL, 
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -221,7 +227,7 @@ CREATE TYPE course_type AS ENUM ('regular', 'trial');
 
 CREATE TABLE teachers (
     user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     base_id UUID REFERENCES bases(id),
     bio TEXT, 
     specialization TEXT, 
@@ -231,7 +237,7 @@ CREATE TABLE teachers (
 
 CREATE TABLE rooms (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     base_id UUID NOT NULL REFERENCES bases(id),
     name VARCHAR(100) NOT NULL, 
     capacity INT DEFAULT 10,
@@ -242,7 +248,7 @@ CREATE TABLE rooms (
 
 CREATE TABLE courses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     name_key VARCHAR(255) NOT NULL, 
     description_key TEXT,
     type course_type DEFAULT 'regular',
@@ -273,7 +279,7 @@ CREATE TABLE course_required_asset_types (
 
 CREATE TABLE classes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     base_id UUID NOT NULL REFERENCES bases(id),
     course_id UUID NOT NULL REFERENCES courses(id),
     room_id UUID NOT NULL REFERENCES rooms(id),
@@ -291,7 +297,7 @@ CREATE TABLE class_teachers (
 
 CREATE TABLE class_enrollments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
     participant_id UUID NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
     customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -304,19 +310,22 @@ CREATE TABLE class_enrollments (
 
 /*
 ====================================================================
---- Phase 4: 采购与供应链 ---
+--- Phase 4: 内部采购 (Internal Procurement) ---
+--- 场景: 基地内部老师向库管申请领用物资，不是向总部买 ---
 ====================================================================
 */
 CREATE TYPE procurement_status AS ENUM ('pending', 'approved', 'rejected', 'shipped', 'received');
 
 CREATE TABLE procurement_orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    hq_id UUID NOT NULL REFERENCES hqs(id) ON DELETE CASCADE,
     base_id UUID NOT NULL REFERENCES bases(id) ON DELETE CASCADE,
     applicant_id UUID REFERENCES users(id),
     status procurement_status DEFAULT 'pending',
     submit_note TEXT, 
     reject_reason TEXT, 
+    logistics_company TEXT,
+    tracking_number TEXT,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -360,7 +369,7 @@ CREATE TABLE user_login_history (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email_attempted VARCHAR(255) NOT NULL, 
     user_id UUID REFERENCES users(id) ON DELETE SET NULL, 
-    tenant_id UUID REFERENCES tenants(id) ON DELETE SET NULL,
+    hq_id UUID REFERENCES hqs(id) ON DELETE SET NULL,
     login_timestamp TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     ip_address VARCHAR(100),
     user_agent TEXT,
@@ -370,99 +379,169 @@ CREATE TABLE user_login_history (
 
 /*
 ====================================================================
---- Phase 7: 财务中心 (Financial Center) - (★ V23.0 业财一体化) ---
+--- Phase 7: 财务与收入中心 (Finance & Revenue) ---
+--- 场景: 学员交学费 (B2C) / 企业政府打款 (B2B/B2G) ---
 ====================================================================
 */
 
--- 1. 核心枚举
 CREATE TYPE order_type AS ENUM ('b2b', 'b2c', 'b2g');
 CREATE TYPE order_status AS ENUM ('pending', 'partial_paid', 'paid', 'completed', 'refunded', 'cancelled');
-CREATE TYPE cost_category AS ENUM ('transport', 'catering', 'accommodation', 'labor', 'material', 'insurance', 'other');
 
-CREATE TYPE transaction_type AS ENUM ('income', 'expense', 'refund', 'usage', 'adjustment');
-CREATE TYPE transaction_category AS ENUM ('membership_sale', 'procurement_cost', 'course_revenue', 'salary', 'utility', 'rent', 'other');
-CREATE TYPE account_subject AS ENUM ('cash', 'contract_liability', 'revenue', 'cost', 'expense', 'refund_payable');
-
--- 2. 订单主表 (收入中心)
+-- 1. 收入订单表 (Orders)
 CREATE TABLE orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id),
+    hq_id UUID NOT NULL REFERENCES hqs(id),
     base_id UUID NOT NULL REFERENCES bases(id),
     
     order_no VARCHAR(50) NOT NULL UNIQUE, 
-    type order_type NOT NULL,
+    type order_type NOT NULL, -- b2c(散客), b2b(校企), b2g(政府)
     status order_status DEFAULT 'pending',
     
-    customer_id UUID REFERENCES customers(id), 
+    customer_id UUID REFERENCES customers(id), -- 关联散客/联系人
     contact_name VARCHAR(100), 
     
     -- 业务数据
-    expected_attendees INT DEFAULT 0, -- 预计人数
-    actual_attendees INT DEFAULT 0,   -- 实到人数
-    event_date DATE,                  -- 活动日期
+    expected_attendees INT DEFAULT 0,
+    actual_attendees INT DEFAULT 0,
+    event_date DATE,
     
     -- 财务数据 (单位: 分)
-    total_amount_cents INT NOT NULL DEFAULT 0,    -- 合同总金额
-    paid_amount_cents INT NOT NULL DEFAULT 0,     -- 已收金额
+    total_amount_cents INT NOT NULL DEFAULT 0,    -- 应收总额
+    paid_amount_cents INT NOT NULL DEFAULT 0,     -- 实收总额
     discount_amount_cents INT NOT NULL DEFAULT 0, 
     
+    -- ★ 核心修正：保留这个带外键约束的，删除后面重复的
     sales_id UUID REFERENCES users(id), 
+    
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+
+    -- 新增字段
+    invoice_status VARCHAR(20) DEFAULT 'unbilled', -- unbilled, billing, billed
+    contract_url TEXT,
+    files TEXT[] -- 建议加上这个，用来存其他附件数组
 );
 
--- 3. 成本记录表 (成本中心)
-CREATE TABLE cost_records (
+-- 2. 资金流水/支付凭证表 (唯一的资金流向表)
+CREATE TABLE finance_payment_records (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id),
-    base_id UUID NOT NULL REFERENCES bases(id),
     
-    order_id UUID REFERENCES orders(id) ON DELETE SET NULL, -- 关联收入订单
+    hq_id UUID NOT NULL REFERENCES hqs(id),
+    base_id UUID REFERENCES bases(id), 
     
-    category cost_category NOT NULL, 
-    amount_cents INT NOT NULL DEFAULT 0, 
+    order_id UUID NOT NULL REFERENCES orders(id),
     
-    supplier_name VARCHAR(100), 
-    description TEXT,
+    transaction_type VARCHAR(20) NOT NULL DEFAULT 'INCOME', -- INCOME(收款), REFUND(退款)
+    channel VARCHAR(20) NOT NULL,          -- BANK_TRANSFER, WECHAT, ALIPAY
+    amount_cents INT NOT NULL,             -- 金额（分）
     
-    is_paid BOOLEAN DEFAULT false, 
-    created_by UUID REFERENCES users(id),
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-);
-
--- 4. 资金流水表 (资金中心)
-CREATE TABLE financial_transactions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    base_id UUID REFERENCES bases(id) ON DELETE SET NULL,
+    -- 线下转账字段
+    payer_name VARCHAR(100),               -- 对方户名
+    proof_image_url TEXT,                  -- 凭证截图
     
-    amount_in_cents INT NOT NULL, 
-    transaction_type transaction_type NOT NULL,
-    category transaction_category NOT NULL,
-    debit_subject account_subject,  
-    credit_subject account_subject, 
-
-    related_entity_id UUID, 
+    -- 线上支付字段
+    channel_transaction_id VARCHAR(100),   
     
-    -- ★ V23.0 新增关联
-    order_id UUID REFERENCES orders(id),
-    cost_record_id UUID REFERENCES cost_records(id),
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, VERIFIED, FAILED
     
-    description TEXT,       
-    created_by UUID REFERENCES users(id) ON DELETE SET NULL, 
-    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    verified_at TIMESTAMPTZ,               
+    verified_by UUID REFERENCES users(id)
 );
 
 /*
 ====================================================================
---- 索引区 ---
+--- Phase 8: 供应链与成本中心 (Supply Chain & Expenses) ---
+--- 场景: 基地向总部进货 (Supply) / 基地付房租工资 (Expenses) ---
 ====================================================================
 */
--- (保留之前的索引，这里省略部分重复代码，核心索引如下)
-CREATE INDEX idx_finance_order_tenant ON orders(tenant_id, base_id);
-CREATE INDEX idx_finance_order_date ON orders(event_date);
-CREATE INDEX idx_finance_cost_order ON cost_records(order_id);
-CREATE INDEX idx_finance_trans_time ON financial_transactions(created_at);
+
+-- 1. 总部商品/服务表
+CREATE TABLE hq_products (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    hq_id UUID NOT NULL, -- 归属总部
+    name VARCHAR(100) NOT NULL,
+    sku VARCHAR(50), 
+    type VARCHAR(20) NOT NULL, -- 'material', 'service'
+    price_cents INTEGER NOT NULL, -- 批发单价
+    stock_quantity INTEGER DEFAULT 99999,
+    image_url TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. 基地采购订单表 (B2B 商城订单)
+CREATE TABLE supply_orders (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    hq_id UUID NOT NULL, 
+    base_id UUID NOT NULL REFERENCES bases(id),
+    order_no VARCHAR(50) NOT NULL, -- PUR-SZ1-251212-001
+    
+    total_amount_cents INTEGER NOT NULL, 
+    status VARCHAR(20) DEFAULT 'pending_payment', -- pending_payment, paid, shipped, completed
+    
+    payment_proof_url TEXT, 
+    logistics_info TEXT, 
+    
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. 采购订单明细
+CREATE TABLE supply_order_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    supply_order_id UUID NOT NULL REFERENCES supply_orders(id),
+    product_id UUID NOT NULL REFERENCES hq_products(id),
+    product_name VARCHAR(100) NOT NULL, 
+    quantity INTEGER NOT NULL,
+    unit_price_cents INTEGER NOT NULL
+);
+
+-- 4. 基地运营支出表 (房租、工资、水电等)
+-- ★ 替代了旧版的 cost_records
+CREATE TABLE expenses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    hq_id UUID NOT NULL REFERENCES hqs(id),
+    base_id UUID NOT NULL REFERENCES bases(id),
+    
+    category VARCHAR(50) NOT NULL, -- 'rent', 'salary', 'utility', 'marketing', 'other'
+    amount_cents INTEGER NOT NULL, -- 支出金额
+    description TEXT, -- 备注
+    expense_date DATE DEFAULT CURRENT_DATE, 
+    
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE base_inventory (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    base_id UUID NOT NULL REFERENCES bases(id),
+    product_id UUID NOT NULL REFERENCES hq_products(id), -- 关联回总部的商品ID
+    quantity INT NOT NULL DEFAULT 0, -- 当前持有的数量
+    last_updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    -- 联合唯一索引：一个基地对同一个商品只有一条记录
+    UNIQUE(base_id, product_id) 
+);
+CREATE TABLE IF NOT EXISTS inventory_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    base_id UUID NOT NULL REFERENCES bases(id),
+    product_id UUID NOT NULL REFERENCES hq_products(id),
+    change_amount INT NOT NULL, -- 负数表示消耗(领用)，正数表示增加(入库)
+    reason TEXT NOT NULL,       -- 例如：教学使用、损坏、采购入库
+    operator_name TEXT,         -- 操作人名字 (暂时可选)
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+/*
+====================================================================
+--- 索引优化区 ---
+====================================================================
+*/
+CREATE INDEX IF NOT EXISTS idx_finance_order_base ON orders(hq_id, base_id);
+CREATE INDEX IF NOT EXISTS idx_finance_order_date ON orders(event_date);
+CREATE INDEX IF NOT EXISTS idx_finance_payment_status ON finance_payment_records (status);
+CREATE INDEX IF NOT EXISTS idx_supply_orders_base ON supply_orders(base_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_base_date ON expenses(base_id, expense_date);
 
 /*
 ====================================================================
@@ -471,62 +550,35 @@ CREATE INDEX idx_finance_trans_time ON financial_transactions(created_at);
 */
 
 -- 1. 租户与角色
-INSERT INTO tenants (name) VALUES ('EduSaaS 示范集团') ON CONFLICT DO NOTHING;
+INSERT INTO hqs (name) VALUES ('EduSaaS 示范集团') ON CONFLICT DO NOTHING;
 
 -- HQ Roles
-INSERT INTO roles (tenant_id, name_key, description_key)
-SELECT id, 'role.tenant.admin', '总部-总经理 (全权)' FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
-INSERT INTO roles (tenant_id, name_key, description_key)
-SELECT id, 'role.tenant.finance', '总部-财务总监 (资金/审批)' FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
-INSERT INTO roles (tenant_id, name_key, description_key)
-SELECT id, 'role.tenant.operation', '总部-运营/教研 (课程/资产)' FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
-INSERT INTO roles (tenant_id, name_key, description_key)
-SELECT id, 'role.tenant.hr', '总部-人事 (员工管理)' FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
-
+INSERT INTO roles (hq_id, name_key, description_key)
+SELECT id, 'role.hq.admin', '总部-总经理' FROM hqs LIMIT 1 ON CONFLICT (hq_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
+INSERT INTO roles (hq_id, name_key, description_key)
+SELECT id, 'role.hq.finance', '总部-财务' FROM hqs LIMIT 1 ON CONFLICT (hq_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
 -- Campus Roles
-INSERT INTO roles (tenant_id, name_key, description_key)
-SELECT id, 'role.base.admin', '校区-校长 (校区全权)' FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
-INSERT INTO roles (tenant_id, name_key, description_key)
-SELECT id, 'role.base.academic', '校区-教务主管 (排课/学员)' FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
-INSERT INTO roles (tenant_id, name_key, description_key)
-SELECT id, 'role.base.finance', '校区-财务/前台 (收费/采购)' FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
-INSERT INTO roles (tenant_id, name_key, description_key)
-SELECT id, 'role.teacher', '校区-普通教师 (上课/查看课表)' FROM tenants LIMIT 1 ON CONFLICT (tenant_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
+INSERT INTO roles (hq_id, name_key, description_key)
+SELECT id, 'role.base.admin', '校区-校长' FROM hqs LIMIT 1 ON CONFLICT (hq_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
+INSERT INTO roles (hq_id, name_key, description_key)
+SELECT id, 'role.base.finance', '校区-财务' FROM hqs LIMIT 1 ON CONFLICT (hq_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
+INSERT INTO roles (hq_id, name_key, description_key)
+SELECT id, 'role.teacher', '校区-教师' FROM hqs LIMIT 1 ON CONFLICT (hq_id, name_key) DO UPDATE SET description_key = EXCLUDED.description_key;
 
 -- 预设体验课
-INSERT INTO courses (tenant_id, name_key, description_key, type, points_awarded)
-SELECT id, '航天科学-0元体验课', '用于引流的公开课', 'trial', 0
-FROM tenants LIMIT 1;
+INSERT INTO courses (hq_id, name_key, description_key, type, points_awarded)
+SELECT id, '航天科学-0元体验课', '引流公开课', 'trial', 0 FROM hqs LIMIT 1;
 
--- 预设待入职员工
-INSERT INTO users (tenant_id, email, password_hash, full_name, staff_status, role_key)
-SELECT id, 'pending_hr@hq.com', 'hashed_pw', '王后备', 'pending', 'role.teacher'
-FROM tenants LIMIT 1;
-
--- 预设军衔 (省略部分，保持原样)
-INSERT INTO honor_ranks (tenant_id, name_key, rank_level, points_required)
+-- 预设军衔
+INSERT INTO honor_ranks (hq_id, name_key, rank_level, points_required)
 VALUES 
-((SELECT id FROM tenants LIMIT 1), '列兵', 1, 0, NULL),
-((SELECT id FROM tenants LIMIT 1), '上等兵', 2, 100, NULL),
-((SELECT id FROM tenants LIMIT 1), '下士', 3, 300, NULL),
-((SELECT id FROM tenants LIMIT 1), '中士', 4, 600, NULL),
-((SELECT id FROM tenants LIMIT 1), '二级上士', 5, 1200, NULL),
-((SELECT id FROM tenants LIMIT 1), '一级上士', 6, 2000, NULL),
-((SELECT id FROM tenants LIMIT 1), '三级军士长', 7, 3500, NULL),
-((SELECT id FROM tenants LIMIT 1), '二级军士长', 8, 6000, NULL),
-((SELECT id FROM tenants LIMIT 1), '一级军士长', 9, 10000, NULL),
-((SELECT id FROM tenants LIMIT 1), '少尉', 10, 15000, NULL),
-((SELECT id FROM tenants LIMIT 1), '中尉', 11, 22000, NULL),
-((SELECT id FROM tenants LIMIT 1), '上尉', 12, 30000, NULL),
-((SELECT id FROM tenants LIMIT 1), '少校', 13, 45000, NULL),
-((SELECT id FROM tenants LIMIT 1), '中校', 14, 65000, NULL),
-((SELECT id FROM tenants LIMIT 1), '上校', 15, 90000, NULL),
-((SELECT id FROM tenants LIMIT 1), '大校', 16, 120000, NULL),
-((SELECT id FROM tenants LIMIT 1), '少将', 17, 160000, NULL),
-((SELECT id FROM tenants LIMIT 1), '中将', 18, 220000, NULL),
-((SELECT id FROM tenants LIMIT 1), '上将', 19, 300000, NULL)
+((SELECT id FROM hqs LIMIT 1), '列兵', 1, 0),
+((SELECT id FROM hqs LIMIT 1), '上等兵', 2, 100),
+((SELECT id FROM hqs LIMIT 1), '少尉', 10, 15000)
 ON CONFLICT DO NOTHING;
 
+ALTER TABLE orders 
+ADD CONSTRAINT fk_orders_sales FOREIGN KEY (sales_id) REFERENCES users(id);
 /*
 ====================================================================
 --- 脚本结束 ---

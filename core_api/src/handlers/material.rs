@@ -21,17 +21,17 @@ pub async fn get_materials_handler(
 ) -> Result<Json<Vec<Material>>, StatusCode> {
     
     // (HACK 已移除!)
-    let tenant_id = claims.tenant_id; // <-- 【修改】使用“钥匙”中的租户ID
+    let hq_id = claims.hq_id; // <-- 【修改】使用“钥匙”中的租户ID
 
     let materials = match sqlx::query_as::<_, Material>(
         r#"
-        SELECT id, tenant_id, name_key, description_key, sku, unit_of_measure
+        SELECT id, hq_id, name_key, description_key, sku, unit_of_measure
         FROM materials
-        WHERE tenant_id = $1
+        WHERE hq_id = $1
         ORDER BY name_key ASC
         "#,
     )
-    .bind(tenant_id) // <-- 【修改】绑定“钥匙”中的ID
+    .bind(hq_id) // <-- 【修改】绑定“钥匙”中的ID
     .fetch_all(&state.db_pool)
     .await
     {
@@ -56,7 +56,7 @@ pub async fn create_material_handler(
     // --- (★ 新增：角色安全守卫 ★) ---
     // 检查“钥匙”中的角色列表是否包含“租户管理员”
     let is_authorized = claims.roles.iter().any(|role| 
-        role == "role.tenant.admin"
+        role == "role.hq.admin"
     );
 
     if !is_authorized {
@@ -71,16 +71,16 @@ pub async fn create_material_handler(
     // --- (守卫结束) ---
 
     // (HACK 已移除!)
-    let tenant_id = claims.tenant_id; // <-- 【修改】使用“钥匙”中的租户ID
+    let hq_id = claims.hq_id; // <-- 【修改】使用“钥匙”中的租户ID
 
     let new_material = match sqlx::query_as::<_, Material>(
         r#"
-        INSERT INTO materials (tenant_id, name_key, description_key, sku, unit_of_measure)
+        INSERT INTO materials (hq_id, name_key, description_key, sku, unit_of_measure)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *
         "#,
     )
-    .bind(tenant_id) // <-- 【修改】绑定“钥匙”中的ID
+    .bind(hq_id) // <-- 【修改】绑定“钥匙”中的ID
     .bind(&payload.name_key)
     .bind(payload.description_key)
     .bind(payload.sku)

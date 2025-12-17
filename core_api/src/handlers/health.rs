@@ -12,11 +12,11 @@ use crate::models::Tenant;
 pub async fn db_health_handler(
     State(state): State<AppState>,
 ) -> Result<Json<Tenant>, StatusCode> {
-    match sqlx::query_as::<_, Tenant>("SELECT id, name FROM tenants LIMIT 1")
+    match sqlx::query_as::<_, Tenant>("SELECT id, name FROM hqs LIMIT 1")
         .fetch_one(&state.db_pool)
         .await
     {
-        Ok(tenant) => Ok(Json(tenant)),
+        Ok(hq) => Ok(Json(hq)),
         Err(e) => {
             tracing::error!("Database query failed: {}", e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)

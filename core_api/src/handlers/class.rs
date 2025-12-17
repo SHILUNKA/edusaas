@@ -39,7 +39,7 @@ pub async fn get_base_classes_handler(
     Query(query): Query<GetClassesQuery>, 
 ) -> Result<Json<Vec<ClassDetail>>, StatusCode> {
 
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
 
     let base_id = match claims.base_id {
         Some(id) => id,
@@ -53,7 +53,7 @@ pub async fn get_base_classes_handler(
     let mut query_builder: QueryBuilder<sqlx::Postgres> = QueryBuilder::new(
         r#"
         SELECT 
-            c.id, c.tenant_id, c.base_id, c.course_id, c.room_id, c.start_time, c.end_time, c.max_capacity, c.status,
+            c.id, c.hq_id, c.base_id, c.course_id, c.room_id, c.start_time, c.end_time, c.max_capacity, c.status,
             co.name_key AS course_name_key,
             r.name AS room_name,
             -- (★ 修复点 1: 添加这两个字段)
@@ -69,11 +69,11 @@ pub async fn get_base_classes_handler(
         LEFT JOIN teachers t ON ct.teacher_id = t.user_id
         LEFT JOIN users u ON t.user_id = u.id
         WHERE 
-            c.tenant_id = 
+            c.hq_id = 
         "#
     );
 
-    query_builder.push_bind(tenant_id);
+    query_builder.push_bind(hq_id);
     query_builder.push(" AND c.base_id = ");
     query_builder.push_bind(base_id);
 
@@ -104,7 +104,7 @@ pub async fn create_base_class_handler(
     Json(payload): Json<CreateClassPayload>,
 ) -> Result<Json<Vec<Class>>, StatusCode> {
 
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
     let base_id = match claims.base_id {
         Some(id) => id,
         None => return Err(StatusCode::FORBIDDEN), 
@@ -131,14 +131,14 @@ pub async fn create_base_class_handler(
         let new_class = sqlx::query_as::<_, Class>(
             r#"
             INSERT INTO classes (
-                tenant_id, base_id, course_id, room_id,
+                hq_id, base_id, course_id, room_id,
                 start_time, end_time, max_capacity, status
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, 'scheduled')
             RETURNING *
             "#,
         )
-        .bind(tenant_id)
+        .bind(hq_id)
         .bind(base_id)
         .bind(payload.course_id)
         .bind(payload.room_id)
@@ -179,7 +179,7 @@ pub async fn update_class_handler(
     Json(payload): Json<UpdateClassPayload>,
 ) -> Result<StatusCode, StatusCode> {
     
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
     let base_id = match claims.base_id { Some(id) => id, None => return Err(StatusCode::FORBIDDEN) };
 
     let mut tx = state.db_pool.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -203,8 +203,8 @@ pub async fn update_class_handler(
 
         query_builder.push(" WHERE id = ");
         query_builder.push_bind(class_id);
-        query_builder.push(" AND tenant_id = ");
-        query_builder.push_bind(tenant_id);
+        query_builder.push(" AND hq_id = ");
+        query_builder.push_bind(hq_id);
         query_builder.push(" AND base_id = ");
         query_builder.push_bind(base_id);
         
@@ -241,14 +241,14 @@ pub async fn delete_class_handler(
     claims: Claims,
     Path(class_id): Path<Uuid>,
 ) -> Result<StatusCode, StatusCode> {
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
     let base_id = match claims.base_id { Some(id) => id, None => return Err(StatusCode::FORBIDDEN) };
 
     let result = sqlx::query(
-        "DELETE FROM classes WHERE id = $1 AND tenant_id = $2 AND base_id = $3"
+        "DELETE FROM classes WHERE id = $1 AND hq_id = $2 AND base_id = $3"
     )
     .bind(class_id)
-    .bind(tenant_id)
+    .bind(hq_id)
     .bind(base_id)
     .execute(&state.db_pool)
     .await

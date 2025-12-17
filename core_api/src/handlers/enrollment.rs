@@ -20,8 +20,6 @@ use crate::models::{
     UpdateEnrollmentPayload,
     MembershipTierType,
     EnrollmentDetail,
-    TransactionType,
-    TransactionCategory
 };
 
 // (POST create_enrollment_handler ... 保持不变)
@@ -32,7 +30,7 @@ pub async fn create_enrollment_handler(
 ) -> Result<Json<ClassEnrollment>, StatusCode> {
     // ... (请保留原有的 create 逻辑) ...
     // (为节省篇幅，此处省略 create 代码，请直接复制之前的或保持原样)
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
     let base_id = match claims.base_id { Some(id) => id, None => return Err(StatusCode::FORBIDDEN) };
     let mut tx = state.db_pool.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
@@ -42,8 +40,8 @@ pub async fn create_enrollment_handler(
     let customer_id: Uuid = sqlx::query_scalar("SELECT customer_id FROM participants WHERE id=$1").bind(payload.participant_id).fetch_one(&mut *tx).await.map_err(|_| StatusCode::NOT_FOUND)?;
 
     let new_enrollment = sqlx::query_as::<_, ClassEnrollment>(
-        "INSERT INTO class_enrollments (tenant_id, class_id, participant_id, customer_id, customer_membership_id, status) VALUES ($1, $2, $3, $4, $5, 'enrolled') RETURNING *"
-    ).bind(tenant_id).bind(payload.class_id).bind(payload.participant_id).bind(customer_id).bind(payload.customer_membership_id)
+        "INSERT INTO class_enrollments (hq_id, class_id, participant_id, customer_id, customer_membership_id, status) VALUES ($1, $2, $3, $4, $5, 'enrolled') RETURNING *"
+    ).bind(hq_id).bind(payload.class_id).bind(payload.participant_id).bind(customer_id).bind(payload.customer_membership_id)
     .fetch_one(&mut *tx).await.map_err(|e| { tracing::error!("{}",e); StatusCode::INTERNAL_SERVER_ERROR })?;
     
     tx.commit().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -56,20 +54,20 @@ pub async fn get_enrollments_for_class_handler(
     claims: Claims,
     Path(class_id): Path<Uuid>,
 ) -> Result<Json<Vec<EnrollmentDetail>>, StatusCode> {
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
     let base_id = match claims.base_id { Some(id) => id, None => return Err(StatusCode::FORBIDDEN) };
 
     let enrollments = match sqlx::query_as::<_, EnrollmentDetail>(
         r#"
         SELECT 
-            e.id, e.tenant_id, e.participant_id, e.status, e.created_at,
+            e.id, e.hq_id, e.participant_id, e.status, e.created_at,
             p.name AS participant_name, p.avatar_url AS participant_avatar, p.gender AS participant_gender
         FROM class_enrollments e
         JOIN participants p ON e.participant_id = p.id
-        WHERE e.class_id = $1 AND e.tenant_id = $2
+        WHERE e.class_id = $1 AND e.hq_id = $2
         ORDER BY p.name ASC
         "#,
-    ).bind(class_id).bind(tenant_id).fetch_all(&state.db_pool).await
+    ).bind(class_id).bind(hq_id).fetch_all(&state.db_pool).await
     { Ok(list) => list, Err(_) => return Err(StatusCode::INTERNAL_SERVER_ERROR) };
     Ok(Json(enrollments))
 }
@@ -82,7 +80,7 @@ pub async fn complete_enrollment_handler(
     Json(payload): Json<UpdateEnrollmentPayload>,
 ) -> Result<Json<ClassEnrollment>, StatusCode> {
 
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
     let base_id = claims.base_id.ok_or(StatusCode::FORBIDDEN)?;
     let user_id_uuid = Uuid::parse_str(&claims.sub).unwrap_or_default();
 
@@ -94,11 +92,11 @@ pub async fn complete_enrollment_handler(
         SELECT e.participant_id, e.status, e.customer_membership_id, cl.course_id
         FROM class_enrollments e
         JOIN classes cl ON e.class_id = cl.id
-        WHERE e.id = $1 AND cl.base_id = $2 AND e.tenant_id = $3
+        WHERE e.id = $1 AND cl.base_id = $2 AND e.hq_id = $3
         FOR UPDATE OF e
         "#
     )
-    .bind(enrollment_id).bind(base_id).bind(tenant_id)
+    .bind(enrollment_id).bind(base_id).bind(hq_id)
     .fetch_optional(&mut *tx).await.unwrap_or(None).ok_or(StatusCode::NOT_FOUND)?;
 
     let current_status: String = row.get("status");
@@ -165,11 +163,11 @@ pub async fn complete_enrollment_handler(
                 sqlx::query(
                     r#"
                     INSERT INTO financial_transactions 
-                    (tenant_id, base_id, amount_in_cents, transaction_type, category, related_entity_id, description, created_by, debit_subject, credit_subject)
+                    (hq_id, base_id, amount_in_cents, transaction_type, category, related_entity_id, description, created_by, debit_subject, credit_subject)
                     VALUES ($1, $2, $3, 'usage', 'course_revenue', $4, $5, $6, 'contract_liability', 'revenue')
                     "#
                 )
-                .bind(tenant_id)
+                .bind(hq_id)
                 .bind(base_id)
                 .bind(revenue_amount)
                 .bind(enrollment_id)
@@ -195,8 +193,8 @@ pub async fn complete_enrollment_handler(
     if new_status == "completed" {
         let points: i32 = sqlx::query_scalar("SELECT points_awarded FROM courses WHERE id = $1").bind(course_id).fetch_one(&mut *tx).await.unwrap_or(0);
         if points > 0 {
-            sqlx::query("INSERT INTO point_transactions (participant_id, tenant_id, points_change, reason_key) VALUES ($1, $2, $3, 'course')")
-                .bind(pid).bind(tenant_id).bind(points).execute(&mut *tx).await.ok();
+            sqlx::query("INSERT INTO point_transactions (participant_id, hq_id, points_change, reason_key) VALUES ($1, $2, $3, 'course')")
+                .bind(pid).bind(hq_id).bind(points).execute(&mut *tx).await.ok();
             sqlx::query("UPDATE participant_profiles SET current_total_points = current_total_points + $1 WHERE participant_id = $2")
                 .bind(points).bind(pid).execute(&mut *tx).await.ok();
         }
@@ -212,8 +210,8 @@ pub async fn delete_enrollment_handler(
     claims: Claims,
     Path(enrollment_id): Path<Uuid>,
 ) -> Result<StatusCode, StatusCode> {
-    let tenant_id = claims.tenant_id;
-    sqlx::query("DELETE FROM class_enrollments WHERE id = $1 AND tenant_id = $2")
-        .bind(enrollment_id).bind(tenant_id).execute(&state.db_pool).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let hq_id = claims.hq_id;
+    sqlx::query("DELETE FROM class_enrollments WHERE id = $1 AND hq_id = $2")
+        .bind(enrollment_id).bind(hq_id).execute(&state.db_pool).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(StatusCode::NO_CONTENT)
 }

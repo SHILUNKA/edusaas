@@ -1,8 +1,8 @@
 /*
  * src/handlers/user.rs
  * 修复逻辑:
- * 1. get_tenant_users: SQL 查询增加 u.staff_status::text
- * 2. create_tenant_user: 返回的 UserDetail JSON 中增加 staff_status
+ * 1. get_hq_users: SQL 查询增加 u.staff_status::text
+ * 2. create_hq_user: 返回的 UserDetail JSON 中增加 staff_status
  */
 use axum::{extract::State, http::StatusCode, Json};
 use uuid::Uuid;
@@ -31,13 +31,13 @@ fn generate_strong_password() -> String {
 }
 
 // (GET) 获取员工列表
-pub async fn get_tenant_users(
+pub async fn get_hq_users(
     State(state): State<AppState>,
     claims: Claims,
 ) -> Result<Json<Vec<UserDetail>>, StatusCode> {
     
-    let tenant_id = claims.tenant_id;
-    let is_hq = claims.roles.iter().any(|r| r == "role.tenant.admin");
+    let hq_id = claims.hq_id;
+    let is_hq = claims.roles.iter().any(|r| r == "role.hq.admin");
     let is_base = claims.roles.iter().any(|r| r == "role.base.admin");
 
     if !is_hq && !is_base {
@@ -75,11 +75,11 @@ pub async fn get_tenant_users(
 
         FROM users u
         LEFT JOIN bases b ON u.base_id = b.id
-        WHERE u.tenant_id = 
+        WHERE u.hq_id = 
         "#
     );
 
-    query_builder.push_bind(tenant_id);
+    query_builder.push_bind(hq_id);
 
     if !is_hq && is_base {
         if let Some(base_id) = claims.base_id {
@@ -104,13 +104,13 @@ pub async fn get_tenant_users(
 }
 
 // (POST) 创建新员工
-pub async fn create_tenant_user(
+pub async fn create_hq_user(
     State(state): State<AppState>,
     claims: Claims,
     Json(payload): Json<CreateUserPayload>,
 ) -> Result<Json<UserDetail>, StatusCode> {
     
-    let is_hq = claims.roles.iter().any(|r| r == "role.tenant.admin");
+    let is_hq = claims.roles.iter().any(|r| r == "role.hq.admin");
     let is_base = claims.roles.iter().any(|r| r == "role.base.admin");
 
     if !is_hq && !is_base {
@@ -137,7 +137,7 @@ pub async fn create_tenant_user(
     let user_id: Uuid = sqlx::query_scalar(
         r#"
         INSERT INTO users (
-            tenant_id, base_id, email, password_hash, full_name, is_active,
+            hq_id, base_id, email, password_hash, full_name, is_active,
             phone_number, gender, blood_type, date_of_birth, address,
             password_changed_at
         )
@@ -145,7 +145,7 @@ pub async fn create_tenant_user(
         RETURNING id
         "#
     )
-    .bind(claims.tenant_id)
+    .bind(claims.hq_id)
     .bind(final_base_id)
     .bind(&payload.email)
     .bind(password_hash)
@@ -163,10 +163,10 @@ pub async fn create_tenant_user(
     })?;
 
     let role_id: Option<Uuid> = sqlx::query_scalar(
-        "SELECT id FROM roles WHERE name_key = $1 AND tenant_id = $2"
+        "SELECT id FROM roles WHERE name_key = $1 AND hq_id = $2"
     )
     .bind(&final_role_key)
-    .bind(claims.tenant_id)
+    .bind(claims.hq_id)
     .fetch_optional(&mut *tx)
     .await
     .unwrap_or(None);
@@ -186,10 +186,10 @@ pub async fn create_tenant_user(
     if final_role_key == "role.teacher" || final_role_key == "role.base.admin" {
         if let Some(bid) = final_base_id {
             sqlx::query(
-                "INSERT INTO teachers (user_id, tenant_id, base_id, is_active) VALUES ($1, $2, $3, true)"
+                "INSERT INTO teachers (user_id, hq_id, base_id, is_active) VALUES ($1, $2, $3, true)"
             )
             .bind(user_id)
-            .bind(claims.tenant_id)
+            .bind(claims.hq_id)
             .bind(bid)
             .execute(&mut *tx)
             .await
@@ -234,7 +234,7 @@ pub async fn update_user_status_handler(
     Json(payload): Json<UpdateStatusPayload>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     
-    let is_hq_admin = claims.roles.contains(&"role.tenant.admin".to_string());
+    let is_hq_admin = claims.roles.contains(&"role.hq.admin".to_string());
     let is_base_admin = claims.roles.contains(&"role.base.admin".to_string());
 
     if !is_hq_admin && !is_base_admin {
@@ -242,11 +242,11 @@ pub async fn update_user_status_handler(
     }
 
     let result = sqlx::query(
-        "UPDATE users SET is_active = $1 WHERE id = $2 AND tenant_id = $3"
+        "UPDATE users SET is_active = $1 WHERE id = $2 AND hq_id = $3"
     )
     .bind(payload.is_active)
     .bind(user_id)
-    .bind(claims.tenant_id)
+    .bind(claims.hq_id)
     .execute(&state.db_pool)
     .await
     .map_err(|e| {
@@ -289,7 +289,7 @@ pub async fn update_user_handler(
                 phone_number = COALESCE($2, phone_number),
                 staff_status = COALESCE($3::staff_status, staff_status),
                 is_active = COALESCE($4, is_active)
-            WHERE id = $5 AND tenant_id = $6
+            WHERE id = $5 AND hq_id = $6
             "#
         )
         .bind(&payload.full_name)
@@ -297,7 +297,7 @@ pub async fn update_user_handler(
         .bind(&payload.staff_status)
         .bind(new_is_active)
         .bind(user_id)
-        .bind(claims.tenant_id)
+        .bind(claims.hq_id)
         .execute(&mut *tx)
         .await
         .map_err(|e| {

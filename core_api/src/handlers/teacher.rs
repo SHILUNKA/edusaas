@@ -19,7 +19,7 @@ pub async fn get_base_teachers_handler(
     claims: Claims, // <-- 【修改】必须出示“钥匙”
 ) -> Result<Json<Vec<Teacher>>, StatusCode> {
 
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
 
     // (★ SaaS 逻辑 ★)
     // 基地员工必须有关联的 base_id 才能调用这个 API
@@ -36,10 +36,10 @@ pub async fn get_base_teachers_handler(
         SELECT t.*, u.full_name 
         FROM teachers t
         JOIN users u ON t.user_id = u.id
-        WHERE t.tenant_id = $1 AND t.base_id = $2 AND t.is_active = true
+        WHERE t.hq_id = $1 AND t.base_id = $2 AND t.is_active = true
         "#,
     )
-    .bind(tenant_id) // <-- 【修改】绑定“钥匙”中的ID
+    .bind(hq_id) // <-- 【修改】绑定“钥匙”中的ID
     .bind(base_id)   // <-- 【修改】绑定“钥匙”中的 base_id
     .fetch_all(&state.db_pool)
     .await

@@ -54,7 +54,7 @@ pub async fn get_teacher_config_handler(
     claims: Claims,
     Path(teacher_id): Path<Uuid>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    let _ = claims.tenant_id;
+    let _ = claims.hq_id;
 
     let skills = sqlx::query_as::<_, TeacherSkill>(
         r#"SELECT tqc.course_id, c.name_key as course_name FROM teacher_qualified_courses tqc JOIN courses c ON tqc.course_id = c.id WHERE tqc.teacher_id = $1"#
@@ -116,15 +116,15 @@ pub async fn trigger_auto_schedule_handler(
 ) -> Result<Json<serde_json::Value>, StatusCode> {
     
     let base_id = claims.base_id.ok_or(StatusCode::FORBIDDEN)?;
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
 
     // --- A. 数据准备 ---
     
     // 1. 课程
     let courses = sqlx::query_as!(
         AiCourse,
-        "SELECT id, name_key as name, default_duration_minutes as duration FROM courses WHERE tenant_id = $1 AND is_active = true",
-        tenant_id
+        "SELECT id, name_key as name, default_duration_minutes as duration FROM courses WHERE hq_id = $1 AND is_active = true",
+        hq_id
     ).fetch_all(&state.db_pool).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // 2. 教室 (使用 COALESCE 和 as "capacity!" 强制非空)
@@ -198,12 +198,12 @@ pub async fn trigger_auto_schedule_handler(
 
         let class_id: Uuid = sqlx::query_scalar(
             r#"
-            INSERT INTO classes (tenant_id, base_id, course_id, room_id, start_time, end_time, max_capacity, status)
+            INSERT INTO classes (hq_id, base_id, course_id, room_id, start_time, end_time, max_capacity, status)
             VALUES ($1, $2, $3, $4, $5, $6, 10, 'scheduled')
             RETURNING id
             "#
         )
-        .bind(tenant_id)
+        .bind(hq_id)
         .bind(base_id)
         .bind(cls.course_id)
         .bind(cls.room_id)

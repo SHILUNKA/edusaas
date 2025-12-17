@@ -1,42 +1,69 @@
 /*
  * src/handlers/base.rs
- * 职责: 基地 (Bases) 管理
- * (★ V3 - 角色安全加固版 ★)
+ * V24.3 - 终极修复版: 
+ * 1. 修复学员统计报错 (Join customers)
+ * 2. 集成营收拆分 (ToB / ToC)
  */
-
-use axum::{extract::State, http::StatusCode, Json};
-
-
-// 【修改】导入 AppState 和 Claims
+use axum::{
+    extract::{State, Path}, 
+    http::StatusCode, 
+    Json
+};
+use uuid::Uuid;
 use super::AppState;
-// 导入 models
-use crate::models::{Base, Claims, CreateBasePayload};
+use crate::models::{Base, Claims, CreateBasePayload, UpdateBasePayload}; 
 
-
-// (GET /api/v1/bases - 获取所有基地列表)
-// (★ V2 - SaaS 安全加固 ★)
-pub async fn get_tenant_bases_handler(
+// GET /api/v1/bases - 获取基地列表
+pub async fn get_hq_bases_handler(
     State(state): State<AppState>,
-    claims: Claims, // <-- 【修改】必须出示“钥匙”
+    claims: Claims,
 ) -> Result<Json<Vec<Base>>, StatusCode> {
     
-    // (HACK 已移除!)
-    let tenant_id = claims.tenant_id; // <-- 【修改】使用“钥匙”中的租户ID
-
+    // ★★★ 修复后的 SQL ★★★
     let bases = match sqlx::query_as::<_, Base>(
         r#"
-        SELECT id, tenant_id, name, address FROM bases
-        WHERE tenant_id = $1
-        ORDER BY name ASC
+        SELECT 
+            b.id, b.hq_id, b.name, b.address, b.code,
+            b.logo_url, b.status, b.operation_mode,
+            
+            -- 1. 学员总数 (修复: 关联 customers 表查询 base_id)
+            (
+                SELECT COUNT(p.id) 
+                FROM participants p
+                JOIN customers c ON p.customer_id = c.id
+                WHERE c.base_id = b.id
+            ) as student_count,
+
+            -- 2. 零售/办卡营收 (To C) - 本月
+            COALESCE((
+                SELECT SUM(o.paid_amount_cents) 
+                FROM orders o 
+                WHERE o.base_id = b.id 
+                  AND o.created_at >= date_trunc('month', CURRENT_DATE)
+                  AND o.type = 'b2c'
+            ), 0)::float8 as revenue_toc,
+
+            -- 3. 团单/政企营收 (To B) - 本月
+            COALESCE((
+                SELECT SUM(o.paid_amount_cents) 
+                FROM orders o 
+                WHERE o.base_id = b.id 
+                  AND o.created_at >= date_trunc('month', CURRENT_DATE)
+                  AND o.type IN ('b2b', 'b2g')
+            ), 0)::float8 as revenue_tob
+
+        FROM bases b
+        WHERE b.hq_id = $1
+        ORDER BY b.created_at DESC
         "#,
     )
-    .bind(tenant_id) // <-- 【修改】绑定“钥匙”中的ID
+    .bind(claims.hq_id)
     .fetch_all(&state.db_pool)
     .await
     {
         Ok(bases) => bases,
         Err(e) => {
-            tracing::error!("Failed to fetch bases: {}", e);
+            tracing::error!("Failed to fetch bases stats: {}", e);
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
     };
@@ -44,53 +71,89 @@ pub async fn get_tenant_bases_handler(
     Ok(Json(bases))
 }
 
-// (POST /api/v1/bases - 创建一个新基地)
-// (★ V3 - 角色安全加固 ★)
-pub async fn create_tenant_base_handler(
+// POST /api/v1/bases - 创建
+pub async fn create_hq_base_handler(
     State(state): State<AppState>,
-    claims: Claims, // <-- 【修改】必须出示“钥匙”
+    claims: Claims,
     Json(payload): Json<CreateBasePayload>,
 ) -> Result<Json<Base>, StatusCode> {
-    
-    // --- (★ 新增：角色安全守卫 ★) ---
-    // 检查“钥匙”中的角色列表是否包含“租户管理员”
-    let is_authorized = claims.roles.iter().any(|role| 
-        role == "role.tenant.admin"
-    );
+    let is_authorized = claims.roles.iter().any(|role| role == "role.hq.admin");
+    if !is_authorized { return Err(StatusCode::FORBIDDEN); }
 
-    if !is_authorized {
-        tracing::warn!(
-            "Unauthorized attempt to create base by user {} (roles: {:?})",
-            claims.sub,
-            claims.roles
-        );
-        // 403 Forbidden: "我认识你(Token有效)，但你没有权限(Role不对)"
-        return Err(StatusCode::FORBIDDEN);
-    }
-    // --- (守卫结束) ---
-    
-    // (HACK 已移除!)
-    let tenant_id = claims.tenant_id; // <-- 【修改】使用“钥匙”中的租户ID
+    let code = payload.code.trim().to_uppercase();
+    if code.len() < 2 || code.len() > 5 { return Err(StatusCode::BAD_REQUEST); }
 
-    let new_base = match sqlx::query_as::<_, Base>(
+    let new_base = sqlx::query_as::<_, Base>(
         r#"
-        INSERT INTO bases (tenant_id, name, address)
-        VALUES ($1, $2, $3)
-        RETURNING *
-        "#,
+        INSERT INTO bases (hq_id, name, address, code) 
+        VALUES ($1, $2, $3, $4)
+        RETURNING 
+            id, hq_id, name, code, address, logo_url, status, operation_mode,
+            0::bigint as student_count, 
+            0::float8 as revenue_toc, 
+            0::float8 as revenue_tob
+        "#
     )
-    .bind(tenant_id) // <-- 【修改】绑定“钥匙”中的ID
+    .bind(claims.hq_id)
     .bind(&payload.name)
-    .bind(payload.address)
+    .bind(&payload.address)
+    .bind(&code)
     .fetch_one(&state.db_pool)
     .await
-    {
-        Ok(base) => base,
-        Err(e) => {
-            tracing::error!("Failed to create base: {}", e);
-            return Err(StatusCode::INTERNAL_SERVER_ERROR);
-        }
-    };
+    .map_err(|e| {
+        tracing::error!("Failed to create base: {}", e);
+        StatusCode::CONFLICT 
+    })?;
 
     Ok(Json(new_base))
+}
+
+// PUT /api/v1/bases/:id - 更新
+pub async fn update_hq_base_handler(
+    State(state): State<AppState>,
+    claims: Claims,
+    Path(base_id): Path<Uuid>,
+    Json(payload): Json<UpdateBasePayload>,
+) -> Result<Json<Base>, StatusCode> {
+    let is_authorized = claims.roles.iter().any(|role| role == "role.hq.admin");
+    if !is_authorized { return Err(StatusCode::FORBIDDEN); }
+
+    let code = payload.code.trim().to_uppercase();
+    if code.len() < 2 || code.len() > 5 { return Err(StatusCode::BAD_REQUEST); }
+
+    let updated_base = sqlx::query_as::<_, Base>(
+        r#"
+        UPDATE bases 
+        SET name = $1, address = $2, code = $3
+        WHERE id = $4 AND hq_id = $5
+        RETURNING 
+            id, hq_id, name, code, address, logo_url, status, operation_mode,
+            -- 更新时重新计算统计
+            (
+                SELECT COUNT(p.id) 
+                FROM participants p
+                JOIN customers c ON p.customer_id = c.id
+                WHERE c.base_id = bases.id
+            ) as student_count,
+            COALESCE((
+                SELECT SUM(paid_amount_cents) FROM orders WHERE base_id = bases.id AND created_at >= date_trunc('month', CURRENT_DATE) AND type = 'b2c'
+            ), 0)::float8 as revenue_toc,
+            COALESCE((
+                SELECT SUM(paid_amount_cents) FROM orders WHERE base_id = bases.id AND created_at >= date_trunc('month', CURRENT_DATE) AND type IN ('b2b', 'b2g')
+            ), 0)::float8 as revenue_tob
+        "#
+    )
+    .bind(&payload.name)
+    .bind(&payload.address)
+    .bind(&code)
+    .bind(base_id)
+    .bind(claims.hq_id)
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|e| {
+        tracing::error!("Failed to update base: {}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+
+    Ok(Json(updated_base))
 }

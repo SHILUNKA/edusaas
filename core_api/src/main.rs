@@ -2,10 +2,9 @@
  * src/main.rs (修复版)
  */
 use axum::{
-    routing::{get, post, patch},
+    routing::{get, post, patch, put},
     Router,
     http::{Method},
-    // ★ 删除: use axum::middleware; 避免冲突
 };
 
 use std::net::SocketAddr;
@@ -21,17 +20,19 @@ mod middleware; // 这里的 middleware 指的是 src/middleware.rs
 
 use middleware::auth_middleware; // 引入我们自己写的鉴权函数
 
+use tower_http::services::ServeDir;
+
 use handlers::{
     AppState,
     db_health_handler, ai_health_handler, register_handler, login_handler,
-    get_tenant_bases_handler, create_tenant_base_handler, 
+    get_hq_bases_handler, create_hq_base_handler, update_hq_base_handler,
     create_asset_type_handler, get_asset_types_handler, get_all_assets_handler,
     create_asset_handler, transfer_asset_handler, delete_asset_handler,
     create_material_handler, get_materials_handler,
     create_customer_handler, get_customers_handler, create_participant_handler, 
     get_participants_for_customer_handler, get_participants_handler,
-    get_tenant_participant_stats, get_base_participants_handler, get_all_tenant_participants,
-    get_dashboard_stats_handler, get_base_dashboard_stats_handler,
+    get_hq_participant_stats, get_base_participants_handler, get_all_hq_participants,
+    get_dashboard_stats_handler, get_base_dashboard_overview_handler,
     get_dashboard_advanced_stats_handler, get_pending_staff_list_handler,
     create_membership_tier_handler, get_membership_tiers_handler, assign_membership_handler,
     get_customer_memberships_handler, get_base_memberships_handler, toggle_tier_status_handler,
@@ -40,14 +41,20 @@ use handlers::{
     get_base_teachers_handler, create_base_class_handler, get_base_classes_handler, 
     update_class_handler, create_enrollment_handler, get_enrollments_for_class_handler,
     complete_enrollment_handler, delete_enrollment_handler, delete_class_handler,
-    create_honor_rank, get_honor_ranks, update_honor_rank, get_tenant_users,
-    create_tenant_user, update_user_handler, get_stock_alerts_handler, get_base_stock_handler,
+    create_honor_rank, get_honor_ranks, update_honor_rank, get_hq_users,
+    create_hq_user, update_user_handler, get_stock_alerts_handler, get_base_stock_handler,
     create_procurement_order, get_procurement_orders, get_procurement_details, update_procurement_status,
     get_teacher_config_handler, update_teacher_skills_handler, add_teacher_availability_handler,
     delete_teacher_availability_handler, trigger_auto_schedule_handler,
-    get_financial_records_handler, create_manual_transaction_handler, get_orders_handler,
-    create_order_handler, record_cost_handler,
-    submit_payment_proof_handler, verify_payment_handler,get_pending_payments_handler,
+    create_income_order_handler, get_income_orders_handler,update_income_order_handler, cancel_income_order_handler,
+    create_expense_handler, get_expenses_handler, get_payment_records_handler, verify_payment_handler, 
+    get_hq_products_handler, create_supply_order_handler, upload_payment_proof_handler,
+    get_all_supply_orders_handler, confirm_supply_payment_handler, ship_supply_order_handler,
+    create_product_handler, update_product_handler, get_base_supply_orders_handler,receive_supply_order_handler,
+    consume_inventory_handler,get_inventory_logs_handler,get_base_inventory_handler,restock_inventory_handler,
+    get_hq_finance_dashboard_handler,submit_payment_proof_handler,
+    get_order_items_handler,
+    update_invoice_status_handler,upload_file_handler,
 };
 
 #[tokio::main]
@@ -105,24 +112,25 @@ async fn main() {
         .route("/api/v1/auth/login", post(login_handler));
 
     let protected_routes = Router::new()
-        .route("/api/v1/bases", get(get_tenant_bases_handler).post(create_tenant_base_handler))
+        .route("/api/v1/bases", get(get_hq_bases_handler).post(create_hq_base_handler))
+        .route("/api/v1/bases/:id", axum::routing::put(update_hq_base_handler))
         .route("/api/v1/asset-types", post(create_asset_type_handler).get(get_asset_types_handler))
-        .route("/api/v1/tenant/assets", get(get_all_assets_handler).post(create_asset_handler))
-        .route("/api/v1/tenant/assets/:id", axum::routing::delete(delete_asset_handler))
-        .route("/api/v1/tenant/assets/:id/transfer", axum::routing::put(transfer_asset_handler))
+        .route("/api/v1/hq/assets", get(get_all_assets_handler).post(create_asset_handler))
+        .route("/api/v1/hq/assets/:id", axum::routing::delete(delete_asset_handler))
+        .route("/api/v1/hq/assets/:id/transfer", axum::routing::put(transfer_asset_handler))
         .route("/api/v1/materials", post(create_material_handler).get(get_materials_handler))
         .route("/api/v1/customers", post(create_customer_handler).get(get_customers_handler))
         .route("/api/v1/participants", post(create_participant_handler).get(get_participants_handler)) 
         .route("/api/v1/customers/:id/participants", get(get_participants_for_customer_handler))
-        .route("/api/v1/tenant/participants/stats", get(get_tenant_participant_stats))
+        .route("/api/v1/hq/participants/stats", get(get_hq_participant_stats))
         .route("/api/v1/base/participants", get(get_base_participants_handler))
-        .route("/api/v1/base/dashboard/stats", get(get_base_dashboard_stats_handler))
-        .route("/api/v1/tenant/dashboard/stats", get(get_dashboard_stats_handler))
-        .route("/api/v1/tenant/dashboard/analytics", get(get_dashboard_advanced_stats_handler))
-        .route("/api/v1/tenant/dashboard/pending-staff", get(get_pending_staff_list_handler))
-        .route("/api/v1/tenant/participants", get(get_all_tenant_participants))
-        .route("/api/v1/tenant/users", get(get_tenant_users).post(create_tenant_user))
-        .route("/api/v1/tenant/users/:id", axum::routing::put(update_user_handler))
+        .route("/api/v1/base/dashboard/overview", get(get_base_dashboard_overview_handler))
+        .route("/api/v1/hq/dashboard/stats", get(get_dashboard_stats_handler))
+        .route("/api/v1/hq/dashboard/analytics", get(get_dashboard_advanced_stats_handler))
+        .route("/api/v1/hq/dashboard/pending-staff", get(get_pending_staff_list_handler))
+        .route("/api/v1/hq/participants", get(get_all_hq_participants))
+        .route("/api/v1/hq/users", get(get_hq_users).post(create_hq_user))
+        .route("/api/v1/hq/users/:id", axum::routing::put(update_user_handler))
         .route("/api/v1/membership-tiers", post(create_membership_tier_handler).get(get_membership_tiers_handler))
         .route("/api/v1/customer-memberships", post(assign_membership_handler)) 
         .route("/api/v1/customers/:id/memberships", get(get_customer_memberships_handler))
@@ -133,7 +141,7 @@ async fn main() {
         .route("/api/v1/courses/:id/status", axum::routing::patch(toggle_course_status_handler))
         .route("/api/v1/rooms", get(get_rooms_handler).post(create_room_handler))
         .route("/api/v1/rooms/:id", axum::routing::put(update_room_handler).delete(delete_room_handler))
-        .route("/api/v1/tenant/rooms", get(get_rooms_handler).post(create_room_handler))
+        .route("/api/v1/hq/rooms", get(get_rooms_handler).post(create_room_handler))
         .route("/api/v1/base/rooms", get(get_rooms_handler))
         .route("/api/v1/base/teachers", get(get_base_teachers_handler))
         .route("/api/v1/base/classes", post(create_base_class_handler).get(get_base_classes_handler))
@@ -154,12 +162,40 @@ async fn main() {
         .route("/api/v1/teachers/:id/availability", post(add_teacher_availability_handler))
         .route("/api/v1/teachers/availability/:id", axum::routing::delete(delete_teacher_availability_handler))
         .route("/api/v1/base/schedule/auto-generate", post(trigger_auto_schedule_handler))
-        .route("/api/v1/finance/orders", get(get_orders_handler).post(create_order_handler))
-        .route("/api/v1/finance/costs", post(record_cost_handler))
-        .route("/api/v1/finance/transactions", get(get_financial_records_handler).post(create_manual_transaction_handler))
-        .route("/api/v1/finance/payments/offline-proof", post(submit_payment_proof_handler))
         .route("/api/v1/finance/payments/verify", post(verify_payment_handler))
-        .route("/api/v1/finance/payments/pending", get(get_pending_payments_handler))
+        // 1. 收入订单
+        .route("/api/v1/finance/orders", post(create_income_order_handler).get(get_income_orders_handler))
+        .route("/api/v1/finance/orders/:id", put(update_income_order_handler))
+        .route("/api/v1/finance/orders/:id/cancel", put(cancel_income_order_handler))
+        // 2. 运营支出 (房租/工资)
+        .route("/api/v1/finance/expenses", post(create_expense_handler).get(get_expenses_handler))
+        
+        .route("/api/v1/finance/orders/:id/items", get(get_order_items_handler))
+        .route("/api/v1/finance/orders/:id/invoice", put(update_invoice_status_handler))
+
+        // 3. 资金确认
+        .route("/api/v1/finance/payments", get(get_payment_records_handler).post(submit_payment_proof_handler))
+        .route("/api/v1/finance/payments/:id/verify", put(verify_payment_handler))
+        // --- 供应链: 基地端 ---
+        .route("/api/v1/supply/products", get(get_hq_products_handler).post(create_product_handler))
+        .route("/api/v1/supply/products/:id", put(update_product_handler))
+        .route("/api/v1/supply/orders",  post(create_supply_order_handler).get(get_base_supply_orders_handler))
+        .route("/api/v1/supply/orders/:id/payment", post(upload_payment_proof_handler))
+        .route("/api/v1/base/inventory", get(get_base_inventory_handler))
+        .route("/api/v1/base/inventory/:id/consume", post(consume_inventory_handler))
+        .route("/api/v1/base/inventory/logs", get(get_inventory_logs_handler))
+        .route("/api/v1/supply/orders/:id/receive", put(receive_supply_order_handler))
+        .route("/api/v1/base/inventory/:id/restock", post(restock_inventory_handler))
+        
+        // --- 供应链: 总部端 (HQ) ---
+        .route("/api/v1/hq/supply/orders", get(get_all_supply_orders_handler))
+        .route("/api/v1/hq/supply/orders/:id/confirm", put(confirm_supply_payment_handler))
+        .route("/api/v1/hq/supply/orders/:id/ship", put(ship_supply_order_handler))
+
+        .route("/api/v1/hq/finance/dashboard", get(get_hq_finance_dashboard_handler))
+
+        .route("/api/v1/upload", post(upload_file_handler))
+
         
         // ★ 修复: 使用 axum::middleware::from_fn 调用，而不是 middleware::from_fn
         .route_layer(axum::middleware::from_fn(auth_middleware));
@@ -167,6 +203,7 @@ async fn main() {
     let app = Router::new()
         .merge(public_routes)
         .merge(protected_routes)
+        .nest_service("/uploads", ServeDir::new("uploads"))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .with_state(app_state);

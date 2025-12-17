@@ -13,7 +13,7 @@ pub async fn get_stock_alerts_handler(
     claims: Claims,
 ) -> Result<Json<Vec<StockAlert>>, StatusCode> {
     
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
 
     let base_id = match claims.base_id {
         Some(id) => id,
@@ -34,7 +34,7 @@ pub async fn get_stock_alerts_handler(
         LEFT JOIN 
             material_stock_changes s ON m.id = s.material_id AND s.base_id = $1
         WHERE 
-            m.tenant_id = $2
+            m.hq_id = $2
         GROUP BY 
             m.id, m.name_key
         HAVING 
@@ -42,7 +42,7 @@ pub async fn get_stock_alerts_handler(
         "#,
     )
     .bind(base_id)
-    .bind(tenant_id)
+    .bind(hq_id)
     .fetch_all(&state.db_pool)
     .await
     {
@@ -62,7 +62,7 @@ pub async fn get_base_stock_handler(
     claims: Claims,
 ) -> Result<Json<Vec<StockAlert>>, StatusCode> {
 
-    let tenant_id = claims.tenant_id;
+    let hq_id = claims.hq_id;
 
     let base_id = match claims.base_id {
         Some(id) => id,
@@ -83,7 +83,7 @@ pub async fn get_base_stock_handler(
         LEFT JOIN 
             material_stock_changes s ON m.id = s.material_id AND s.base_id = $1
         WHERE 
-            m.tenant_id = $2
+            m.hq_id = $2
         GROUP BY 
             m.id, m.name_key
         ORDER BY 
@@ -91,7 +91,7 @@ pub async fn get_base_stock_handler(
         "#,
     )
     .bind(base_id)
-    .bind(tenant_id)
+    .bind(hq_id)
     .fetch_all(&state.db_pool)
     .await
     {

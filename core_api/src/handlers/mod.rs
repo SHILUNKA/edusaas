@@ -93,6 +93,9 @@ pub use supply::*;
 pub mod upload;
 pub use upload::*;
 
+pub mod qrcode;
+pub use qrcode::*;
+
 // --- (★ V16.0 新增: 通用状态切换逻辑) ---
 // 这是一个辅助函数，不是 Handler，供具体 Handler 调用
 pub async fn toggle_status_common(

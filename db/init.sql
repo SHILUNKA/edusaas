@@ -532,6 +532,38 @@ CREATE TABLE IF NOT EXISTS inventory_logs (
     operator_name TEXT,         -- 操作人名字 (暂时可选)
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+/*
+====================================================================
+--- 防伪码区 ---
+====================================================================
+*/
+-- 1. 批次表：记录每一次“印刷任务”
+CREATE TABLE qrcode_batches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    batch_no VARCHAR(50) NOT NULL UNIQUE, -- 批次号，如 P20251218-01
+    name VARCHAR(100),                    -- 备注，如 "第一批盲盒印刷"
+    quantity INT NOT NULL,                -- 数量
+    created_by UUID,                      -- 操作人
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. 二维码明细表：核心资产
+CREATE TABLE qrcode_items (
+    id BIGSERIAL PRIMARY KEY,
+    batch_id UUID REFERENCES qrcode_batches(id),
+    
+    short_code VARCHAR(12) NOT NULL UNIQUE, -- 明码 (印在二维码图里的)
+    secret_salt VARCHAR(32) NOT NULL,       -- 暗码 (用于后端验签，不公开)
+    
+    status VARCHAR(20) DEFAULT 'DORMANT',   -- 状态: DORMANT(休眠), ACTIVE(已激活), SCANNED(已扫)
+    scan_count INT DEFAULT 0,
+    
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 创建索引以加速查询
+CREATE INDEX idx_qrcode_short_code ON qrcode_items(short_code);
 /*
 ====================================================================
 --- 索引优化区 ---

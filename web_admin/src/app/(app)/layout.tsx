@@ -11,7 +11,7 @@ import {
     LayoutDashboard, Building2, Users, BookOpen, 
     Package, CreditCard, Award, Settings, LogOut,
     Bell, Calendar, GraduationCap, School, ShoppingCart, Briefcase,
-    FileCheck, ShoppingBag, Truck, ClipboardList // ★ 新增图标引入
+    FileCheck, ShoppingBag, Truck, ClipboardList, QrCode, ShieldCheck
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { jwtDecode } from 'jwt-decode';
@@ -93,6 +93,18 @@ const MENU_CONFIG = [
         href: '/hq/users', 
         icon: Settings, 
         allowedRoles: ['role.hq.admin', 'role.hq.hr'] 
+    },
+    { 
+        name: '赋码中心',
+        href: '/hq/qrcode', 
+        icon: QrCode, 
+        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
+    },
+    { 
+        name: '防伪管理',
+        href: '/hq/qrcode/manage', 
+        icon: ShieldCheck, 
+        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
     },
 
     // =================================

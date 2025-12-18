@@ -55,6 +55,7 @@ use handlers::{
     get_hq_finance_dashboard_handler,submit_payment_proof_handler,
     get_order_items_handler,
     update_invoice_status_handler,upload_file_handler,
+    generate_qrcodes_handler, verify_qrcode_handler, export_batch_csv_handler,list_batches_handler, activate_batch_handler
 };
 
 #[tokio::main]
@@ -109,7 +110,8 @@ async fn main() {
         .route("/health/db", get(db_health_handler))
         .route("/health/ai", get(ai_health_handler))
         .route("/api/v1/auth/register", post(register_handler))
-        .route("/api/v1/auth/login", post(login_handler));
+        .route("/api/v1/auth/login", post(login_handler))
+        .route("/api/v1/verify/:code", get(verify_qrcode_handler));
 
     let protected_routes = Router::new()
         .route("/api/v1/bases", get(get_hq_bases_handler).post(create_hq_base_handler))
@@ -195,6 +197,11 @@ async fn main() {
         .route("/api/v1/hq/finance/dashboard", get(get_hq_finance_dashboard_handler))
 
         .route("/api/v1/upload", post(upload_file_handler))
+        
+        .route("/api/v1/hq/qrcodes/generate", post(generate_qrcodes_handler))
+        .route("/api/v1/admin/qrcodes/:batch_id/export", get(export_batch_csv_handler))
+        .route("/api/v1/admin/qrcodes/batches", get(list_batches_handler))
+        .route("/api/v1/admin/qrcodes/:batch_id/activate", post(activate_batch_handler))
 
         
         // ★ 修复: 使用 axum::middleware::from_fn 调用，而不是 middleware::from_fn

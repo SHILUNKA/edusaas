@@ -1064,3 +1064,57 @@ pub struct UpcomingEventItem {
     pub headcount: i32,
     pub status: String,
 }
+
+// ==========================================
+// 13. 防伪追溯 (QR Code)
+// ==========================================
+
+#[derive(Deserialize)]
+pub struct GenerateQrcodePayload {
+    pub batch_name: String,
+    pub quantity: usize,
+}
+
+#[derive(Serialize)]
+pub struct GenerateQRResponse { // ★ 改名：统一叫 GenerateQRResponse
+    pub batch_id: Uuid,
+    pub batch_no: String,
+    pub message: String,
+}
+
+#[derive(Serialize)]
+pub struct VerifyQRResponse {
+    pub valid: bool,
+    pub status: String,
+    pub message: String,
+    pub product_info: Option<String>,
+    pub scan_time: Option<String>,
+}
+
+// 导出 CSV 用的结构体
+#[derive(sqlx::FromRow)] // 建议写全路径防止引用丢失
+pub struct DbExportItem { // ★ 加 pub
+    pub short_code: String, // ★ 字段也要 pub
+    pub secret_salt: String,
+}
+
+// 验证用的结构体
+#[derive(sqlx::FromRow)]
+pub struct DbVerifyItem { // ★ 加 pub
+    pub id: i64,          // ★ 字段也要 pub
+    pub status: Option<String>,
+    pub batch_id: Option<Uuid>,
+    pub scan_time: Option<String>,
+    pub secret_salt: String,
+}
+
+#[derive(Serialize, sqlx::FromRow)]
+pub struct BatchSummary {
+    pub id: Uuid,
+    pub batch_no: String,
+    pub name: Option<String>,
+    pub quantity: i32,
+    pub created_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub active_count: Option<i64>,
+    pub scan_count: Option<i64>,
+}

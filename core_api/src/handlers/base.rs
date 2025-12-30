@@ -25,6 +25,7 @@ pub async fn get_hq_bases_handler(
         SELECT 
             b.id, b.hq_id, b.name, b.address, b.code,
             b.logo_url, b.status, b.operation_mode,
+            b.auth_start_date, b.auth_end_date,
             
             -- 1. 学员总数 (修复: 关联 customers 表查询 base_id)
             (
@@ -85,10 +86,11 @@ pub async fn create_hq_base_handler(
 
     let new_base = sqlx::query_as::<_, Base>(
         r#"
-        INSERT INTO bases (hq_id, name, address, code) 
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO bases (hq_id, name, address, code, auth_start_date, auth_end_date) 
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING 
             id, hq_id, name, code, address, logo_url, status, operation_mode,
+            auth_start_date, auth_end_date,
             0::bigint as student_count, 
             0::float8 as revenue_toc, 
             0::float8 as revenue_tob
@@ -98,6 +100,8 @@ pub async fn create_hq_base_handler(
     .bind(&payload.name)
     .bind(&payload.address)
     .bind(&code)
+    .bind(payload.auth_start_date)
+    .bind(payload.auth_end_date)
     .fetch_one(&state.db_pool)
     .await
     .map_err(|e| {
@@ -124,10 +128,12 @@ pub async fn update_hq_base_handler(
     let updated_base = sqlx::query_as::<_, Base>(
         r#"
         UPDATE bases 
-        SET name = $1, address = $2, code = $3
-        WHERE id = $4 AND hq_id = $5
+        SET name = $1, address = $2, code = $3, logo_url = $4, status = $5, operation_mode = $6,
+            auth_start_date = $7, auth_end_date = $8
+        WHERE id = $9 AND hq_id = $10
         RETURNING 
             id, hq_id, name, code, address, logo_url, status, operation_mode,
+            auth_start_date, auth_end_date,
             -- 更新时重新计算统计
             (
                 SELECT COUNT(p.id) 
@@ -146,6 +152,11 @@ pub async fn update_hq_base_handler(
     .bind(&payload.name)
     .bind(&payload.address)
     .bind(&code)
+    .bind(&payload.logo_url)
+    .bind(&payload.status)
+    .bind(&payload.operation_mode)
+    .bind(payload.auth_start_date)
+    .bind(payload.auth_end_date)
     .bind(base_id)
     .bind(claims.hq_id)
     .fetch_one(&state.db_pool)

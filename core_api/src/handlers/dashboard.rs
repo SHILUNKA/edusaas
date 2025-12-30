@@ -5,7 +5,7 @@
  */
 
 use axum::{extract::State, http::StatusCode, Json};
-use chrono::{Datelike, Utc}; 
+use chrono::Utc; 
 use super::AppState;
 use crate::models::{
     Claims, 
@@ -24,18 +24,131 @@ pub async fn get_dashboard_stats_handler(
     let is_authorized = claims.roles.iter().any(|r| r == "role.hq.admin" || r == "role.hq.operation");
     if !is_authorized { return Err(StatusCode::FORBIDDEN); }
 
-    let stats = sqlx::query_as::<_, DashboardStats>(
-        r#"SELECT (SELECT COUNT(*) FROM bases WHERE hq_id = $1) AS total_bases"#
+    // 1. Total Bases & Active Bases
+    let (total_bases, active_bases): (i64, i64) = sqlx::query_as(
+        r#"SELECT 
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE status = 'active') as active
+           FROM bases WHERE hq_id = $1"#
     )
     .bind(claims.hq_id)
     .fetch_one(&state.db_pool)
     .await
-    .map_err(|e| {
-        tracing::error!("HQ stats failed: {}", e);
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    .unwrap_or((0, 0));
 
-    Ok(Json(stats))
+    // 2. Revenue Stats (Today vs Yesterday)
+    // Using filtered aggregation for efficiency
+    let (today_revenue, yesterday_rev) = match sqlx::query!(
+        r#"
+        SELECT
+            COALESCE(SUM(paid_amount_cents) FILTER (WHERE date_trunc('day', created_at) = CURRENT_DATE), 0) as today_rev,
+            COALESCE(SUM(paid_amount_cents) FILTER (WHERE date_trunc('day', created_at) = CURRENT_DATE - INTERVAL '1 day'), 0) as yesterday_rev
+        FROM orders 
+        WHERE hq_id = $1 AND status IN ('paid', 'completed')
+        "#,
+        claims.hq_id
+    )
+    .fetch_one(&state.db_pool)
+    .await 
+    {
+        Ok(record) => (
+            record.today_rev.unwrap_or(0),
+            record.yesterday_rev.unwrap_or(0)
+        ),
+        Err(e) => {
+            tracing::error!("Failed to fetch revenue stats: {}", e);
+            (0, 0)
+        }
+    };
+    
+    // Calculate growth rate
+    let revenue_growth_rate = if yesterday_rev > 0 {
+        ((today_revenue as f64 - yesterday_rev as f64) / yesterday_rev as f64) * 100.0
+    } else if today_revenue > 0 {
+        100.0
+    } else {
+        0.0
+    };
+
+    // 3. New Students (Today vs Yesterday)
+    let (today_new_students, yesterday_new) = match sqlx::query!(
+        r#"
+        SELECT
+            COUNT(*) FILTER (WHERE date_trunc('day', created_at) = CURRENT_DATE) as today_new,
+            COUNT(*) FILTER (WHERE date_trunc('day', created_at) = CURRENT_DATE - INTERVAL '1 day') as yesterday_new
+        FROM participants
+        WHERE hq_id = $1
+        "#,
+        claims.hq_id
+    )
+    .fetch_one(&state.db_pool)
+    .await 
+    {
+        Ok(record) => (
+            record.today_new.unwrap_or(0),
+            record.yesterday_new.unwrap_or(0)
+        ),
+        Err(e) => {
+            tracing::error!("Failed to fetch student stats: {}", e);
+            (0, 0)
+        }
+    };
+    
+    let student_growth_rate = if yesterday_new > 0 {
+        ((today_new_students as f64 - yesterday_new as f64) / yesterday_new as f64) * 100.0
+    } else if today_new_students > 0 {
+        100.0
+    } else {
+        0.0
+    };
+
+    // 4. Pending Audits (Mock: Bases pending, Procurements pending)
+    // Since we don't have base audit status in DB yet, we sum pending procurements across all bases
+    let pending_audit_count = sqlx::query_scalar!(
+        r#"SELECT COUNT(*) FROM procurement_orders WHERE hq_id = $1 AND status = 'pending'"#,
+        claims.hq_id
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(Some(0)).unwrap_or(0);
+
+    // 5. 7-Day Revenue Trend
+    // Generate series for last 7 days to ensure no missing dates
+    let trend_rows = sqlx::query!(
+        r#"
+        SELECT 
+            to_char(d, 'MM-DD') as date_str,
+            COALESCE(SUM(o.paid_amount_cents), 0) as daily_rev
+        FROM generate_series(CURRENT_DATE - INTERVAL '6 days', CURRENT_DATE, '1 day') as d
+        LEFT JOIN orders o ON date_trunc('day', o.created_at) = d AND o.hq_id = $1 AND o.status IN ('paid', 'completed')
+        GROUP BY d
+        ORDER BY d
+        "#,
+        claims.hq_id
+    )
+    .fetch_all(&state.db_pool)
+    .await
+    .unwrap_or(vec![]);
+
+    let mut trend_dates = Vec::new();
+    let mut revenue_trend = Vec::new();
+
+    for row in trend_rows {
+        trend_dates.push(row.date_str.unwrap_or_default());
+        revenue_trend.push(row.daily_rev.unwrap_or(0));
+    }
+
+    Ok(Json(DashboardStats {
+        total_bases,
+        active_bases,
+        today_revenue,
+        revenue_growth_rate,
+        today_new_students,
+        student_growth_rate,
+        pending_audit_count,
+        revenue_trend,
+        trend_dates,
+    }))
 }
 
 pub async fn get_dashboard_advanced_stats_handler(

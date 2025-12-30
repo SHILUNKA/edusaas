@@ -1,0 +1,67 @@
+<view class="container">
+  <view class="search-bar">
+    <view class="search-input-wrap">
+      <icon type="search" size="14" color="#999" />
+      <input class="search-input" placeholder="搜索名称或编号" bindinput="onSearchInput" value="{{searchKeyword}}" />
+    </view>
+  </view>
+
+  <scroll-view scroll-y class="list-container">
+    <block wx:if="{{bases.length > 0}}">
+      <view class="base-card" wx:for="{{bases}}" wx:key="id">
+        <!-- Top Row: Logo + Info + Actions -->
+        <view class="card-top-row">
+          <!-- Logo & Name -->
+          <view class="base-info-group">
+            <view class="base-logo-circle">{{item.code_prefix || 'LOGO'}}</view>
+            <view class="base-text-info">
+              <view class="base-name-row">
+                <text class="base-name">{{item.name}}</text>
+              </view>
+              <view class="base-address">
+                <view class="icon-location"></view>
+                <text>{{item.address || '暂无地址'}}</text>
+              </view>
+            </view>
+          </view>
+          
+          <!-- Actions: Edit & Appoint -->
+          <view class="card-actions">
+            <view class="action-btn edit" catchtap="onEditBase" data-id="{{item.id}}">
+              <view class="icon-edit"></view>
+            </view>
+            <view class="action-btn appoint" catchtap="onAssignPrincipal" data-id="{{item.id}}">
+               <view class="icon-user-add"></view>
+               <text>任命校长</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- Divider -->
+        <view class="card-divider"></view>
+
+        <!-- Bottom Row: Tags (Code, Auth Date, Status) -->
+        <view class="card-bottom-row">
+          <view class="tags-group">
+            <view class="tag-code">CODE: {{item.code}}</view>
+            <view class="tag-auth" wx:if="{{item.auth_start_date && item.auth_end_date}}">
+              授权: {{item.auth_start_date}} ~ {{item.auth_end_date}}
+            </view>
+          </view>
+          
+          <view class="status-badge {{item.status === 'active' ? 'status-active' : 'status-inactive'}}">
+            {{item.status === 'active' ? '运营中' : '已停用'}}
+          </view>
+        </view>
+      </view>
+    </block>
+    
+    <view wx:else class="empty-state">
+      <text>暂无基地数据</text>
+    </view>
+  </scroll-view>
+
+  <view class="fab-btn" bindtap="onAddBase">
+    <text class="fab-icon">+</text>
+  </view>
+</view>

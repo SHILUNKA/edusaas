@@ -1,0 +1,47 @@
+{
+  "pages": [
+    "pages/launch/index",
+    "pages/login/index",
+    "pages/mine/index",
+    "components/dynamic-tab-bar/index"
+  ],
+  "subPackages": [
+    {
+      "root": "pkg_hq",
+      "pages": [
+        "dashboard/index",
+        "pages/base/list/index",
+        "pages/base/detail/index",
+        "pages/base/principal/index",
+        "pages/staff/list/index",
+        "pages/staff/detail/index",
+        "pages/finance/index",
+        "pages/report/index"
+      ]
+    },
+    {
+      "root": "pkg_base",
+      "pages": [
+        "workspace/index"
+      ]
+    },
+    {
+      "root": "pkg_customer",
+      "pages": [
+        "home/index"
+      ]
+    }
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#fff",
+    "navigationBarTitleText": "EduSaaS",
+    "navigationBarTextStyle": "black",
+    "navigationStyle": "default"
+  },
+  "usingComponents": {
+    "dynamic-tab-bar": "/components/dynamic-tab-bar/index"
+  },
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json"
+}

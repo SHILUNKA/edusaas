@@ -1,0 +1,9 @@
+<view class="container">
+  <view style="padding: 100rpx; text-align: center;">
+    <icon type="info" size="64" color="#059669"/>
+    <view style="margin-top:20rpx; font-weight:bold;">校区工作台</view>
+    <view>Campus Workspace</view>
+  </view>
+</view>
+
+<dynamic-tab-bar selected="{{0}}"></dynamic-tab-bar>

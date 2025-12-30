@@ -1,0 +1,47 @@
+<view class="container">
+  <!-- Card Container to mimic modal look/feel -->
+  <view class="p-card">
+    <view class="header-row">
+      <text class="title">任命校长</text>
+      <!-- <icon type="cancel" size="24" color="#ccc" /> if we want close icon, but page has native back -->
+    </view>
+    
+    <view class="subtitle">
+      正在为 <text class="highlight">{{baseName}}</text> 创建管理员账号。
+    </view>
+
+    <!-- Form -->
+    <view class="form-body">
+      
+      <!-- Email -->
+      <view class="input-group">
+        <text class="label">登录邮箱 (账号)</text>
+        <input class="input-box" placeholder="例如: principal@sz.com" placeholder-class="ph-style" bindinput="onEmailInput" value="{{email}}" />
+      </view>
+
+      <!-- Name -->
+      <view class="input-group">
+        <text class="label">校长姓名</text>
+        <input class="input-box" placeholder="例如: 王校长" placeholder-class="ph-style" bindinput="onNameInput" value="{{name}}" />
+      </view>
+
+      <!-- Password -->
+      <view class="input-group">
+        <text class="label">初始密码 (自动生成)</text>
+        <view class="pwd-row">
+          <view class="pwd-box">
+             <text class="pwd-text">{{password}}</text>
+             <view class="icon-refresh" bindtap="onRefreshPassword">↻</view> 
+          </view>
+          <view class="btn-copy" bindtap="onCopyPassword">
+             <text class="icon-copy">❐</text> 复制
+          </view>
+        </view>
+      </view>
+
+    </view>
+
+    <!-- Submit Button -->
+    <button class="btn-black-confirm" bindtap="onSubmit" loading="{{loading}}">确认创建账号</button>
+  </view>
+</view>

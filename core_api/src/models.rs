@@ -119,7 +119,11 @@ pub struct Base {
     #[sqlx(default)]
     pub revenue_toc: f64, 
     #[sqlx(default)]
-    pub revenue_tob: f64, 
+    pub revenue_tob: f64,
+    
+    // Authorization dates (V2.0)
+    pub auth_start_date: Option<NaiveDate>,
+    pub auth_end_date: Option<NaiveDate>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -127,6 +131,8 @@ pub struct CreateBasePayload {
     pub name: String,
     pub address: Option<String>,
     pub code: String,
+    pub auth_start_date: Option<NaiveDate>,
+    pub auth_end_date: Option<NaiveDate>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -135,8 +141,10 @@ pub struct UpdateBasePayload {
     pub address: Option<String>,
     pub code: String,
     pub logo_url: Option<String>,
-    pub status: String, 
-    pub operation_mode: String, 
+    pub status: String,
+    pub operation_mode: String,
+    pub auth_start_date: Option<NaiveDate>,
+    pub auth_end_date: Option<NaiveDate>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -834,6 +842,15 @@ pub struct PaymentQuery {
 #[derive(Debug, Serialize, FromRow)]
 pub struct DashboardStats {
     pub total_bases: i64,
+    pub today_revenue: i64,
+    pub revenue_growth_rate: f64,
+    pub today_new_students: i64,
+    pub student_growth_rate: f64,
+    pub active_bases: i64,
+    pub pending_audit_count: i64,
+    // Trends for chart (last 7 days ordered)
+    pub revenue_trend: Vec<i64>,
+    pub trend_dates: Vec<String>,
 }
 
 #[derive(Debug, Serialize, FromRow)]

@@ -1,0 +1,55 @@
+<view class="container">
+  <!-- 1. Header Date Picker -->
+  <view class="report-header">
+    <view class="title">数据报表 (Data Report)</view>
+    <view class="date-picker">本月 ▼</view>
+  </view>
+
+  <!-- 2. Core Supply Chain Funnel -->
+  <view class="card funnel-card">
+    <view class="card-title">加盟供应链转化漏斗</view>
+    <view class="funnel-container">
+      <view class="funnel-step step-1">
+        <text class="step-label">线索</text>
+        <text class="step-val">128</text>
+      </view>
+      <view class="funnel-arrow">↓</view>
+      <view class="funnel-step step-2">
+        <text class="step-label">签约授权</text>
+        <text class="step-val">45</text>
+        <text class="step-rate">35%</text>
+      </view>
+      <view class="funnel-arrow">↓</view>
+      <view class="funnel-step step-3">
+        <text class="step-label">首批进货</text>
+        <text class="step-val">42</text>
+        <text class="step-rate">93%</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 3. Best Selling Products (Top 5) -->
+  <view class="card product-card">
+    <view class="card-title">供应链爆品 TOP 5</view>
+    <view class="product-list">
+      <view class="product-item" wx:for="{{topProducts}}" wx:key="id">
+        <view class="prod-idx">{{index + 1}}</view>
+        <view class="prod-info">
+          <view class="prod-name">{{item.name}}</view>
+          <view class="prod-cat tag-{{item.type}}">{{item.category}}</view>
+        </view>
+        <view class="prod-stat">
+          <view class="stat-val">{{item.sales}}件</view>
+          <view class="stat-amt">¥{{item.amount}}</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 4. Monthly Order Trend -->
+  <view class="card trend-card">
+    <view class="card-title">订货金额趋势</view>
+    <canvas type="2d" id="orderTrendChart" class="trend-canvas"></canvas>
+  </view>
+
+</view>

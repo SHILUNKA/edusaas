@@ -1,0 +1,9 @@
+<view class="container">
+  <view style="padding: 100rpx; text-align: center;">
+    <icon type="waiting" size="64" color="#F59E0B"/>
+    <view style="margin-top:20rpx; font-weight:bold;">学员首页</view>
+    <view>Student Home</view>
+  </view>
+</view>
+
+<dynamic-tab-bar selected="{{0}}"></dynamic-tab-bar>

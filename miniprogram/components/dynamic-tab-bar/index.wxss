@@ -1,0 +1,45 @@
+/* components/dynamic-tab-bar/index.wxss */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 96rpx; /* 标准高度 */
+  background: white;
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom); /*核心：适配全面屏底部安全区 */
+  box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.08); /* 顶部加个淡淡的阴影 */
+  z-index: 9999; /* 保证层级最高 */
+}
+
+.tab-bar-border {
+  background-color: rgba(0, 0, 0, 0.1); /* 1px 的顶部分割线 */
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 1px;
+  transform: scaleY(0.5); /* 缩放成 0.5px 细线 */
+}
+
+.tab-bar-item {
+  flex: 1; /*以此让所有项平分宽度 */
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  padding-top: 8rpx;
+}
+
+.tab-icon {
+  width: 48rpx; /* 图标标准大小 */
+  height: 48rpx;
+  margin-bottom: 4rpx;
+  display: block;
+}
+
+.tab-text {
+  font-size: 20rpx;
+  line-height: 1;
+}

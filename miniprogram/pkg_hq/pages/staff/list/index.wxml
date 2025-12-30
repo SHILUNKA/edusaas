@@ -1,0 +1,80 @@
+<view class="container">
+  
+  <!-- 1. Safety Score Header -->
+  <view class="header-section">
+    <view class="score-circle">
+      <text class="score-val">{{riskStats.healthScore}}</text>
+      <text class="score-label">人效健康分</text>
+    </view>
+    <view class="header-info">
+      <view class="info-title">人员风控中心</view>
+      <view class="info-desc">全员账号状态监控中</view>
+    </view>
+  </view>
+
+  <!-- 2. Risk Alerts (Action Required) -->
+  <view class="risk-card" wx:if="{{riskStats.alerts.length > 0}}">
+    <view class="card-title">
+      <text class="icon-warn">⚠️</text> 风险预警
+    </view>
+    <view class="alert-list">
+      <view class="alert-item" wx:for="{{riskStats.alerts}}" wx:key="id">
+        <text class="alert-text">{{item.message}}</text>
+        <button class="btn-check" size="mini">查看</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 3. Key Personnel (Principals) -->
+  <view class="section-container">
+    <view class="section-header">
+      <text class="title">关键人名录 (Principals)</text>
+      <text class="more">全部 ></text>
+    </view>
+    <scroll-view scroll-x class="personnel-scroll">
+      <view class="person-card" wx:for="{{keyPersonnel}}" wx:key="id">
+        <image class="avatar" src="{{item.avatar}}" mode="aspectFill"></image>
+        <text class="name">{{item.name}}</text>
+        <text class="role tag-{{item.roleType}}">{{item.roleName}}</text>
+        <text class="base-name">{{item.baseName}}</text>
+      </view>
+      <view class="person-card add-card" bindtap="onAddPrincipal">
+        <view class="add-icon">+</view>
+        <text class="add-text">任命校长</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 4. Efficiency Rankings (Red/Black List) -->
+  <view class="section-container">
+    <view class="tab-header">
+      <view class="tab-item {{currentRankTab === 'purchase' ? 'active' : ''}}" bindtap="onTabChange" data-tab="purchase">
+        基地进货榜
+      </view>
+      <view class="tab-item {{currentRankTab === 'activity' ? 'active' : ''}}" bindtap="onTabChange" data-tab="activity">
+        活跃度红黑榜
+      </view>
+    </view>
+    
+    <view class="ranking-list">
+      <block wx:for="{{currentRankTab === 'purchase' ? purchaseRankings : activityRankings}}" wx:key="id">
+        <view class="rank-row">
+          <view class="rank-num rank-{{index+1}}">{{index + 1}}</view>
+          <!-- Ranking Item is now a Base, use building icon or base avatar if avail -->
+          <view class="rank-icon-box">
+             <view class="custom-icon icon-building"></view>
+          </view>
+          <view class="rank-info">
+            <view class="rank-name">{{item.name}}</view>
+            <view class="rank-base">{{item.region || '华北区'}}</view>
+          </view>
+          <view class="rank-score">
+            <text class="score-val">{{item.score}}</text>
+            <text class="score-label">{{currentRankTab === 'purchase' ? '采购额(元)' : '活跃指数'}}</text>
+          </view>
+        </view>
+      </block>
+    </view>
+  </view>
+
+</view>

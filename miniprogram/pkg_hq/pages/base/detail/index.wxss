@@ -1,0 +1,98 @@
+
+.container {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+  padding: 24rpx;
+  box-sizing: border-box;
+  padding-bottom: 200rpx;
+}
+
+.form-group {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 0 32rpx;
+  margin-bottom: 24rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  padding: 32rpx 0 16rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.input-item {
+  display: flex;
+  align-items: center;
+  padding: 32rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+  position: relative;
+}
+
+.input-item:last-child {
+  border-bottom: none;
+}
+
+.label {
+  font-size: 28rpx;
+  color: #333;
+  width: 180rpx;
+}
+
+.required {
+  color: #f5222d;
+}
+
+.input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.picker-value {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+  min-width: 300rpx; /* Ensure click area */
+}
+
+.placeholder-text {
+  color: #ccc;
+}
+
+.arrow-right {
+  width: 16rpx;
+  height: 16rpx;
+  border-top: 2rpx solid #ccc;
+  border-right: 2rpx solid #ccc;
+  transform: rotate(45deg);
+  margin-left: 16rpx;
+}
+
+.status-active {
+  color: #1890ff;
+}
+
+.status-suspended {
+  color: #f5222d;
+}
+
+.footer-btn-area {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: white;
+  padding: 32rpx;
+  box-sizing: border-box;
+  box-shadow: 0 -4rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.submit-btn {
+  background: #1890ff !important;
+  color: white !important;
+  border-radius: 44rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+}

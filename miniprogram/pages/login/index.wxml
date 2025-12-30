@@ -1,0 +1,24 @@
+<view class="container">
+  <view class="header">
+    <text class="title">EduSaaS 登录</text>
+    <text class="subtitle">专业教育连锁管理系统</text>
+  </view>
+
+  <view class="login-form">
+    <view class="input-group">
+      <text class="label">邮箱账号</text>
+      <input class="input" placeholder="请输入邮箱" value="{{email}}" bindinput="onEmailInput" auto-focus/>
+    </view>
+
+    <view class="input-group">
+      <text class="label">登录密码</text>
+      <input class="input" password placeholder="请输入密码" value="{{password}}" bindinput="onPasswordInput"/>
+    </view>
+
+    <button class="btn-login" bindtap="handleLogin" loading="{{loading}}">立即登录</button>
+  </view>
+
+  <view class="footer-debug">
+    <text class="debug-text" bindtap="clearCache">清除缓存重置</text>
+  </view>
+</view>

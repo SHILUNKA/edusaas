@@ -1,0 +1,97 @@
+<view class="container">
+  <!-- 1. 核心数据驾驶舱 (Dark Theme) -->
+  <view class="cockpit-card">
+    <view class="cockpit-header">
+      <text class="cockpit-title">财务驾驶舱</text>
+      <view class="date-badge">{{currentDate}}</view>
+    </view>
+    
+    <!-- 核心指标: 预充池 & 现金流 -->
+    <view class="main-metrics">
+      <view class="metric-block warning">
+        <view class="label">
+          总预充池 (负债)
+          <icon type="warn" size="12" color="#FF4D4F" />
+        </view>
+        <view class="value-row">
+          <text class="currency">¥</text>
+          <text class="amount-lg">{{stats.total_prepaid_pool_fmt || '0'}}</text>
+        </view>
+        <view class="trend-row down">
+           <text>消课率 45%</text> <!-- Mock data for now -->
+        </view>
+      </view>
+
+      <view class="metrics-divider"></view>
+
+      <view class="metric-block">
+        <view class="label">本月现金流 (Cash In)</view>
+        <view class="value-row">
+          <text class="currency">¥</text>
+          <text class="amount-lg">{{stats.month_cash_in_fmt || '0'}}</text>
+        </view>
+         <view class="sub-metric">
+          本月确收: ¥{{stats.month_revenue_fmt || '0'}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 2. 营收趋势图 (Canvas) -->
+    <view class="chart-section">
+      <view class="chart-title">近6个月营收趋势</view>
+      <canvas type="2d" id="financeTrendChart" class="trend-canvas"></canvas>
+    </view>
+  </view>
+
+  <!-- 3. 基地贡献榜 -->
+  <view class="ranking-section">
+    <view class="section-title">基地贡献榜 Top 5</view>
+    <view class="ranking-list">
+      <block wx:if="{{stats.base_rankings && stats.base_rankings.length > 0}}">
+        <view class="ranking-item" wx:for="{{stats.base_rankings}}" wx:key="base_id">
+          <view class="rank-index rank-{{index+1}}">{{index + 1}}</view>
+          <view class="rank-info">
+            <view class="rank-name">{{item.base_name}}</view>
+            <view class="rank-bar-bg">
+              <view class="rank-bar-fill" style="width: {{item.profit_margin * 100}}%"></view>
+            </view>
+          </view>
+          <view class="rank-value">
+            <view>¥{{item.total_income}}</view>
+            <text class="rank-sub">利润率 {{item.profit_margin * 100}}%</text>
+          </view>
+        </view>
+      </block>
+      <view wx:else class="empty-text">暂无排名数据</view>
+    </view>
+  </view>
+
+  <!-- 4. 待办审核流 -->
+  <view class="audit-section">
+    <view class="audit-header">
+      <view class="section-title">待审核流水</view>
+      <view class="more-link" bindtap="onViewAllRecords">查看全部 ></view>
+    </view>
+    
+    <block wx:if="{{records.length > 0}}">
+      <view class="record-card" wx:for="{{records}}" wx:key="id">
+        <view class="card-left">
+           <view class="record-type {{item.type}}">{{item.type === 'INCOME' ? '收' : '支'}}</view>
+           <view class="record-detail">
+             <view class="payer">{{item.payer_name}}</view>
+             <view class="time">{{item.created_at}}</view>
+           </view>
+        </view>
+        <view class="card-right">
+           <text class="amount {{item.type}}">{{item.type === 'INCOME' ? '+' : '-'}}{{item.amount_cents / 100}}</text>
+           <button class="btn-verify" size="mini" catchtap="onVerify" data-id="{{item.id}}" wx:if="{{item.status === 'PENDING'}}">审核</button>
+           <text class="status-text" wx:else>{{item.status}}</text>
+        </view>
+      </view>
+    </block>
+    <view wx:else class="empty-state-card">
+      <text>🎉 所有流水已处理完毕</text>
+    </view>
+  </view>
+
+</view>

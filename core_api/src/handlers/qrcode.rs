@@ -8,6 +8,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use uuid::Uuid;
 use sqlx::Postgres;
 use super::AppState;
+use serde::Deserialize;
 use crate::models::{
     Claims, 
     GenerateQrcodePayload, 

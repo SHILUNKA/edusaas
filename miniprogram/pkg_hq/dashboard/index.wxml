@@ -1,0 +1,107 @@
+<view class="dashboard-container">
+  
+  <!-- 0. Brand Header -->
+  <view class="app-header">
+    <view class="brand-logo-text">EduSaaS</view>
+    <view class="header-actions">
+      <!-- Placeholder for notification/settings icons if needed, keeping clean for now -->
+      <view class="action-btn-placeholder"></view>
+    </view>
+  </view>
+  
+  <!-- 1. Top Chart Section -->
+  <view class="chart-card">
+    <view class="chart-header">
+      <view class="chart-title-block">
+        <text class="chart-title">近期营收趋势</text>
+        <text class="chart-subtitle">最近7天营收数据</text>
+      </view>
+      <view class="trend-badge {{stats.revenue_growth_rate >= 0 ? 'up' : 'down'}}">
+        <text>{{stats.revenue_growth_rate >= 0 ? '↗' : '↘'}} {{stats.revenue_rate_formatted}}%</text>
+      </view>
+    </view>
+
+    <view class="canvas-container">
+        <canvas type="2d" id="revenueChart" class="revenue-chart"></canvas>
+    </view>
+
+    <!-- Floating Today Revenue Callout -->
+    <view class="today-float-btn">
+      <text class="today-label">今日营收</text>
+      <text class="today-value">¥{{stats.today_revenue_formatted}}</text>
+    </view>
+  </view>
+
+  <!-- 2. Menu Grid Section -->
+  <view class="menu-grid-row">
+    
+    <!-- Card 1: Base Management -->
+    <view class="feature-card" bindtap="onNavigate" data-url="/pkg_hq/pages/base/list/index">
+      <view class="card-header-row">
+        <view class="icon-sq blue">
+          <view class="custom-icon icon-building"></view>
+        </view>
+        <view class="notify-badge red" wx:if="{{stats.pending_audit_count > 0}}">{{stats.pending_audit_count}}</view>
+      </view>
+      <view class="card-content">
+        <text class="card-name">基地管理</text>
+        <text class="card-desc">设备、场地、资源统一管理</text>
+      </view>
+      <view class="card-arrow-btn">
+        <text class="arrow-icon">></text>
+      </view>
+    </view>
+
+    <!-- Card 2: Staff Management -->
+    <view class="feature-card" bindtap="onNavigate" data-url="/pkg_hq/pages/staff/list/index">
+      <view class="card-header-row">
+        <view class="icon-sq purple">
+          <view class="custom-icon icon-staff"></view>
+        </view>
+        <view class="notify-badge red" wx:if="{{stats.staff_pending_count > 0}}">{{stats.staff_pending_count}}</view>
+      </view>
+      <view class="card-content">
+        <text class="card-name">人效风控</text>
+        <text class="card-desc">员工信息、考勤排班管理</text>
+      </view>
+      <view class="card-arrow-btn">
+        <text class="arrow-icon">></text>
+      </view>
+    </view>
+
+    <!-- Card 3: Finance Center -->
+    <view class="feature-card" bindtap="onNavigate" data-url="/pkg_hq/pages/finance/index">
+      <view class="card-header-row">
+        <view class="icon-sq orange">
+          <view class="custom-icon icon-finance"></view>
+        </view>
+        <view class="notify-badge red" wx:if="{{stats.pending_payment_count > 0}}">{{stats.pending_payment_count}}</view>
+      </view>
+      <view class="card-content">
+        <text class="card-name">财务中心</text>
+        <text class="card-desc">收支明细、财务报表统计</text>
+      </view>
+      <view class="card-arrow-btn">
+        <text class="arrow-icon">></text>
+      </view>
+    </view>
+
+    <!-- Card 4: Reports -->
+    <view class="feature-card" bindtap="onNavigate" data-url="/pkg_hq/pages/report/index">
+      <view class="card-header-row">
+        <view class="icon-sq green">
+          <view class="custom-icon icon-chart"></view>
+        </view>
+      </view>
+      <view class="card-content">
+        <text class="card-name">数据报表</text>
+        <text class="card-desc">多维度数据分析与展示</text>
+      </view>
+      <view class="card-arrow-btn">
+        <text class="arrow-icon">></text>
+      </view>
+    </view>
+
+  </view>
+
+</view>

@@ -1,0 +1,71 @@
+
+<view class="container">
+  <view class="form-group">
+    <view class="section-title">基本信息</view>
+    
+    <view class="input-item">
+      <view class="label">基地名称 <text class="required">*</text></view>
+      <input class="input" placeholder="请输入基地名称" value="{{form.name}}" bindinput="onInputChange" data-field="name" />
+    </view>
+
+    <view class="input-item">
+      <view class="label">基地编号 <text class="required">*</text></view>
+      <input class="input" placeholder="例如: B001" value="{{form.code}}" bindinput="onInputChange" data-field="code" />
+    </view>
+
+    <view class="input-item">
+      <view class="label">详细地址</view>
+      <input class="input" placeholder="请输入地址" value="{{form.address}}" bindinput="onInputChange" data-field="address" />
+    </view>
+  </view>
+
+  <view class="form-group">
+    <view class="section-title">运营配置</view>
+
+    <view class="input-item">
+      <view class="label">运营模式</view>
+      <picker bindchange="onModeChange" value="{{modeIndex}}" range="{{modeOptions}}" range-key="label">
+        <view class="picker-value">{{modeOptions[modeIndex].label}}</view>
+      </picker>
+      <view class="arrow-right"></view>
+    </view>
+
+    <view class="input-item">
+      <view class="label">当前状态</view>
+      <picker bindchange="onStatusChange" value="{{statusIndex}}" range="{{statusOptions}}" range-key="label">
+        <view class="picker-value status-{{statusOptions[statusIndex].value}}">
+          {{statusOptions[statusIndex].label}}
+        </view>
+      </picker>
+      <view class="arrow-right"></view>
+    </view>
+  </view>
+
+  <view class="form-group">
+    <view class="section-title">授权有效期 (核心)</view>
+    
+    <view class="input-item">
+      <view class="label">开始日期</view>
+      <picker mode="date" value="{{form.auth_start_date}}" bindchange="onDateChange" data-field="auth_start_date">
+        <view class="picker-value {{!form.auth_start_date ? 'placeholder-text' : ''}}">
+          {{form.auth_start_date || '请选择开始日期'}}
+        </view>
+      </picker>
+      <view class="arrow-right"></view>
+    </view>
+
+    <view class="input-item">
+      <view class="label">结束日期</view>
+      <picker mode="date" value="{{form.auth_end_date}}" bindchange="onDateChange" data-field="auth_end_date">
+        <view class="picker-value {{!form.auth_end_date ? 'placeholder-text' : ''}}">
+          {{form.auth_end_date || '请选择结束日期'}}
+        </view>
+      </picker>
+      <view class="arrow-right"></view>
+    </view>
+  </view>
+
+  <view class="footer-btn-area">
+    <button class="submit-btn" bindtap="onSubmit" loading="{{loading}}">保存提交</button>
+  </view>
+</view>

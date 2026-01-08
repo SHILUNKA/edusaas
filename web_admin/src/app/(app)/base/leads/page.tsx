@@ -1,5 +1,5 @@
 /*
- * 基地线索管理 - Lead Management
+ * 基地线索管理 - Lead Management (V18.0 - Soft UI Evolution)
  * 路径: /base/leads
  * 功能: 线索列表、创建、详情、跟进记录
  */
@@ -15,6 +15,10 @@ import {
 } from 'lucide-react';
 import LeadDetailDrawer from './LeadDetailDrawer';
 import CreateLeadModal from './CreateLeadModal';
+
+// Soft UI Components
+import { SoftPageContainer, SoftHeader, SoftButton, SoftCard } from '@/components/ui/SoftUI';
+import { SOFT_COLORS } from '@/lib/softui-theme';
 
 interface Lead {
     id: string;
@@ -183,70 +187,65 @@ export default function BaseLeadsPage() {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-6">
-
-            {/* 1. 顶部 Header */}
-            <div className="flex justify-between items-end">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                        <Target className="text-purple-600" size={32} /> 客户管理
-                    </h1>
-                    <div className="flex gap-4 mt-2 text-sm text-gray-500">
-                        <span>总数: <b className="text-gray-900">{stats.total}</b></span>
-                        <span className="w-[1px] bg-gray-300 h-4 self-center"></span>
-                        <span>新增: <b className="text-purple-600">{stats.new}</b></span>
-                        <span>已联系: <b className="text-pink-600">{stats.contacted}</b></span>
-                        <span>已评估: <b className="text-blue-600">{stats.qualified}</b></span>
-                        <span className="text-orange-500">⏰ 待跟进: <b>{stats.pendingFollowUp}</b></span>
-                    </div>
-                </div>
-                <button
-                    className="bg-purple-600 text-white px-6 py-2.5 rounded-full font-bold hover:bg-purple-700 shadow-lg flex items-center gap-2 transition-all hover:scale-105"
-                    onClick={() => setShowCreateModal(true)}
-                >
-                    <Plus size={18} /> 新增客户
-                </button>
-            </div>
+        <SoftPageContainer>
+            <SoftHeader
+                title="客户管理"
+                subtitle={`总数: ${stats.total} | 新增: ${stats.new} | 已联系: ${stats.contacted} | ⭐️ 待跟进: ${stats.pendingFollowUp}`}
+                icon={<Target size={32} style={{ color: SOFT_COLORS.lavender }} />}
+                variant="purple"
+                action={
+                    <SoftButton variant="blue" onClick={() => setShowCreateModal(true)} icon={<Plus size={18} />}>
+                        新增客户
+                    </SoftButton>
+                }
+            />
 
             {/* 2. 筛选与搜索栏 */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center">
-                <div className="relative w-96">
-                    <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                    <input
-                        type="text"
-                        placeholder="搜索联系人/手机号/孩子姓名..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
-                    />
-                </div>
+            <SoftCard variant="white" padding="sm">
+                <div className="flex justify-between items-center">
+                    <div className="relative w-96">
+                        <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+                        <input
+                            type="text"
+                            placeholder="搜索联系人/手机号/孩子姓名..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="w-full pl-10 p-2 border rounded-lg text-sm focus:ring-2 outline-none"
+                            style={{ borderColor: SOFT_COLORS.border }}
+                        />
+                    </div>
 
-                {/* 状态筛选 */}
-                <div className="flex gap-2">
-                    {[
-                        { value: 'all', label: '全部' },
-                        { value: 'prospect', label: '💎 潜在客户' },
-                        { value: 'new', label: '新线索' },
-                        { value: 'contacted', label: '已联系' },
-                        { value: 'qualified', label: '已评估' },
-                        { value: 'converted', label: '已转化' },
-                    ].map(filter => (
-                        <button
-                            key={filter.value}
-                            onClick={() => setStatusFilter(filter.value)}
-                            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${statusFilter === filter.value
-                                ? 'bg-purple-600 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                        >
-                            {filter.label}
-                        </button>
-                    ))}
+                    {/* 状态筛选 */}
+                    <div className="flex gap-2">
+                        {[
+                            { value: 'all', label: '全部' },
+                            { value: 'prospect', label: '💎 潜在客户' },
+                            { value: 'new', label: '新线索' },
+                            { value: 'contacted', label: '已联系' },
+                            { value: 'qualified', label: '已评估' },
+                            { value: 'converted', label: '已转化' },
+                        ].map(filter => (
+                            <button
+                                key={filter.value}
+                                onClick={() => setStatusFilter(filter.value)}
+                                className={`px-4 py-1.5 rounded-xl text-sm font-medium transition-all hover:scale-105 ${statusFilter === filter.value
+                                        ? 'text-white'
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
+                                style={statusFilter === filter.value ? {
+                                    background: 'linear-gradient(135deg, #A78BFA, #C4B5FD)',
+                                    boxShadow: '0 4px 12px rgba(167, 139, 250, 0.3)'
+                                } : { background: '#F1F5F9' }}
+                            >
+                                {filter.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            </SoftCard>
 
             {/* 3. 线索列表 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <SoftCard variant="white" padding="sm">
                 <table className="w-full text-left text-sm">
                     <thead className="bg-gray-50 border-b border-gray-100 text-gray-500 font-medium uppercase text-xs">
                         <tr>
@@ -375,7 +374,7 @@ export default function BaseLeadsPage() {
                         )}
                     </tbody>
                 </table>
-            </div>
+            </SoftCard>
 
             {/* 详情抽屉 */}
             {selectedLead && (
@@ -396,6 +395,6 @@ export default function BaseLeadsPage() {
                     }}
                 />
             )}
-        </div>
+        </SoftPageContainer>
     );
 }

@@ -18,18 +18,26 @@ export default function TenantDashboardPage() {
     const roles = useMemo(() => {
         const token = session?.user?.rawToken;
         if (!token) return [];
-        try { 
+        try {
             const decoded: any = jwtDecode(token);
-            return decoded.roles || []; 
+            return decoded.roles || [];
         } catch { return []; }
     }, [session]);
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
-            <div className="flex items-center gap-2 mb-8 text-gray-400 text-sm font-bold uppercase tracking-wider">
-                <LayoutDashboard size={16}/> <span>Headquarters Dashboard</span>
+        <div className="p-8 max-w-7xl mx-auto min-h-screen"
+            style={{ background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)' }}>
+            <div className="flex items-center gap-3 mb-8 p-4 rounded-2xl"
+                style={{
+                    background: 'linear-gradient(135deg, rgba(135, 206, 235, 0.1), rgba(135, 206, 235, 0.05))',
+                    boxShadow: '0 4px 16px rgba(135, 206, 235, 0.1)'
+                }}>
+                <LayoutDashboard size={20} style={{ color: '#87CEEB' }} />
+                <span className="text-sm font-bold uppercase tracking-wider" style={{ color: '#64748B' }}>
+                    Headquarters Dashboard
+                </span>
             </div>
-            
+
             {/* 将角色数组传给视图组件，由它决定显示什么 */}
             <TenantDashboardView roles={roles} />
         </div>

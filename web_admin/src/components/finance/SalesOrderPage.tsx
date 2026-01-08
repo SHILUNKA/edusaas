@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { API_BASE_URL } from '@/lib/config';
-import { 
-    Plus, Search, Users, Calendar, 
+import {
+    Plus, Search, Users, Calendar,
     MoreHorizontal, FileText, CheckCircle, AlertCircle, Clock,
-    Trash2, Edit, Upload, User, Tag 
+    Trash2, Edit, Upload, User, Tag
 } from 'lucide-react';
 
 // 引入同级目录下的子组件
@@ -22,9 +22,9 @@ export interface Order {
     status: string;
     customer_name: string;
     contact_name: string;
-    
+
     // 核心业务字段
-    event_date: string | null;       
+    event_date: string | null;
     expected_attendees: number;
 
     // 财务字段
@@ -42,12 +42,12 @@ export interface Order {
 export default function SalesOrderPage() {
     const { data: session } = useSession();
     const token = (session?.user as any)?.rawToken;
-    
+
     // --- 状态管理 ---
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('ALL'); // ALL | UNPAID | PAID
-    
+
     // 弹窗控制状态
     const [isCreateOpen, setCreateOpen] = useState(false);
     const [isEditOpen, setEditOpen] = useState(false);
@@ -78,7 +78,7 @@ export default function SalesOrderPage() {
     // 取消订单
     const handleCancel = async (order: Order) => {
         if (!confirm(`确定要取消订单 ${order.order_no} 吗？此操作不可恢复。`)) return;
-        
+
         try {
             const res = await fetch(`${API_BASE_URL}/finance/orders/${order.id}/cancel`, {
                 method: 'PUT',
@@ -102,7 +102,7 @@ export default function SalesOrderPage() {
     });
 
     // --- UI 辅助函数 ---
-    const fmtMoney = (cents: number) => 
+    const fmtMoney = (cents: number) =>
         `¥${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
     const getTypeBadge = (type: string) => {
@@ -121,36 +121,46 @@ export default function SalesOrderPage() {
     };
 
     return (
-        <div className="p-6 max-w-[1600px] mx-auto space-y-6">
-            
-            {/* 1. Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-6 max-w-[1600px] mx-auto space-y-6 min-h-screen"
+            style={{ background: 'linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)' }}>
+
+            {/* 1. Header - Soft UI */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-3xl"
+                style={{
+                    background: 'linear-gradient(135deg, rgba(135, 206, 235, 0.1), rgba(135, 206, 235, 0.05))',
+                    boxShadow: '0 8px 32px rgba(135, 206, 235, 0.15)'
+                }}>
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">销售订单</h1>
-                    <p className="text-sm text-gray-500 mt-1">管理所有团建合同、研学订单及收款状态。</p>
+                    <h1 className="text-2xl font-bold tracking-tight" style={{ color: '#334155' }}>销售订单</h1>
+                    <p className="text-sm mt-1" style={{ color: '#64748B' }}>管理所有团建合同、研学订单及收款状态。</p>
                 </div>
-                <button 
+                <button
                     onClick={() => setCreateOpen(true)}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold shadow-sm shadow-indigo-200 transition-all"
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold transition-all hover:scale-105"
+                    style={{
+                        background: 'linear-gradient(135deg, #87CEEB, #A78BFA)',
+                        color: '#FFF',
+                        boxShadow: '0 4px 15px rgba(135, 206, 235, 0.3)'
+                    }}
                 >
                     <Plus size={18} /> 新建订单
                 </button>
             </div>
 
-            {/* 2. Tabs & Search */}
-            <div className="flex flex-col md:flex-row justify-between items-center border-b border-gray-100 pb-1 gap-4">
-                <div className="flex gap-6 text-sm font-medium text-gray-500">
+            {/* 2. Tabs & Search - Soft UI */}
+            <div className="flex flex-col md:flex-row justify-between items-center pb-1 gap-4 p-4 rounded-2xl"
+                style={{ background: 'rgba(255, 255, 255, 0.6)', boxShadow: '0 4px 16px rgba(0, 0, 0, 0.03)' }}>
+                <div className="flex gap-6 text-sm font-semibold" style={{ color: '#64748B' }}>
                     {['ALL', 'UNPAID', 'PAID'].map((tab) => (
-                        <button 
+                        <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`pb-3 border-b-2 transition-colors flex items-center gap-2 ${
-                                activeTab === tab ? 'border-indigo-600 text-indigo-600' : 'border-transparent hover:text-gray-700'
-                            }`}
+                            className={`pb-3 border-b-2 transition-colors flex items-center gap-2 ${activeTab === tab ? 'border-indigo-600 text-indigo-600' : 'border-transparent hover:text-gray-700'
+                                }`}
                         >
                             {tab === 'ALL' ? '全部订单' : tab === 'UNPAID' ? '待付款/结算' : '已完成'}
                             <span className={`text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab ? 'bg-indigo-50 text-indigo-600' : 'bg-gray-100 text-gray-500'}`}>
-                                {tab === 'ALL' ? orders.length : orders.filter(o => 
+                                {tab === 'ALL' ? orders.length : orders.filter(o =>
                                     tab === 'UNPAID' ? o.payment_status !== 'paid' : o.payment_status === 'paid'
                                 ).length}
                             </span>
@@ -163,8 +173,13 @@ export default function SalesOrderPage() {
                 </div>
             </div>
 
-            {/* 3. Clean Table List */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden min-h-[400px]">
+            {/* 3. Clean Table List - SoftUI */}
+            <div className="rounded-3xl overflow-hidden min-h-[400px]"
+                style={{
+                    background: '#FFFFFF',
+                    border: '1.5px solid #E2E8F0',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.05)'
+                }}>
                 <table className="w-full text-left text-sm">
                     <thead className="bg-gray-50/50 text-gray-500 font-medium border-b border-gray-100">
                         <tr>
@@ -178,7 +193,7 @@ export default function SalesOrderPage() {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {loading ? (
-                            <tr><td colSpan={6} className="p-10 text-center text-gray-400"><Clock className="inline animate-spin mr-2"/>加载数据中...</td></tr>
+                            <tr><td colSpan={6} className="p-10 text-center text-gray-400"><Clock className="inline animate-spin mr-2" />加载数据中...</td></tr>
                         ) : filteredOrders.length === 0 ? (
                             <tr><td colSpan={6} className="p-10 text-center text-gray-400">暂无相关订单</td></tr>
                         ) : (
@@ -189,7 +204,7 @@ export default function SalesOrderPage() {
                                         <div className="flex items-start gap-3">
                                             <div className="bg-white border border-gray-200 rounded-lg p-1.5 text-center min-w-[48px] shadow-sm">
                                                 <div className="text-[10px] text-gray-400 font-bold uppercase">
-                                                    {order.event_date ? new Date(order.event_date).toLocaleString('en-US', {month:'short'}) : '--'}
+                                                    {order.event_date ? new Date(order.event_date).toLocaleString('en-US', { month: 'short' }) : '--'}
                                                 </div>
                                                 <div className="text-lg font-bold text-gray-900 leading-none">
                                                     {order.event_date ? new Date(order.event_date).getDate() : '?'}
@@ -198,7 +213,7 @@ export default function SalesOrderPage() {
                                             <div>
                                                 <div className="mb-1">{getTypeBadge(order.type)}</div>
                                                 <div className="flex items-center gap-1 text-xs text-gray-500">
-                                                    <Users size={12}/>
+                                                    <Users size={12} />
                                                     <span className="font-medium">{order.expected_attendees > 0 ? `${order.expected_attendees}人` : '人数未定'}</span>
                                                 </div>
                                             </div>
@@ -220,10 +235,10 @@ export default function SalesOrderPage() {
                                         <div className="flex flex-col items-start gap-1.5">
                                             {/* 销售人 */}
                                             <div className="text-xs text-gray-500 flex items-center gap-1">
-                                                <User size={12} className="text-gray-400"/> 
+                                                <User size={12} className="text-gray-400" />
                                                 <span>{order.sales_name || '未分配'}</span>
                                             </div>
-                                            
+
                                             {/* 发票状态 Badge */}
                                             {order.invoice_status === 'billed' ? (
                                                 <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-600 border border-blue-100">
@@ -253,7 +268,7 @@ export default function SalesOrderPage() {
                                     <td className="px-6 py-4 text-right">
                                         {order.payment_status === 'paid' ? (
                                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600">
-                                                <CheckCircle size={12}/> 已付清
+                                                <CheckCircle size={12} /> 已付清
                                             </span>
                                         ) : (
                                             <div className="inline-flex flex-col items-end">
@@ -261,7 +276,7 @@ export default function SalesOrderPage() {
                                                     {fmtMoney(order.total_amount_cents - order.paid_amount_cents)}
                                                 </span>
                                                 <span className="text-[10px] text-orange-400 flex items-center gap-1">
-                                                    <AlertCircle size={10}/> 待支付
+                                                    <AlertCircle size={10} /> 待支付
                                                 </span>
                                             </div>
                                         )}
@@ -274,7 +289,7 @@ export default function SalesOrderPage() {
                                             {order.status !== 'cancelled' && order.payment_status !== 'paid' && (
                                                 <>
                                                     {/* 收款按钮 */}
-                                                    <button 
+                                                    <button
                                                         onClick={() => { setSelectedOrder(order); setPayOpen(true); }}
                                                         className="p-2 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg tooltip"
                                                         title="上传收款凭证"
@@ -284,7 +299,7 @@ export default function SalesOrderPage() {
 
                                                     {/* 编辑按钮 (仅限未付款) */}
                                                     {order.paid_amount_cents === 0 && (
-                                                        <button 
+                                                        <button
                                                             onClick={() => { setSelectedOrder(order); setEditOpen(true); }}
                                                             className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg"
                                                             title="编辑订单"
@@ -295,7 +310,7 @@ export default function SalesOrderPage() {
 
                                                     {/* 取消按钮 (仅限未付款) */}
                                                     {order.paid_amount_cents === 0 && (
-                                                        <button 
+                                                        <button
                                                             onClick={() => handleCancel(order)}
                                                             className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg"
                                                             title="取消订单"
@@ -305,7 +320,7 @@ export default function SalesOrderPage() {
                                                     )}
                                                 </>
                                             )}
-                                            
+
                                             {/* 已取消状态展示 */}
                                             {order.status === 'cancelled' && (
                                                 <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">已取消</span>
@@ -320,12 +335,12 @@ export default function SalesOrderPage() {
             </div>
 
             {/* 挂载所有子组件 */}
-            <CreateOrderDrawer 
-                isOpen={isCreateOpen} 
-                onClose={() => setCreateOpen(false)} 
-                onSuccess={() => { setCreateOpen(false); fetchOrders(); }} 
+            <CreateOrderDrawer
+                isOpen={isCreateOpen}
+                onClose={() => setCreateOpen(false)}
+                onSuccess={() => { setCreateOpen(false); fetchOrders(); }}
             />
-            
+
             <EditOrderDrawer
                 order={selectedOrder}
                 isOpen={isEditOpen}

@@ -1,5 +1,5 @@
 /*
- * 总部员工管理 (V18.0)
+ * 总部员工管理 (V19.0 - Soft UI Evolution)
  * 路径: /hq/users
  * 功能: 总部招人(财务/运营)、员工离职封号
  */
@@ -8,10 +8,22 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import { API_BASE_URL } from '@/lib/config';
-import { 
-    Users, UserPlus, Shield, ShieldOff, 
+import {
+    Users, UserPlus, Shield, ShieldOff,
     CheckCircle, XCircle, Search, Mail, RefreshCw, Copy, Check
 } from 'lucide-react';
+
+// ✨ 导入 Soft UI 组件库
+import {
+    SoftPageContainer,
+    SoftHeader,
+    SoftButton,
+    SoftCard,
+    SoftBadge,
+    SoftInput,
+    SoftSelect,
+} from '@/components/ui/SoftUI';
+import { SOFT_COLORS } from '@/lib/softui-theme';
 
 interface User {
     id: string;
@@ -38,7 +50,7 @@ export default function TenantUsersPage() {
         try {
             const res = await fetch(`${API}/hq/users`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (res.ok) setUsers(await res.json());
-        } catch (e) { console.error(e); } 
+        } catch (e) { console.error(e); }
         finally { setIsLoading(false); }
     };
 
@@ -68,78 +80,122 @@ export default function TenantUsersPage() {
         'role.base.admin': '分校校长', // 列表里可能也会显示校长
     };
 
+    // 角色Badge颜色映射
+    const getRoleBadgeVariant = (role: string) => {
+        if (role === 'role.hq.admin') return 'info';
+        if (role === 'role.hq.finance') return 'success';
+        return 'neutral';
+    };
+
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-8">
-            <div className="flex justify-between items-end">
-                <div>
-                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                        <Users className="text-indigo-600" size={32}/> 员工权限管理
-                    </h1>
-                    <p className="text-gray-500 mt-2">管理总部核心团队（财务、运营、人事）及查看分校负责人状态。</p>
-                </div>
-                <button onClick={() => setIsCreateOpen(true)} className="bg-black text-white px-5 py-2.5 rounded-full font-bold hover:bg-gray-800 flex items-center gap-2 shadow-lg transition-transform hover:scale-105">
-                    <UserPlus size={20}/> 新增总部员工
-                </button>
-            </div>
+        <SoftPageContainer>
+            {/* Header - 使用 SoftHeader 组件 */}
+            <SoftHeader
+                title="员工权限管理"
+                subtitle="管理总部核心团队（财务、运营、人事）及查看分校负责人状态。"
+                icon={<Users size={32} style={{ color: SOFT_COLORS.softBlue }} />}
+                variant="blue"
+                action={
+                    <SoftButton
+                        variant="blue"
+                        onClick={() => setIsCreateOpen(true)}
+                        icon={<UserPlus size={20} />}
+                    >
+                        新增总部员工
+                    </SoftButton>
+                }
+            />
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                        <tr>
-                            <th className="p-5 text-xs font-bold text-gray-500 uppercase">姓名 / 邮箱</th>
-                            <th className="p-5 text-xs font-bold text-gray-500 uppercase">当前角色</th>
-                            <th className="p-5 text-xs font-bold text-gray-500 uppercase">状态</th>
-                            <th className="p-5 text-xs font-bold text-gray-500 uppercase">入职时间</th>
-                            <th className="p-5 text-right text-xs font-bold text-gray-500 uppercase">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {users.map(u => (
-                            <tr key={u.id} className="hover:bg-gray-50 transition-colors group">
-                                <td className="p-5">
-                                    <div className="font-bold text-gray-900">{u.full_name}</div>
-                                    <div className="text-sm text-gray-400 font-mono">{u.email}</div>
-                                </td>
-                                <td className="p-5">
-                                    <span className={`px-2 py-1 rounded text-xs font-bold 
-                                        ${u.role_name === 'role.hq.admin' ? 'bg-purple-100 text-purple-700' : 
-                                          u.role_name === 'role.hq.finance' ? 'bg-green-100 text-green-700' : 
-                                          'bg-blue-100 text-blue-700'}`}>
-                                        {roleMap[u.role_name] || u.role_name}
-                                    </span>
-                                </td>
-                                <td className="p-5">
-                                    {u.is_active ? 
-                                        <span className="flex items-center gap-1 text-green-600 text-sm font-bold"><CheckCircle size={14}/> 在职</span> : 
-                                        <span className="flex items-center gap-1 text-gray-400 text-sm font-bold"><XCircle size={14}/> 离职/禁用</span>
-                                    }
-                                </td>
-                                <td className="p-5 text-sm text-gray-500">
-                                    {new Date(u.created_at).toLocaleDateString()}
-                                </td>
-                                <td className="p-5 text-right">
-                                    {u.role_name !== 'role.hq.admin' && ( // 不能封禁老板自己
-                                        <button 
-                                            onClick={() => toggleStatus(u)}
-                                            className={`text-sm font-bold px-3 py-1.5 rounded transition-colors ${u.is_active ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}`}
-                                        >
-                                            {u.is_active ? "封禁账号" : "恢复启用"}
-                                        </button>
-                                    )}
-                                </td>
+            {/* Table Card - 使用 SoftCard */}
+            <SoftCard variant="white" padding="sm">
+                <div className="overflow-x-auto rounded-2xl">
+                    <table className="w-full text-left">
+                        <thead className="border-b-2" style={{ borderColor: SOFT_COLORS.border }}>
+                            <tr>
+                                <th className="p-5 text-xs font-bold uppercase" style={{ color: SOFT_COLORS.textMuted }}>
+                                    姓名 / 邮箱
+                                </th>
+                                <th className="p-5 text-xs font-bold uppercase" style={{ color: SOFT_COLORS.textMuted }}>
+                                    当前角色
+                                </th>
+                                <th className="p-5 text-xs font-bold uppercase" style={{ color: SOFT_COLORS.textMuted }}>
+                                    状态
+                                </th>
+                                <th className="p-5 text-xs font-bold uppercase" style={{ color: SOFT_COLORS.textMuted }}>
+                                    入职时间
+                                </th>
+                                <th className="p-5 text-right text-xs font-bold uppercase" style={{ color: SOFT_COLORS.textMuted }}>
+                                    操作
+                                </th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody className="divide-y" style={{ borderColor: '#F1F5F9' }}>
+                            {users.map(u => (
+                                <tr key={u.id} className="hover:bg-gray-50/50 transition-colors group">
+                                    <td className="p-5">
+                                        <div className="font-bold" style={{ color: SOFT_COLORS.text }}>
+                                            {u.full_name}
+                                        </div>
+                                        <div className="text-sm font-mono" style={{ color: SOFT_COLORS.textMuted }}>
+                                            {u.email}
+                                        </div>
+                                    </td>
+                                    <td className="p-5">
+                                        <SoftBadge variant={getRoleBadgeVariant(u.role_name)} size="md">
+                                            {roleMap[u.role_name] || u.role_name}
+                                        </SoftBadge>
+                                    </td>
+                                    <td className="p-5">
+                                        {u.is_active ? (
+                                            <div className="flex items-center gap-2">
+                                                <CheckCircle size={16} style={{ color: SOFT_COLORS.success }} />
+                                                <span className="text-sm font-semibold" style={{ color: SOFT_COLORS.success }}>
+                                                    在职
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <XCircle size={16} style={{ color: SOFT_COLORS.textMuted }} />
+                                                <span className="text-sm font-semibold" style={{ color: SOFT_COLORS.textMuted }}>
+                                                    离职/禁用
+                                                </span>
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="p-5 text-sm" style={{ color: SOFT_COLORS.textMuted }}>
+                                        {new Date(u.created_at).toLocaleDateString()}
+                                    </td>
+                                    <td className="p-5 text-right">
+                                        {u.role_name !== 'role.hq.admin' && ( // 不能封禁老板自己
+                                            <button
+                                                onClick={() => toggleStatus(u)}
+                                                className="text-sm font-bold px-4 py-2 rounded-xl transition-all hover:scale-105"
+                                                style={{
+                                                    background: u.is_active
+                                                        ? 'rgba(239, 68, 68, 0.1)'
+                                                        : 'rgba(16, 185, 129, 0.1)',
+                                                    color: u.is_active ? SOFT_COLORS.error : SOFT_COLORS.success,
+                                                    border: `1.5px solid ${u.is_active ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+                                                }}
+                                            >
+                                                {u.is_active ? "封禁账号" : "恢复启用"}
+                                            </button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </SoftCard>
 
-            {/* 新增员工弹窗 */}
+            {/* 新增员工弹窗 - 使用 Soft UI */}
             {isCreateOpen && <CreateUserModal token={token} onClose={() => setIsCreateOpen(false)} onSuccess={fetchUsers} />}
-        </div>
+        </SoftPageContainer>
     );
 }
 
-// 内部组件: 创建用户 (带随机密码)
+// 内部组件: 创建用户 (带随机密码) - Soft UI Evolution
 function CreateUserModal({ token, onClose, onSuccess }: any) {
     const [email, setEmail] = useState("");
     const [name, setName] = useState("");
@@ -156,13 +212,17 @@ function CreateUserModal({ token, onClose, onSuccess }: any) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({
                     email, full_name: name, role_key: role, password: password,
-                    // 总部员工 base_id 为 null
                     base_id: null,
                     phone_number: null, gender: null, blood_type: null, date_of_birth: null, address: null
                 })
             });
-            if (res.ok) { alert(`✅ 创建成功！\n账号: ${email}\n密码: ${password}\n请务必复制发送给员工。`); onSuccess(); onClose(); }
-            else alert("创建失败，邮箱可能已存在");
+            if (res.ok) {
+                alert(`✅ 创建成功！\n账号: ${email}\n密码: ${password}\n请务必复制发送给员工。`);
+                onSuccess();
+                onClose();
+            } else {
+                alert("创建失败，邮箱可能已存在");
+            }
         } catch (e) { alert("网络错误"); }
     };
 
@@ -170,34 +230,70 @@ function CreateUserModal({ token, onClose, onSuccess }: any) {
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-white p-8 rounded-2xl w-full max-w-md shadow-2xl">
-                <h3 className="text-xl font-bold mb-4">新增总部员工</h3>
+            <SoftCard variant="white" padding="lg" className="w-full max-w-md shadow-2xl">
+                <h3 className="text-2xl font-bold mb-6" style={{ color: SOFT_COLORS.text }}>
+                    新增总部员工
+                </h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="text-xs font-bold text-gray-500 block mb-1">岗位角色</label>
-                        <select value={role} onChange={e=>setRole(e.target.value)} className="w-full p-3 border rounded-xl bg-white">
-                            <option value="role.hq.finance">💰 财务总监 (管理资金/审批)</option>
-                            <option value="role.hq.operation">📈 运营总监 (管理课程/资产)</option>
-                            <option value="role.hq.hr">👥 人事主管 (管理员工)</option>
-                        </select>
-                    </div>
-                    <input required value={email} onChange={e=>setEmail(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="登录邮箱 (如 finance@hq.com)"/>
-                    <input required value={name} onChange={e=>setName(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="员工姓名"/>
-                    
+                    <SoftSelect
+                        label="岗位角色"
+                        value={role}
+                        onChange={e => setRole(e.target.value)}
+                    >
+                        <option value="role.hq.finance">💰 财务总监 (管理资金/审批)</option>
+                        <option value="role.hq.operation">📈 运营总监 (管理课程/资产)</option>
+                        <option value="role.hq.hr">👥 人事主管 (管理员工)</option>
+                    </SoftSelect>
+
+                    <SoftInput
+                        required
+                        type="email"
+                        label="登录邮箱"
+                        placeholder="如 finance@hq.com"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                    />
+
+                    <SoftInput
+                        required
+                        label="员工姓名"
+                        placeholder="请输入姓名"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                    />
+
                     <div className="relative">
-                        <label className="text-xs font-bold text-gray-500 block mb-1">初始密码</label>
-                        <input readOnly value={password} className="w-full p-3 border rounded-xl bg-gray-50 font-mono"/>
-                        <button type="button" onClick={copyPass} className="absolute right-3 top-8 text-indigo-600 font-bold text-sm">
-                            {copied ? "已复制" : "复制"}
+                        <SoftInput
+                            readOnly
+                            label="初始密码"
+                            value={password}
+                            className="font-mono bg-gray-50"
+                        />
+                        <button
+                            type="button"
+                            onClick={copyPass}
+                            className="absolute right-3 top-9 font-bold text-sm transition-all flex items-center gap-1"
+                            style={{ color: copied ? SOFT_COLORS.success : SOFT_COLORS.softBlue }}
+                        >
+                            {copied ? <><Check size={14} /> 已复制</> : <><Copy size={14} /> 复制</>}
                         </button>
                     </div>
 
-                    <div className="flex gap-2 justify-end mt-4">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-gray-500">取消</button>
-                        <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg font-bold">确认创建</button>
+                    <div className="flex gap-3 justify-end mt-6">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-6 py-2.5 rounded-xl font-semibold transition-all hover:scale-105"
+                            style={{ color: SOFT_COLORS.textMuted }}
+                        >
+                            取消
+                        </button>
+                        <SoftButton type="submit" variant="blue">
+                            确认创建
+                        </SoftButton>
                     </div>
                 </form>
-            </div>
+            </SoftCard>
         </div>
     );
 }

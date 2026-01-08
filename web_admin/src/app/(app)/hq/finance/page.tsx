@@ -4,16 +4,28 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { API_BASE_URL } from '@/lib/config';
 import {
-    TrendingUp, TrendingDown, DollarSign, Activity,
-    PieChart, BarChart3, ArrowUpRight, ArrowDownRight,
-    Loader2, Building2
+    TrendingUp, DollarSign, Activity, Download, Building2,
+    ArrowUpRight, Loader2, Wallet, Coins, BarChart3, PieChart
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    BarChart, Bar, Legend, Cell, PieChart as RePie, Pie
+    PieChart as RePie, Pie, Cell
 } from 'recharts';
 
-// 数据类型定义
+// 🌸 Soft UI Evolution Design System
+const SOFT_COLORS = {
+    softBlue: '#87CEEB',      // Soft Blue
+    softPink: '#FFB6C1',      // Soft Pink  
+    softGreen: '#90EE90',     // Soft Green
+    lavender: '#A78BFA',      // Soft Purple
+    peach: '#FECACA',         // Soft Peach
+    background: '#F8FAFC',    // Light background
+    cardBg: '#FFFFFF',        // Pure white
+    text: '#334155',          // Softer dark text
+    textMuted: '#64748B',     // Muted text
+    border: '#E2E8F0',        // Light border
+};
+
 interface DashboardData {
     total_prepaid_pool: number;
     month_cash_in: number;
@@ -30,9 +42,8 @@ interface DashboardData {
         profit_margin: number;
     }[];
     income_composition?: { name: string; value: number; color: string }[];
-    month_cash_in_growth?: number;
-    month_revenue_growth?: number;
-    month_cost_reduction?: number;
+    total_asset_value?: number;
+    total_asset_count?: number;
 }
 
 export default function HqFinancePage() {
@@ -41,9 +52,6 @@ export default function HqFinancePage() {
 
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [timeRange, setTimeRange] = useState<'month' | 'quarter' | 'year'>('month');
-
-    // ✅ 灵活日期选择状态
     const [queryMode, setQueryMode] = useState<'year' | 'quarter' | 'month' | 'custom'>('month');
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [selectedQuarter, setSelectedQuarter] = useState(Math.floor(new Date().getMonth() / 3) + 1);
@@ -53,366 +61,330 @@ export default function HqFinancePage() {
 
     useEffect(() => {
         if (token) fetchDashboard();
-    }, [token, timeRange, queryMode, selectedYear, selectedQuarter, selectedMonth, customStart, customEnd]);
+    }, [token]);
 
-    // ✅ 构建查询参数
     const buildQueryParams = () => {
         switch (queryMode) {
-            case 'year':
-                return `?mode=year&year=${selectedYear}`;
-            case 'quarter':
-                return `?mode=quarter&year=${selectedYear}&quarter=${selectedQuarter}`;
-            case 'month':
-                return `?mode=month&year=${selectedYear}&month=${selectedMonth}`;
-            case 'custom':
-                if (customStart && customEnd) {
-                    return `?mode=custom&start=${customStart}&end=${customEnd}`;
-                }
-                return '?mode=month';
-            default:
-                return '';
+            case 'year': return `?mode=year&year=${selectedYear}`;
+            case 'quarter': return `?mode=quarter&year=${selectedYear}&quarter=${selectedQuarter}`;
+            case 'month': return `?mode=month&year=${selectedYear}&month=${selectedMonth}`;
+            case 'custom': return customStart && customEnd ? `?mode=custom&start=${customStart}&end=${customEnd}` : '?mode=month';
+            default: return '';
         }
     };
 
     const fetchDashboard = async () => {
+        setLoading(true);
         try {
             const queryParams = buildQueryParams();
             const res = await fetch(`${API_BASE_URL}/hq/finance/dashboard${queryParams}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (res.ok) {
-                setData(await res.json());
-            }
+            if (res.ok) setData(await res.json());
         } catch (e) { console.error(e); }
         setLoading(false);
     };
 
-    // Helper function to get time label
-    const getTimeLabel = () => {
-        const now = new Date();
-        switch (timeRange) {
-            case 'month':
-                return `本月 (${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')})`;
-            case 'quarter':
-                return `本季度 (Q${Math.floor(now.getMonth() / 3) + 1} ${now.getFullYear()})`;
-            case 'year':
-                return `本年度 (${now.getFullYear()})`;
-        }
+    const handleExport = () => {
+        if (!data) return;
+        const exportData = {
+            report_time: new Date().toLocaleString(),
+            summary: {
+                total_prepaid_pool: data.total_prepaid_pool / 100,
+                month_cash_in: data.month_cash_in / 100,
+                month_revenue: data.month_revenue / 100,
+                month_cost: data.month_cost / 100,
+                total_assets: data.total_asset_count,
+                assets_value: (data.total_asset_value || 0) / 100
+            },
+            base_rankings: data.base_rankings.map(b => ({
+                base_name: b.base_name,
+                revenue: b.total_income / 100,
+                margin: `${(b.profit_margin * 100).toFixed(1)}%`
+            }))
+        };
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `HQ_Finance_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
     };
 
-    if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-indigo-600" /></div>;
-    if (!data) return <div className="p-8 text-center text-gray-500">暂无财务数据，请检查后端服务。</div>;
+    const fmt = (cents: number) => `¥${(cents / 100).toLocaleString()}`;
 
-    // 格式化金额 (分 -> 元)
-    const fmt = (cents: number) => `¥${(cents / 100).toLocaleString('en-US')}`;
-    // 格式化万
-    const fmtW = (cents: number) => `${(cents / 100 / 10000).toFixed(1)}w`;
-
-    // 构造图表数据
-    const chartData = data.trend_labels.map((label, i) => ({
+    const trendData = data?.trend_labels.map((label, idx) => ({
         name: label,
-        cash: data.trend_cash_in[i] / 100,
-        revenue: data.trend_revenue[i] / 100,
-        cost: data.trend_cost[i] / 100,
-    }));
+        cash: data.trend_cash_in[idx],
+        revenue: data.trend_revenue[idx],
+        cost: data.trend_cost[idx]
+    })) || [];
 
-    // ✅ Use real income composition from backend
-    const pieData = data.income_composition && data.income_composition.length > 0
-        ? data.income_composition
-        : [{ name: '暂无数据', value: 100, color: '#e5e7eb' }];
+    const pieData = data?.income_composition || [];
+
+    if (loading && !data) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh]" style={{ background: SOFT_COLORS.background }}>
+                <Loader2 className="animate-spin mb-4" size={48} style={{ color: SOFT_COLORS.lavender }} />
+                <p className="text-sm font-medium" style={{ color: SOFT_COLORS.textMuted }}>温柔加载中...</p>
+            </div>
+        );
+    }
+
+    if (!data) return null;
 
     return (
-        <div className="p-6 max-w-[1600px] mx-auto space-y-6">
+        <div className="min-h-screen" style={{ background: `linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 100%)` }}>
+            <div className="max-w-7xl mx-auto p-6 md:p-8 space-y-6">
 
-            {/* 1. Header & Filters */}
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">财务驾驶舱 (CFO Cockpit)</h1>
-                    <p className="text-sm text-gray-500 mt-1">集团资金流向与经营状况实时监控</p>
-                </div>
-                <div className="flex gap-2 items-center">
-                    {/* 查询模式选择 */}
-                    <select
-                        value={queryMode}
-                        onChange={(e) => setQueryMode(e.target.value as any)}
-                        className="bg-white border border-gray-200 text-sm rounded-lg px-3 py-2 outline-none font-medium cursor-pointer">
-                        <option value="year">按年度</option>
-                        <option value="quarter">按季度</option>
-                        <option value="month">按月份</option>
-                        <option value="custom">自定义</option>
-                    </select>
+                {/* Header & Controls */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 rounded-3xl"
+                    style={{
+                        background: SOFT_COLORS.cardBg,
+                        boxShadow: '0 4px 20px rgba(135, 206, 235, 0.15), 0 1px 3px rgba(0, 0, 0, 0.05)'
+                    }}>
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight" style={{ color: SOFT_COLORS.text }}>
+                            总部财务中心
+                        </h1>
+                        <p className="text-sm mt-1" style={{ color: SOFT_COLORS.textMuted }}>
+                            实时财务数据与分析 · 柔和专业版
+                        </p>
+                    </div>
 
-                    {/* 动态日期选择器 */}
-                    {queryMode === 'year' && (
-                        <select
-                            value={selectedYear}
-                            onChange={(e) => setSelectedYear(Number(e.target.value))}
-                            className="bg-white border border-gray-200 text-sm rounded-lg px-3 py-2 outline-none cursor-pointer">
-                            {[...Array(5)].map((_, i) => {
-                                const year = new Date().getFullYear() - i;
-                                return <option key={year} value={year}>{year}年</option>;
-                            })}
+                    <div className="flex flex-wrap items-center gap-3">
+                        <select value={queryMode} onChange={(e: any) => setQueryMode(e.target.value)}
+                            className="px-4 py-2.5 rounded-xl text-sm font-medium outline-none transition-all hover:scale-105"
+                            style={{
+                                background: `linear-gradient(135deg, ${SOFT_COLORS.softBlue}20, ${SOFT_COLORS.lavender}15)`,
+                                color: SOFT_COLORS.text,
+                                border: `1.5px solid ${SOFT_COLORS.softBlue}40`,
+                                boxShadow: '0 2px 8px rgba(135, 206, 235, 0.1)'
+                            }}>
+                            <option value="month">按月</option>
+                            <option value="quarter">按季度</option>
+                            <option value="year">按年</option>
+                            <option value="custom">自定义</option>
                         </select>
-                    )}
 
-                    {queryMode === 'quarter' && (
-                        <>
-                            <select
-                                value={selectedYear}
-                                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                                className="bg-white border border-gray-200 text-sm rounded-lg px-2 py-2 outline-none cursor-pointer">
-                                {[...Array(5)].map((_, i) => {
-                                    const year = new Date().getFullYear() - i;
-                                    return <option key={year} value={year}>{year}</option>;
-                                })}
-                            </select>
-                            <select
-                                value={selectedQuarter}
-                                onChange={(e) => setSelectedQuarter(Number(e.target.value))}
-                                className="bg-white border border-gray-200 text-sm rounded-lg px-2 py-2 outline-none cursor-pointer">
-                                <option value={1}>Q1</option>
-                                <option value={2}>Q2</option>
-                                <option value={3}>Q3</option>
-                                <option value={4}>Q4</option>
-                            </select>
-                        </>
-                    )}
-
-                    {queryMode === 'month' && (
-                        <>
-                            <select
-                                value={selectedYear}
-                                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                                className="bg-white border border-gray-200 text-sm rounded-lg px-2 py-2 outline-none cursor-pointer">
-                                {[...Array(5)].map((_, i) => {
-                                    const year = new Date().getFullYear() - i;
-                                    return <option key={year} value={year}>{year}</option>;
-                                })}
-                            </select>
-                            <select
-                                value={selectedMonth}
-                                onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                                className="bg-white border border-gray-200 text-sm rounded-lg px-2 py-2 outline-none cursor-pointer">
-                                {[...Array(12)].map((_, i) => (
-                                    <option key={i + 1} value={i + 1}>{i + 1}月</option>
-                                ))}
-                            </select>
-                        </>
-                    )}
-
-                    {queryMode === 'custom' && (
-                        <>
-                            <input
-                                type="date"
-                                value={customStart}
-                                onChange={(e) => setCustomStart(e.target.value)}
-                                className="bg-white border border-gray-200 text-sm rounded-lg px-3 py-2 outline-none"
-                            />
-                            <span className="text-gray-500">至</span>
-                            <input
-                                type="date"
-                                value={customEnd}
-                                onChange={(e) => setCustomEnd(e.target.value)}
-                                className="bg-white border border-gray-200 text-sm rounded-lg px-3 py-2 outline-none"
-                            />
-                        </>
-                    )}
-
-                    <button onClick={fetchDashboard} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-indigo-700">
-                        查询数据
-                    </button>
-                </div>
-            </div>
-
-            {/* 2. Top Cards (The Pulse) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* 资金池 (资产) */}
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <DollarSign size={64} className="text-indigo-600" />
-                    </div>
-                    <div className="text-sm font-bold text-gray-500 mb-1">资金池总额 (预收)</div>
-                    <div className="text-3xl font-mono font-bold text-gray-900 tracking-tight">{fmt(data.total_prepaid_pool)}</div>
-                    <div className="mt-3 flex items-center text-xs font-medium text-indigo-600 bg-indigo-50 w-fit px-2 py-1 rounded">
-                        <Activity size={12} className="mr-1" /> 核心资产沉淀
+                        <button onClick={fetchDashboard}
+                            className="px-6 py-2.5 rounded-xl text-sm font-semibold transition-all hover:scale-105"
+                            style={{
+                                background: `linear-gradient(135deg, ${SOFT_COLORS.softBlue}, ${SOFT_COLORS.lavender})`,
+                                color: '#FFF',
+                                boxShadow: `0 4px 15px rgba(135, 206, 235, 0.3)`
+                            }}>
+                            查询
+                        </button>
+                        <button onClick={handleExport}
+                            className="px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all hover:scale-105"
+                            style={{
+                                background: `linear-gradient(135deg, ${SOFT_COLORS.softPink}, ${SOFT_COLORS.peach})`,
+                                color: '#FFF',
+                                boxShadow: `0 4px 15px rgba(255, 182, 193, 0.3)`
+                            }}>
+                            <Download size={16} /> 导出
+                        </button>
                     </div>
                 </div>
 
-                {/* 现金进账 (Cash In) */}
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="text-sm font-bold text-gray-500 mb-1">本月现金进账</div>
-                    <div className="text-3xl font-mono font-bold text-emerald-600 tracking-tight">{fmt(data.month_cash_in)}</div>
-                    {data.month_cash_in_growth != null && (
-                        <div className="mt-3 flex items-center text-xs font-bold text-emerald-600">
-                            {data.month_cash_in_growth >= 0 ? <ArrowUpRight size={14} className="mr-1" /> : <ArrowDownRight size={14} className="mr-1" />}
-                            <span>{data.month_cash_in_growth >= 0 ? '+' : ''}{data.month_cash_in_growth.toFixed(1)}%</span>
-                            <span className="text-gray-400 font-normal ml-1">vs 上期</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* 确认营收 (Revenue) */}
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="text-sm font-bold text-gray-500 mb-1">本月确认营收 (消课)</div>
-                    <div className="text-3xl font-mono font-bold text-blue-600 tracking-tight">{fmt(data.month_revenue)}</div>
-                    {data.month_revenue_growth != null && (
-                        <div className="mt-3 flex items-center text-xs font-bold text-blue-600">
-                            {data.month_revenue_growth >= 0 ? <ArrowUpRight size={14} className="mr-1" /> : <ArrowDownRight size={14} className="mr-1" />}
-                            <span>{data.month_revenue_growth >= 0 ? '+' : ''}{data.month_revenue_growth.toFixed(1)}%</span>
-                            <span className="text-gray-400 font-normal ml-1">vs 上期</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* 运营支出 (Cost) */}
-                <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="text-sm font-bold text-gray-500 mb-1">本月总支出</div>
-                    <div className="text-3xl font-mono font-bold text-rose-600 tracking-tight">{fmt(data.month_cost)}</div>
-                    {data.month_cost_reduction != null && (
-                        <div className="mt-3 flex items-center text-xs font-bold text-emerald-600">
-                            {data.month_cost_reduction <= 0 ? <ArrowDownRight size={14} className="mr-1" /> : <ArrowUpRight size={14} className="mr-1" />}
-                            <span>{data.month_cost_reduction.toFixed(1)}%</span>
-                            <span className="text-gray-400 font-normal ml-1">vs 上期</span>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* 3. Middle Section: Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {/* 趋势图 (占 2/3) */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                            <TrendingUp className="text-indigo-600" size={20} /> 集团经营趋势 (近半年)
-                        </h3>
-                        <div className="flex gap-4 text-xs font-bold">
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> 现金流</span>
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> 消课营收</span>
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-400"></span> 支出成本</span>
-                        </div>
-                    </div>
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={chartData}>
-                                <defs>
-                                    <linearGradient id="colorCash" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.1} />
-                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
-                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} tickFormatter={(val) => `${val / 10000}w`} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                    formatter={(val: number) => `¥${val.toLocaleString()}`}
-                                />
-                                <Area type="monotone" dataKey="cash" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorCash)" name="现金流" />
-                                <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" name="营收" />
-                                <Area type="monotone" dataKey="cost" stroke="#fb7185" strokeWidth={2} strokeDasharray="4 4" fill="none" name="支出" />
-                            </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* 构成图 (占 1/3) */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
-                    <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-                        <PieChart className="text-indigo-600" size={20} /> 收入结构分析
-                    </h3>
-                    <div className="flex-1 flex items-center justify-center relative">
-                        <ResponsiveContainer width="100%" height={250}>
-                            <RePie width={400} height={400}>
-                                <Pie
-                                    data={pieData}
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {pieData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </RePie>
-                        </ResponsiveContainer>
-                        {/* 中心文字 */}
-                        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                            <span className="text-3xl font-bold text-gray-900">100%</span>
-                            <span className="text-xs text-gray-400">营收构成</span>
-                        </div>
-                    </div>
-                    <div className="space-y-3 mt-4">
-                        {pieData.map(d => (
-                            <div key={d.name} className="flex justify-between items-center text-sm">
-                                <div className="flex items-center gap-2">
-                                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }}></span>
-                                    <span className="text-gray-600">{d.name}</span>
-                                </div>
-                                <span className="font-bold text-gray-900">{d.value}%</span>
+                {/* Soft UI Metric Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                    {[
+                        { icon: Wallet, label: '资金池总额', value: fmt(data.total_prepaid_pool), gradient: `linear-gradient(135deg, ${SOFT_COLORS.softBlue}30, ${SOFT_COLORS.softBlue}10)`, shadow: 'rgba(135, 206, 235, 0.2)' },
+                        { icon: Coins, label: '现金进账', value: fmt(data.month_cash_in), gradient: `linear-gradient(135deg, ${SOFT_COLORS.softGreen}30, ${SOFT_COLORS.softGreen}10)`, shadow: 'rgba(144, 238, 144, 0.2)' },
+                        { icon: TrendingUp, label: '确认营收', value: fmt(data.month_revenue), gradient: `linear-gradient(135deg, ${SOFT_COLORS.lavender}30, ${SOFT_COLORS.lavender}10)`, shadow: 'rgba(167, 139, 250, 0.2)' },
+                        { icon: Building2, label: '资产数量', value: `${data.total_asset_count || 0}`, gradient: `linear-gradient(135deg, ${SOFT_COLORS.softPink}30, ${SOFT_COLORS.softPink}10)`, shadow: 'rgba(255, 182, 193, 0.2)' }
+                    ].map((metric, idx) => (
+                        <div key={idx}
+                            className="p-6 rounded-3xl transition-all hover:scale-105 cursor-pointer group"
+                            style={{
+                                background: metric.gradient,
+                                backdropFilter: 'blur(10px)',
+                                border: '1.5px solid rgba(255, 255, 255, 0.6)',
+                                boxShadow: `0 8px 32px ${metric.shadow}, 0 2px 8px rgba(0, 0, 0, 0.05)`
+                            }}>
+                            <div className="flex items-center justify-between mb-3">
+                                <metric.icon size={28} style={{ color: SOFT_COLORS.text, opacity: 0.8 }} className="group-hover:scale-110 transition-transform" />
                             </div>
-                        ))}
+                            <p className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: SOFT_COLORS.textMuted }}>{metric.label}</p>
+                            <p className="text-3xl font-bold tracking-tight" style={{ color: SOFT_COLORS.text }}>
+                                {metric.value}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Charts with Soft Shadows */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                    {/* Trend Chart */}
+                    <div className="lg:col-span-2 p-6 rounded-3xl"
+                        style={{
+                            background: SOFT_COLORS.cardBg,
+                            boxShadow: '0 8px 32px rgba(135, 206, 235, 0.15), 0 2px 8px rgba(0, 0, 0, 0.05)'
+                        }}>
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-2 rounded-xl" style={{ background: `${SOFT_COLORS.softBlue}20` }}>
+                                <BarChart3 size={22} style={{ color: SOFT_COLORS.softBlue }} />
+                            </div>
+                            <h3 className="font-semibold text-lg" style={{ color: SOFT_COLORS.text }}>
+                                经营趋势分析
+                            </h3>
+                        </div>
+                        <div className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={trendData}>
+                                    <defs>
+                                        <linearGradient id="softBlue" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={SOFT_COLORS.softBlue} stopOpacity={0.4} />
+                                            <stop offset="95%" stopColor={SOFT_COLORS.softBlue} stopOpacity={0.05} />
+                                        </linearGradient>
+                                        <linearGradient id="softGreen" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={SOFT_COLORS.softGreen} stopOpacity={0.4} />
+                                            <stop offset="95%" stopColor={SOFT_COLORS.softGreen} stopOpacity={0.05} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke={SOFT_COLORS.border} vertical={false} />
+                                    <XAxis dataKey="name" stroke={SOFT_COLORS.textMuted} tick={{ fontSize: 12 }} />
+                                    <YAxis stroke={SOFT_COLORS.textMuted} tick={{ fontSize: 12 }} tickFormatter={(val) => `${val / 10000}w`} />
+                                    <Tooltip
+                                        contentStyle={{
+                                            background: SOFT_COLORS.cardBg,
+                                            border: `1.5px solid ${SOFT_COLORS.softBlue}40`,
+                                            borderRadius: '16px',
+                                            boxShadow: '0 8px 24px rgba(135, 206, 235, 0.2)'
+                                        }}
+                                        formatter={(val: number) => `¥${(val / 100).toLocaleString()}`}
+                                    />
+                                    <Area type="monotone" dataKey="cash" stroke={SOFT_COLORS.softGreen} strokeWidth={3} fill="url(#softGreen)" name="现金流" />
+                                    <Area type="monotone" dataKey="revenue" stroke={SOFT_COLORS.softBlue} strokeWidth={3} fill="url(#softBlue)" name="营收" />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+
+                    {/* Income Pie */}
+                    <div className="p-6 rounded-3xl flex flex-col"
+                        style={{
+                            background: SOFT_COLORS.cardBg,
+                            boxShadow: '0 8px 32px rgba(167, 139, 250, 0.15), 0 2px 8px rgba(0, 0, 0, 0.05)'
+                        }}>
+                        <div className="flex items-center gap-3 mb-6">
+                            <div className="p-2 rounded-xl" style={{ background: `${SOFT_COLORS.lavender}20` }}>
+                                <PieChart size={22} style={{ color: SOFT_COLORS.lavender }} />
+                            </div>
+                            <h3 className="font-semibold text-lg" style={{ color: SOFT_COLORS.text }}>
+                                收入结构
+                            </h3>
+                        </div>
+                        <div className="flex-1 flex items-center justify-center relative min-h-[180px] mb-6">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <RePie>
+                                    <Pie data={pieData} innerRadius={55} outerRadius={80} paddingAngle={6} dataKey="value">
+                                        {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+                                    </Pie>
+                                    <Tooltip formatter={(value: number) => `${value}%`} />
+                                </RePie>
+                            </ResponsiveContainer>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span className="text-4xl font-bold" style={{ color: SOFT_COLORS.text }}>
+                                    {pieData[0]?.value || 0}%
+                                </span>
+                                <span className="text-xs font-medium" style={{ color: SOFT_COLORS.textMuted }}>主营业务</span>
+                            </div>
+                        </div>
+                        <div className="space-y-3">
+                            {pieData.map((item, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-3 rounded-xl transition-all hover:scale-105"
+                                    style={{ background: `${item.color}10` }}>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-3 h-3 rounded-full" style={{
+                                            backgroundColor: item.color,
+                                            boxShadow: `0 0 8px ${item.color}60`
+                                        }} />
+                                        <span className="text-sm font-medium" style={{ color: SOFT_COLORS.text }}>{item.name}</span>
+                                    </div>
+                                    <span className="text-sm font-bold" style={{ color: SOFT_COLORS.text }}>
+                                        {item.value}%
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Base Rankings */}
+                <div className="p-6 rounded-3xl overflow-hidden"
+                    style={{
+                        background: SOFT_COLORS.cardBg,
+                        boxShadow: '0 8px 32px rgba(255, 182, 193, 0.12), 0 2px 8px rgba(0, 0, 0, 0.05)'
+                    }}>
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 rounded-xl" style={{ background: `${SOFT_COLORS.softPink}20` }}>
+                            <Building2 size={22} style={{ color: SOFT_COLORS.softPink }} />
+                        </div>
+                        <h3 className="font-semibold text-lg" style={{ color: SOFT_COLORS.text }}>
+                            基地业绩 TOP 5
+                        </h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead className="border-b-2" style={{ borderColor: `${SOFT_COLORS.softBlue}30` }}>
+                                <tr>
+                                    <th className="px-4 py-3 text-left font-semibold" style={{ color: SOFT_COLORS.textMuted }}>排名</th>
+                                    <th className="px-4 py-3 text-left font-semibold" style={{ color: SOFT_COLORS.textMuted }}>校区</th>
+                                    <th className="px-4 py-3 text-right font-semibold" style={{ color: SOFT_COLORS.textMuted }}>营收</th>
+                                    <th className="px-4 py-3 text-right font-semibold" style={{ color: SOFT_COLORS.textMuted }}>利润率</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.base_rankings.map((base, idx) => (
+                                    <tr key={base.base_id} className="border-b transition-all hover:scale-105"
+                                        style={{
+                                            borderColor: `${SOFT_COLORS.border}`,
+                                            background: idx % 2 === 0 ? `${SOFT_COLORS.softBlue}05` : 'transparent'
+                                        }}>
+                                        <td className="px-4 py-4">
+                                            <span className={`flex items-center justify-center w-10 h-10 rounded-2xl text-sm font-bold shadow-md`}
+                                                style={{
+                                                    background: idx === 0 ? `linear-gradient(135deg, #FCD34D, #F59E0B)` :
+                                                        idx === 1 ? `linear-gradient(135deg, #CBD5E1, #94A3B8)` :
+                                                            idx === 2 ? `linear-gradient(135deg, #FB923C, #F97316)` :
+                                                                `${SOFT_COLORS.softBlue}20`,
+                                                    color: idx < 3 ? '#FFF' : SOFT_COLORS.text
+                                                }}>
+                                                {idx + 1}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <Building2 size={16} style={{ color: SOFT_COLORS.textMuted }} />
+                                                <span className="font-semibold" style={{ color: SOFT_COLORS.text }}>
+                                                    {base.base_name}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-4 text-right font-bold" style={{ color: SOFT_COLORS.text }}>
+                                            {fmt(base.total_income)}
+                                        </td>
+                                        <td className="px-4 py-4 text-right">
+                                            <span className={`px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm`}
+                                                style={{
+                                                    background: base.profit_margin > 0.2
+                                                        ? `linear-gradient(135deg, ${SOFT_COLORS.softGreen}, #34D399)`
+                                                        : `linear-gradient(135deg, ${SOFT_COLORS.softPink}, ${SOFT_COLORS.peach})`,
+                                                    color: '#FFF'
+                                                }}>
+                                                {(base.profit_margin * 100).toFixed(1)}%
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
-
-            {/* 4. Bottom: Base Rankings */}
-            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                        <BarChart3 className="text-indigo-600" size={20} /> 基地业绩龙虎榜 (Top 5)
-                    </h3>
-                    <button className="text-xs font-bold text-indigo-600 hover:text-indigo-700">查看完整报表 &rarr;</button>
-                </div>
-                <table className="w-full text-left text-sm">
-                    <thead className="text-gray-500 font-medium border-b border-gray-100 bg-white">
-                        <tr>
-                            <th className="px-6 py-4 w-16">排名</th>
-                            <th className="px-6 py-4">基地名称</th>
-                            <th className="px-6 py-4 text-right">总营收 (Total Income)</th>
-                            <th className="px-6 py-4 text-right">利润率 (Margin)</th>
-                            <th className="px-6 py-4 text-center">状态</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {data.base_rankings.map((base, idx) => (
-                            <tr key={base.base_id} className="hover:bg-gray-50/80 transition-colors">
-                                <td className="px-6 py-4">
-                                    <span className={`flex items-center justify-center w-6 h-6 rounded font-bold text-xs 
-                                        ${idx === 0 ? 'bg-yellow-100 text-yellow-700' :
-                                            idx === 1 ? 'bg-gray-100 text-gray-700' :
-                                                idx === 2 ? 'bg-orange-100 text-orange-700' : 'text-gray-400'}`}>
-                                        {idx + 1}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 font-bold text-gray-900 flex items-center gap-2">
-                                    <Building2 size={16} className="text-gray-300" />
-                                    {base.base_name}
-                                </td>
-                                <td className="px-6 py-4 text-right font-mono font-medium text-gray-700">
-                                    {fmt(base.total_income)}
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <span className={`px-2 py-1 rounded text-xs font-bold ${base.profit_margin > 0.2 ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}`}>
-                                        {(base.profit_margin * 100).toFixed(1)}%
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-center">
-                                    <span className="text-xs text-gray-400">正常运营</span>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-
         </div>
     );
 }

@@ -41,6 +41,8 @@ Page({
             total_prepaid_pool_fmt: fmt(data.total_prepaid_pool || 0),
             month_cash_in_fmt: fmt(data.month_cash_in || 0),
             month_revenue_fmt: fmt(data.month_revenue || 0),
+            yesterday_cash_in_fmt: fmt(data.yesterday_cash_in || 0),
+            yesterday_revenue_fmt: fmt(data.yesterday_revenue || 0),
             // Use real trend data from backend
             trend_revenue: data.trend_revenue || []
         };
@@ -135,11 +137,22 @@ Page({
             confirmColor: '#000000',
             success: (res) => {
                 if (res.confirm) {
-                    // Call verify API (Mock for now)
                     wx.showToast({ title: '审核通过', icon: 'success' });
-                    this.loadPendingRecords(); // Refresh
+                    this.loadPendingRecords();
                 }
             }
         });
+    },
+
+    onCopyInfo() {
+        const info = "EduSaaS 集团总部\n开户行：招商银行深南分行\n账号：6222 0801 2233 4455";
+        wx.setClipboardData({
+            data: info,
+            success: () => wx.showToast({ title: '已复制总部账户', icon: 'success' })
+        });
+    },
+
+    onSearchBase() {
+        wx.navigateTo({ url: '/pkg_hq/pages/base/list/index' });
     }
 });

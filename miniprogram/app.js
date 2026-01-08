@@ -10,37 +10,59 @@ App({
   onLaunch(options) {
     console.log('App Launch:', options);
 
-    // 🔧 开发模式：自动设置测试token（跳过登录）
-    const DEV_MODE_AUTO_LOGIN = true; // 设为false可恢复正常登录流程
+    // ========================================
+    // 🔧 开发环境配置区 (Development Config)
+    // ========================================
+    const DEV_MODE_AUTO_LOGIN = true;  // 是否启用自动登录（跳过登录页）
+    const DEV_USER_TYPE = 'B_END';     // ✅ 测试用户类型: 'B_END' | 'C_END'
+    // ========================================
 
     if (DEV_MODE_AUTO_LOGIN) {
-      // 使用真实的哑巴湖基地数据
       const YABAHU_BASE_ID = '841e6e10-4507-467e-af42-ebbcff2dbb6e';
       const YABAHU_HQ_ID = 'dc53fe5d-1212-4259-8350-bb443df1717e';
 
-      const testToken = `dev_token_${YABAHU_BASE_ID}`;
-      const testUserInfo = {
-        id: '02352317-d905-4429-9bc7-577e4907660c', // 李希圣
-        name: '李希圣(测试)',
-        phone_number: '138****5678',
-        base_id: YABAHU_BASE_ID,
-        hq_id: YABAHU_HQ_ID
-      };
+      let testToken, testUserInfo, testRole;
+
+      if (DEV_USER_TYPE === 'B_END') {
+        // ===== B端测试：内部员工（总部财务/校区管理等） =====
+        console.log('🔧 [DEV] B端模式 - 模拟总部财务人员登录');
+        testToken = `dev_token_hq_finance`;
+        testUserInfo = {
+          id: '00000000-0000-0000-0000-000000000001', // 假设的HQ财务ID
+          name: '张财务(测试)',
+          phone_number: '139****1234',
+          base_id: null,  // 总部人员无 base_id
+          hq_id: YABAHU_HQ_ID
+        };
+        testRole = 'HQ'; // 总部角色，会跳转到 /pkg_hq/dashboard/index
+      } else {
+        // ===== C端测试：客户（家长扫码注册） =====
+        console.log('🔧 [DEV] C端模式 - 模拟哑巴湖基地家长');
+        testToken = `dev_token_${YABAHU_BASE_ID}`;
+        testUserInfo = {
+          id: '02352317-d905-4429-9bc7-577e4907660c', // 李希圣
+          name: '李希圣(家长)',
+          phone_number: '138****5678',
+          base_id: YABAHU_BASE_ID,
+          hq_id: YABAHU_HQ_ID
+        };
+        testRole = 'CONSUMER'; // C端角色，会跳转到 /pkg_customer/home/index
+      }
 
       // 核心：调用 userStore 动作，确保全网同步状态（包括 TabBar）
       if (userStore && userStore.setLoginSuccess) {
-        userStore.setLoginSuccess(testToken, testUserInfo, 'CONSUMER');
-        console.log('🔧 开发模式：已通过 userStore 自动登录哑巴湖基地');
+        userStore.setLoginSuccess(testToken, testUserInfo, testRole);
+        console.log(`✅ [DEV] 已自动登录 - 身份: ${testRole}`);
       } else {
         // 兜底方案
         wx.setStorageSync('token', testToken);
         wx.setStorageSync('userInfo', testUserInfo);
-        wx.setStorageSync('role', 'CONSUMER');
-        console.log('🔧 开发模式：已通过 Storage 自动登录哑巴湖基地');
+        wx.setStorageSync('role', testRole);
+        console.log(`✅ [DEV] 已通过 Storage 自动登录 - 身份: ${testRole}`);
       }
 
-      console.log('   基地ID:', YABAHU_BASE_ID);
-      console.log('   总部ID:', YABAHU_HQ_ID);
+      console.log('   Token:', testToken);
+      console.log('   用户:', testUserInfo.name);
     }
 
     // 获取系统信息

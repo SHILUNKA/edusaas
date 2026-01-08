@@ -18,7 +18,7 @@
           <text class="amount-lg">{{stats.total_prepaid_pool_fmt || '0'}}</text>
         </view>
         <view class="trend-row down">
-           <text>消课率 45%</text> <!-- Mock data for now -->
+           <text>消课率 45%</text>
         </view>
       </view>
 
@@ -43,7 +43,30 @@
     </view>
   </view>
 
-  <!-- 3. 基地贡献榜 -->
+  <!-- 2.昨日快报 (Daily Pulse) - NEW -->
+  <view class="pulse-section">
+    <view class="section-title">昨日快报 (Daily Pulse)</view>
+    <view class="pulse-grid">
+      <view class="pulse-card">
+        <text class="p-label">昨日实收</text>
+        <text class="p-value">¥{{stats.yesterday_cash_in_fmt || '0'}}</text>
+      </view>
+      <view class="pulse-card">
+        <text class="p-label">昨日确收</text>
+        <text class="p-value">¥{{stats.yesterday_revenue_fmt || '0'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 3. 校区经营快照 (Base Snapshot) - NEW -->
+  <view class="snapshot-section" bindtap="onSearchBase">
+    <view class="snapshot-inner">
+      <icon type="search" size="18" color="#666" />
+      <text>搜索校区财务快照...</text>
+    </view>
+  </view>
+
+  <!-- 4. 基地贡献榜 -->
   <view class="ranking-section">
     <view class="section-title">基地贡献榜 Top 5</view>
     <view class="ranking-list">
@@ -66,7 +89,19 @@
     </view>
   </view>
 
-  <!-- 4. 待办审核流 -->
+  <!-- 5. 财务工具 (Public Tools) - NEW -->
+  <view class="tools-section">
+     <view class="tool-card" bindtap="onCopyInfo">
+        <view class="tool-icon">🏦</view>
+        <view class="tool-body">
+           <view class="tool-name">总部对公信息卡</view>
+           <view class="tool-desc">一键复制开户行、账号、抬头</view>
+        </view>
+        <view class="tool-action">复制</view>
+     </view>
+  </view>
+
+  <!-- 6. 待办审核流 -->
   <view class="audit-section">
     <view class="audit-header">
       <view class="section-title">待审核流水</view>

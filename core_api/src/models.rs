@@ -1046,6 +1046,14 @@ pub struct HqFinanceDashboardData {
     pub month_revenue: i64,           // 本月确认营收 (分)
     pub month_cost: i64,              // 本月总支出 (分)
     
+    // ✅ 资产概览 (用于监控静态资产健康度)
+    pub total_asset_value: i64,       // 全网资产原值 (分)
+    pub total_asset_count: i64,       // 资产总件数
+    
+    // ✅ 新增对比指标 (用于移动端快报)
+    pub yesterday_cash_in: Option<i64>,
+    pub yesterday_revenue: Option<i64>,
+
     // 趋势图数据 (最近6个月)
     pub trend_labels: Vec<String>,    // ["8月", "9月", ...]
     pub trend_cash_in: Vec<i64>,      // 现金流

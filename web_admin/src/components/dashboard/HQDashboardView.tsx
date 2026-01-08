@@ -100,8 +100,18 @@ export default function TenantDashboardView({ roles = [] }: { roles: string[] })
         fetchData();
     }, [token, isBoss, isFinance, isOps, isHR]);
 
+    // Soft UI Evolution: Loading state with soft pastel styling
     if (isLoading) {
-        return <div className="h-64 flex items-center justify-center text-gray-400"><Loader2 className="animate-spin mr-2" /> 加载集团数据...</div>;
+        return (
+            <div className="h-64 flex flex-col items-center justify-center gap-4 p-8 rounded-3xl"
+                style={{
+                    background: 'linear-gradient(135deg, rgba(167, 139, 250, 0.1), rgba(167, 139, 250, 0.05))',
+                    boxShadow: '0 8px 32px rgba(167, 139, 250, 0.12)'
+                }}>
+                <Loader2 className="animate-spin" size={48} style={{ color: '#A78BFA' }} />
+                <p className="text-sm font-medium" style={{ color: '#64748B' }}>加载集团数据...</p>
+            </div>
+        );
     }
 
     // === 角色分发 ===

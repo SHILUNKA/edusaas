@@ -14,12 +14,12 @@ export default function BossDashboard({ stats }: any) {
                 </div>
             </div>
 
-            {/* 核心指标 (Mock 数据演示布局) */}
+            {/* 核心指标 (对接真实数据) */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <StatCard icon={Building2} label="运营分校" value={stats?.basic?.total_bases || 0} unit="家" color="blue" />
-                <StatCard icon={Users} label="集团总学员" value="2,450" unit="人" color="indigo" />
-                <StatCard icon={Wallet} label="本月总营收" value="¥128.5" unit="万" color="emerald" />
-                <StatCard icon={TrendingUp} label="平均增长率" value="+15.2" unit="%" color="purple" />
+                <StatCard icon={Users} label="集团总学员" value={stats?.basic?.total_students?.toLocaleString() || 0} unit="人" color="indigo" />
+                <StatCard icon={Wallet} label="今日总营收" value={`¥${(stats?.basic?.today_revenue / 100).toLocaleString()}`} unit="" color="emerald" />
+                <StatCard icon={TrendingUp} label="平均增长率" value={`+${stats?.basic?.revenue_growth_rate || 0}`} unit="%" color="purple" />
             </div>
 
             {/* 图表与地图 */}
@@ -28,17 +28,30 @@ export default function BossDashboard({ stats }: any) {
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm md:col-span-1">
                     <h3 className="font-bold text-gray-800 mb-4">分校业绩排行榜 (Top 5)</h3>
                     <div className="space-y-4">
-                        <RankItem rank={1} name="北京朝阳示范校" amount="45.2w" percent={92} />
-                        <RankItem rank={2} name="上海静安旗舰店" amount="38.5w" percent={85} />
-                        <RankItem rank={3} name="深圳南山校区" amount="22.1w" percent={60} />
-                        <RankItem rank={4} name="广州天河校区" amount="18.4w" percent={45} />
-                        <RankItem rank={5} name="成都高新校区" amount="12.0w" percent={30} />
+                        {stats?.basic?.base_rankings?.length > 0 ? (
+                            stats.basic.base_rankings.map((base: any, idx: number) => {
+                                // 计算一个相对百分比用于条形图显示 (以第一名为 100%)
+                                const maxRevenue = stats.basic.base_rankings[0].total_income || 1;
+                                const percent = Math.round(((base.total_income || 0) / maxRevenue) * 100);
+                                return (
+                                    <RankItem
+                                        key={base.base_id}
+                                        rank={idx + 1}
+                                        name={base.base_name}
+                                        amount={`¥${((base.total_income || 0) / 1000000).toFixed(1)}w`}
+                                        percent={percent}
+                                    />
+                                );
+                            })
+                        ) : (
+                            <div className="text-center py-8 text-gray-400 text-sm">暂无业绩数据</div>
+                        )}
                     </div>
                 </div>
 
                 {/* 右侧：全国分布 (占位) */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm md:col-span-2 flex flex-col items-center justify-center text-gray-400 bg-gray-50/50">
-                    <Map size={48} className="mb-2 opacity-20"/>
+                    <Map size={48} className="mb-2 opacity-20" />
                     <span>[ Echarts 中国地图 / 业务分布热力图 ]</span>
                 </div>
             </div>

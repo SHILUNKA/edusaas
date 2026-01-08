@@ -23,7 +23,7 @@ pub async fn get_all_assets_handler(
     claims: Claims,
     Query(params): Query<AssetQuery>,
 ) -> Result<Json<Vec<AssetDetail>>, StatusCode> {
-    if !claims.roles.contains(&"role.hq.admin".to_string()) {
+    if !claims.roles.iter().any(|r| r == "role.hq.admin" || r == "role.hq.finance") {
         return Err(StatusCode::FORBIDDEN);
     }
 

@@ -15,7 +15,7 @@ export default function OpsDashboard({ advStats }: any) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
                     <div className="flex items-center gap-2 opacity-90 font-bold mb-2">
-                        <TrendingUp size={20}/> 本周全局转化率
+                        <TrendingUp size={20} /> 本周全局转化率
                     </div>
                     <div className="text-4xl font-bold">{advStats?.conversion_rate?.toFixed(1) || 0}%</div>
                     <div className="mt-4 text-sm bg-white/20 px-3 py-1 rounded-full w-fit">
@@ -25,14 +25,14 @@ export default function OpsDashboard({ advStats }: any) {
 
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-center">
                     <div className="flex items-center gap-3 text-gray-500 font-bold mb-2">
-                        <BarChart3 className="text-orange-500"/> 本周体验课
+                        <BarChart3 className="text-orange-500" /> 本周体验课
                     </div>
                     <div className="text-3xl font-bold text-gray-900">{advStats?.trial_class_count || 0} <span className="text-sm text-gray-400 font-normal">节</span></div>
                 </div>
 
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-center">
                     <div className="flex items-center gap-3 text-gray-500 font-bold mb-2">
-                        <UserPlus className="text-green-500"/> 新增正式会员
+                        <UserPlus className="text-green-500" /> 新增正式会员
                     </div>
                     <div className="text-3xl font-bold text-gray-900">{advStats?.new_members_count || 0} <span className="text-sm text-gray-400 font-normal">人</span></div>
                 </div>

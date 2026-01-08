@@ -9,6 +9,7 @@ use axum::{
     response::Response,
 };
 use jsonwebtoken::{decode, DecodingKey, Validation};
+use uuid::Uuid;
 use crate::models::Claims;
 
 pub async fn auth_middleware(
@@ -32,6 +33,22 @@ pub async fn auth_middleware(
     }
 
     let token = &auth_header[7..];
+
+    // 2.5 开发环境"后门"：支持 dev_token_ 直接绕过 JWT 校检
+    if token.starts_with("dev_token_") {
+        let claims = Claims {
+            sub: "02352317-d905-4429-9bc7-577e4907660c".to_string(), // 李希圣的ID
+            roles: vec!["CONSUMER".to_string()],
+            hq_id: Uuid::parse_str("dc53fe5d-1212-4259-8350-bb443df1717e").unwrap(),
+            base_id: Some(Uuid::parse_str("841e6e10-4507-467e-af42-ebbcff2dbb6e").unwrap()),
+            base_name: Some("哑巴湖基地".to_string()),
+            base_logo: None,
+            full_name: "测试用户(李希圣)".to_string(),
+            exp: 9999999999,
+        };
+        req.extensions_mut().insert(claims);
+        return Ok(next.run(req).await);
+    }
 
     // 3. 解析 Token
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret".to_string());

@@ -1,0 +1,8 @@
+{
+    "usingComponents": {
+        "dynamic-tab-bar": "/components/dynamic-tab-bar/index"
+    },
+    "navigationBarTitleText": "首页",
+    "navigationBarBackgroundColor": "#4A90E2",
+    "navigationBarTextStyle": "white"
+}

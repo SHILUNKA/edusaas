@@ -1,0 +1,66 @@
+<view class="honor-container">
+  <!-- 军衔徽章展示 -->
+  <view class="rank-display" wx:if="{{honorInfo}}">
+    <view class="rank-badge">
+      <image class="badge-icon" src="{{honorInfo.current_rank.badge_icon_url || '/images/default-badge.png'}}" />
+    </view>
+    <view class="rank-name">{{honorInfo.current_rank.display_name}}</view>
+    <view class="rank-level">Lv.{{honorInfo.current_rank.rank_level}}</view>
+    
+    <!-- 积分进度条 -->
+    <view class="points-progress">
+      <view class="progress-bar">
+        <view class="progress-fill" style="width: {{honorInfo.progress_percentage}}%"></view>
+      </view>
+      <view class="progress-text">
+        <text class="current">{{honorInfo.total_points}}积分</text>
+        <text class="target" wx:if="{{honorInfo.next_rank}}">下一级需{{honorInfo.next_rank.points_required}}积分</text>
+      </view>
+    </view>
+    
+    <!-- 成长报告入口 -->
+    <view class="report-entry" bindtap="navToReport">
+      <view class="report-btn">
+        <text class="iconfont icon-report"></text>
+        <text>查看详细成长报告</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 统计卡片 -->
+  <view class="stats-cards" wx:if="{{honorInfo}}">
+    <view class="stat-card">
+      <text class="stat-value">{{honorInfo.monthly_points}}</text>
+      <text class="stat-label">本月积分</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-value">{{honorInfo.class_rank || '-'}}</text>
+      <text class="stat-label">班级排名</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-value">{{honorInfo.school_rank || '-'}}</text>
+      <text class="stat-label">校区排名</text>
+    </view>
+  </view>
+
+  <!-- 功能Tab -->
+  <view class="function-tabs">
+    <view 
+      class="tab-item {{activeTab === index ? 'active' : ''}}"
+      wx:for="{{tabs}}"
+      wx:key="*this"
+      wx:for-index="index"
+      bindtap="onTabChange"
+      data-index="{{index}}"
+    >
+      {{item}}
+    </view>
+  </view>
+
+  <!-- 提示文字 -->
+  <view class="hint-text">
+    <text>点击上方Tab查看各项详情</text>
+  </view>
+</view>
+
+<dynamic-tab-bar selected="2"></dynamic-tab-bar>

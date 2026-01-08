@@ -1,0 +1,149 @@
+/* pages/bookkeeping/index.wxss */
+.page {
+  padding: 24rpx;
+  background-color: #f5f7fa;
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding-bottom: 150rpx; /* footer space */
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 30rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.02);
+}
+
+/* 金额卡片 */
+.amount-card .label {
+  font-size: 28rpx;
+  color: #64748b;
+  margin-bottom: 20rpx;
+}
+.amount-wrap {
+  display: flex;
+  align-items: baseline;
+  border-bottom: 1rpx solid #f1f5f9;
+  padding-bottom: 10rpx;
+}
+.currency {
+  font-size: 48rpx;
+  font-weight: 600;
+  color: #334155;
+  margin-right: 10rpx;
+}
+.input-large {
+  font-size: 64rpx;
+  font-weight: bold;
+  height: 80rpx;
+  color: #0f172a;
+  flex: 1;
+}
+
+/* 表单项 */
+.form-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 0;
+}
+.form-item.vertical {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16rpx;
+}
+.form-item .label {
+  font-size: 30rpx;
+  color: #334155;
+  font-weight: 500;
+}
+.form-item .value {
+  display: flex;
+  align-items: center;
+  font-size: 30rpx;
+  color: #64748b;
+}
+.arrow {
+  margin-left: 10rpx;
+  color: #cbd5e1;
+  font-family: monospace;
+}
+.divider {
+  height: 1rpx;
+  background: #f1f5f9;
+  margin: 0 10rpx;
+}
+.textarea {
+  width: 100%;
+  min-height: 120rpx;
+  font-size: 30rpx;
+  line-height: 1.5;
+  color: #334155;
+}
+
+/* 上传 */
+.upload-card .label {
+  font-size: 30rpx;
+  color: #334155;
+  font-weight: 500;
+  margin-bottom: 20rpx;
+}
+.upload-box {
+  width: 160rpx;
+  height: 160rpx;
+  background: #f8fafc;
+  border: 2rpx dashed #cbd5e1;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.upload-box .placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #94a3b8;
+}
+.upload-box .icon {
+  font-size: 48rpx;
+  line-height: 1;
+  margin-bottom: 8rpx;
+}
+.upload-box text {
+  font-size: 22rpx;
+}
+.preview-img {
+  width: 100%;
+  height: 100%;
+}
+
+/* 底部按钮 */
+.footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  box-shadow: 0 -4rpx 16rpx rgba(0,0,0,0.05);
+}
+.btn-submit {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  color: white;
+  border-radius: 44rpx;
+  font-size: 32rpx;
+  font-weight: 600;
+  height: 88rpx;
+  line-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 20rpx rgba(79, 70, 229, 0.3);
+}
+.btn-submit:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}

@@ -1,0 +1,40 @@
+<view class="page">
+  <view class="list-container">
+    <block wx:if="{{list.length > 0}}">
+      <view class="bill-item" wx:for="{{list}}" wx:key="id" bindtap="handleItemTap" data-item="{{item}}">
+        <view class="bill-main">
+          <view class="bill-left">
+            <view class="cat-avatar {{item.categoryStyle}}">{{item.categoryChar}}</view>
+            <view class="bill-info">
+              <view class="bill-desc">{{item.description}}</view>
+              <view class="bill-meta">
+                <text class="bill-time">{{item.expense_date}}</text>
+                <text class="bill-cat-tag">{{item.category}}</text>
+              </view>
+            </view>
+          </view>
+          <view class="bill-right">
+            <view class="bill-amount">-{{item.amountFmt}}</view>
+            <view class="bill-status status-{{item.status}}">{{item.statusText}}</view>
+          </view>
+        </view>
+        
+        <!-- 凭证缩略图 (如果有) -->
+        <view class="proof-row" wx:if="{{item.proof_image_url}}">
+          <view class="proof-badge">
+             <text>📎 附件凭证</text>
+          </view>
+        </view>
+      </view>
+      
+      <view class="list-footer" wx:if="{{!hasMore}}">
+        <text>-- 仅展示最近100条记录 --</text>
+      </view>
+    </block>
+    
+    <view class="empty-state" wx:else>
+      <view class="empty-text">暂无支出记录</view>
+      <button class="btn-create" bindtap="goCreate">记一笔</button>
+    </view>
+  </view>
+</view>

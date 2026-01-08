@@ -1,0 +1,7 @@
+{
+  "usingComponents": {
+    "dynamic-tab-bar": "/components/dynamic-tab-bar/index"
+  },
+  "navigationBarTitleText": "我的课表",
+  "enablePullDownRefresh": true
+}

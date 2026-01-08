@@ -10,21 +10,19 @@ use axum::{
     http::StatusCode,
     Json,
 };
-use chrono::Utc;
+use chrono::{Utc, Datelike};
 use uuid::Uuid;
+use sqlx::Row; // ✅ 添加Row trait导入
 
 use super::AppState;
 use crate::models::{
     BaseRankingItem,
     Claims,
-    CompositionItem,
     CreateExpensePayload,
     // 导入请求结构体
     CreateOrderPayload,
     Expense,
-    FinancePaymentRecord,
     HqFinanceDashboardData,
-    OrderDetail,
     OrderItem,
     OrderType,
     PaymentQuery,
@@ -179,7 +177,9 @@ pub async fn get_income_orders_handler(
             -- ★★★ 必需补全这三行，否则报错 500 ★★★
             u.full_name as sales_name,
             o.invoice_status,
-            o.contract_url
+            o.contract_url,
+            o.invoice_no,
+            o.invoice_url
 
         FROM orders o
         LEFT JOIN customers c ON o.customer_id = c.id
@@ -223,8 +223,10 @@ pub async fn update_invoice_status_handler(
     Path(order_id): Path<Uuid>,
     Json(payload): Json<UpdateInvoiceStatusPayload>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    sqlx::query("UPDATE orders SET invoice_status = $1 WHERE id = $2")
+    sqlx::query("UPDATE orders SET invoice_status = $1, invoice_no = $2, invoice_url = $3 WHERE id = $4")
         .bind(payload.status)
+        .bind(payload.invoice_no)
+        .bind(payload.invoice_url)
         .bind(order_id)
         .execute(&state.db_pool)
         .await
@@ -331,10 +333,23 @@ pub async fn get_payment_records_handler(
     claims: Claims,
     Query(params): Query<PaymentQuery>,
 ) -> Result<Json<Vec<serde_json::Value>>, StatusCode> {
-    let base_id = claims.base_id.ok_or(StatusCode::FORBIDDEN)?;
-    let status_filter = params.status; 
+    // ✅ Allow HQ admins and HQ finance roles
+    let is_hq_admin = claims.roles.iter().any(|r| r == "role.hq.admin" || r == "role.hq.finance");
+    
+    // Determine base filter
+    let base_filter = if is_hq_admin {
+        None // HQ admin/finance can see all payments
+    } else {
+        claims.base_id // Base user can only see their own base's payments
+    };
+    
+    if !is_hq_admin && base_filter.is_none() {
+        return Err(StatusCode::FORBIDDEN);
+    }
 
-    // ★ 修复 1: 增加对 users 表的关联 (查询销售名)
+    let status_filter = params.status;
+
+    // Unified query with optional base_id filter
     let records = sqlx::query!(
         r#"
         SELECT 
@@ -349,16 +364,17 @@ pub async fn get_payment_records_handler(
             o.order_no as "order_no?",
             c.name as "order_customer_name?",
             o.contact_name as "order_contact_name?",
-            u.full_name as "sales_name?"             -- ★ 新增：查询销售姓名
+            u.full_name as "sales_name?"
         FROM finance_payment_records r
         LEFT JOIN orders o ON r.order_id = o.id
         LEFT JOIN customers c ON o.customer_id = c.id
-        LEFT JOIN users u ON o.sales_id = u.id       -- ★ 新增：关联 users 表
-        WHERE r.base_id = $1::uuid
+        LEFT JOIN users u ON o.sales_id = u.id
+        WHERE ($1::uuid IS NULL OR r.base_id = $1::uuid)
         AND ($2::text IS NULL OR r.status = $2::text)
         ORDER BY r.created_at DESC
+        LIMIT 100
         "#,
-        base_id,
+        base_filter,
         status_filter
     )
     .fetch_all(&state.db_pool)
@@ -376,8 +392,8 @@ pub async fn get_payment_records_handler(
             "type": r.transaction_type,
             "channel": r.channel,
             "status": r.status,
-            // 格式化时间
-            "created_at": r.created_at.map(|dt| dt.to_rfc3339()).unwrap_or_default(),
+            // 格式化时间 - add explicit type annotation
+            "created_at": r.created_at.map(|dt: chrono::DateTime<chrono::Utc>| dt.to_rfc3339()).unwrap_or_default(),
             
             // 基础信息
             "payer_name": r.payer_name.unwrap_or_default(),
@@ -479,8 +495,8 @@ pub async fn create_expense_handler(
 
     sqlx::query(
         r#"
-        INSERT INTO expenses (hq_id, base_id, category, amount_cents, description, expense_date, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO expenses (hq_id, base_id, category, amount_cents, description, expense_date, created_by, proof_image_url, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending')
         "#
     )
     .bind(claims.hq_id)
@@ -490,6 +506,7 @@ pub async fn create_expense_handler(
     .bind(payload.description)
     .bind(payload.date)
     .bind(Uuid::parse_str(&claims.sub).unwrap_or_default())
+    .bind(payload.proof_url)
     .execute(&state.db_pool)
     .await
     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -504,7 +521,7 @@ pub async fn get_expenses_handler(
 ) -> Result<Json<Vec<Expense>>, StatusCode> {
     let base_id = claims.base_id.ok_or(StatusCode::FORBIDDEN)?;
     let expenses = sqlx::query_as::<_, Expense>(
-        "SELECT id, base_id, category, amount_cents, description, expense_date, created_at FROM expenses WHERE base_id = $1 ORDER BY expense_date DESC LIMIT 100"
+        "SELECT id, base_id, category, amount_cents, description, expense_date, created_at, proof_image_url, status FROM expenses WHERE base_id = $1 ORDER BY expense_date DESC LIMIT 100"
     )
     .bind(base_id)
     .fetch_all(&state.db_pool)
@@ -513,10 +530,22 @@ pub async fn get_expenses_handler(
     Ok(Json(expenses))
 }
 
+// ✅ Finance Dashboard Query Parameters
+#[derive(serde::Deserialize)]
+pub struct FinanceDashboardQuery {
+    pub mode: Option<String>,      // "year" | "quarter" | "month" | "custom"
+    pub year: Option<i32>,
+    pub quarter: Option<i32>,      // 1-4
+    pub month: Option<i32>,        // 1-12
+    pub start: Option<String>,     // YYYY-MM-DD
+    pub end: Option<String>,       // YYYY-MM-DD
+}
+
 // GET /api/v1/hq/finance/dashboard
 pub async fn get_hq_finance_dashboard_handler(
     State(state): State<AppState>,
     claims: Claims,
+    Query(params): Query<FinanceDashboardQuery>, // ✅ 使用新的查询结构
 ) -> Result<Json<HqFinanceDashboardData>, StatusCode> {
     let is_hq = claims
         .roles
@@ -526,8 +555,38 @@ pub async fn get_hq_finance_dashboard_handler(
         return Err(StatusCode::FORBIDDEN);
     }
 
+    // ✅ 动态构建时间条件
+    let time_condition = match params.mode.as_deref() {
+        Some("year") => {
+            let year = params.year.unwrap_or_else(|| chrono::Utc::now().year());
+            format!("EXTRACT(YEAR FROM created_at) = {}", year)
+        },
+        Some("quarter") => {
+            let year = params.year.unwrap_or_else(|| chrono::Utc::now().year());
+            let quarter = params.quarter.unwrap_or(1);
+            format!(
+                "EXTRACT(YEAR FROM created_at) = {} AND EXTRACT(QUARTER FROM created_at) = {}",
+                year, quarter
+            )
+        },
+        Some("month") => {
+            let year = params.year.unwrap_or_else(|| chrono::Utc::now().year());
+            let month = params.month.unwrap_or_else(|| chrono::Utc::now().month() as i32);
+            format!(
+                "EXTRACT(YEAR FROM created_at) = {} AND EXTRACT(MONTH FROM created_at) = {}",
+                year, month
+            )
+        },
+        Some("custom") => {
+            let start = params.start.as_deref().unwrap_or("2026-01-01");
+            let end = params.end.as_deref().unwrap_or("2026-12-31");
+            format!("created_at >= '{}' AND created_at < '{} 23:59:59'", start, end)
+        },
+        _ => "created_at >= date_trunc('month', CURRENT_DATE)".to_string(),
+    };
+
     let month_cash_in = sqlx::query_scalar!(
-        "SELECT COALESCE(SUM(amount_cents), 0) FROM finance_payment_records WHERE transaction_type = 'INCOME' AND status = 'VERIFIED' AND date_trunc('month', created_at) = date_trunc('month', CURRENT_DATE)"
+        "SELECT COALESCE(SUM(amount_cents), 0) FROM finance_payment_records WHERE transaction_type = 'INCOME' AND status = 'VERIFIED' AND created_at >= date_trunc('month', CURRENT_DATE)"
     ).fetch_one(&state.db_pool).await.unwrap_or(Some(0)).unwrap_or(0) as i64;
 
     let month_cost = 0; // 简化展示，完整逻辑见之前代码
@@ -546,6 +605,46 @@ pub async fn get_hq_finance_dashboard_handler(
         })
         .collect();
 
+    // ✅ 查询收入构成（使用动态时间条件）
+    let query_str = format!(
+        "SELECT type as order_type, SUM(total_amount_cents) as total 
+         FROM orders 
+         WHERE status IN ('paid', 'completed') AND {} 
+         GROUP BY type 
+         ORDER BY 2 DESC",
+        time_condition
+    );
+
+    let income_rows = sqlx::query(&query_str)
+        .fetch_all(&state.db_pool)
+        .await
+        .unwrap_or_default();
+
+    let total_income: i64 = income_rows.iter().map(|r| {
+        r.try_get::<i64, _>("total").unwrap_or(0)
+    }).sum();
+
+    let income_composition: Vec<crate::models::CompositionItem> = if total_income > 0 {
+        income_rows.iter().map(|row| {
+            let total = row.try_get::<i64, _>("total").unwrap_or(0);
+            let order_type = row.try_get::<String, _>("order_type").unwrap_or_default();
+            let percentage = (total as f64 / total_income as f64) * 100.0;
+            let (name, color) = match order_type.as_str() {
+                "b2b" => ("企业团建", "#3b82f6"),
+                "b2c" => ("个人课程", "#10b981"),
+                "b2g" => ("政务/党建", "#f59e0b"),
+                _ => ("其他", "#9ca3af"),
+            };
+            crate::models::CompositionItem {
+                name: name.to_string(),
+                value: (percentage * 10.0).round() / 10.0,
+                color: color.to_string(),
+            }
+        }).collect()
+    } else {
+        vec![]
+    };
+
     Ok(Json(HqFinanceDashboardData {
         total_prepaid_pool,
         month_cash_in,
@@ -555,8 +654,74 @@ pub async fn get_hq_finance_dashboard_handler(
         trend_cash_in: vec![],
         trend_revenue: vec![],
         trend_cost: vec![],
-        income_composition: vec![],
+        income_composition, // ✅ 返回真实数据
         base_rankings: rankings_with_margin,
+    }))
+}
+
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
+pub struct BaseFinanceDashboard {
+    pub today_income_cents: i64,
+    pub today_expense_cents: i64,
+    pub pending_incomes: i64,
+    pub pending_expenses: i64,
+}
+
+pub async fn get_base_finance_dashboard_handler(
+    State(state): State<AppState>,
+    claims: Claims,
+) -> Result<Json<BaseFinanceDashboard>, (StatusCode, String)> {
+    let base_id = claims.base_id.ok_or((StatusCode::FORBIDDEN, "No Base ID".to_string()))?;
+
+    // 1. Today Income (SUM returns Option<i64>)
+    let today_income = sqlx::query_scalar!(
+        "SELECT COALESCE(SUM(amount_cents), 0) FROM finance_payment_records WHERE base_id = $1 AND transaction_type = 'INCOME' AND status = 'VERIFIED' AND created_at >= CURRENT_DATE",
+        base_id
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    .unwrap_or(0); 
+
+    // 2. Today Expense
+    // Use created_at as proxy for "processed time" if updated_at is missing. Or use expense_date.
+    let today_expense = sqlx::query_scalar!(
+        "SELECT COALESCE(SUM(amount_cents), 0) FROM expenses WHERE base_id = $1 AND status = 'approved' AND created_at >= CURRENT_DATE",
+         base_id
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    .unwrap_or(0);
+
+    // 3. Pending Incomes (COUNT)
+    // COUNT(*) is bigint NOT NULL. So it returns i64.
+    let pending_incomes = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM finance_payment_records WHERE base_id = $1 AND transaction_type = 'INCOME' AND status = 'PENDING'",
+        base_id
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    .unwrap_or(0); // Handle Option if inferred, or just 0
+
+    // 4. Pending Expenses (COUNT)
+    let pending_expenses = sqlx::query_scalar!(
+        "SELECT COUNT(*) FROM expenses WHERE base_id = $1 AND status = 'approved'",
+        base_id
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    .unwrap_or(0);
+
+    Ok(Json(BaseFinanceDashboard {
+        today_income_cents: today_income,
+        today_expense_cents: today_expense,
+        pending_incomes,
+        pending_expenses,
     }))
 }
 

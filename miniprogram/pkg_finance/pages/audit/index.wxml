@@ -1,0 +1,47 @@
+<view class="page">
+  <view class="tabs">
+    <view class="tab-item {{currentType === 'expense' ? 'active' : ''}}" bindtap="switchTab" data-type="expense">报销</view>
+    <view class="tab-item {{currentType === 'refund' ? 'active' : ''}}" bindtap="switchTab" data-type="refund">退费</view>
+    <view class="tab-item {{currentType === 'discount' ? 'active' : ''}}" bindtap="switchTab" data-type="discount">折扣</view>
+    <view class="tab-item {{currentType === 'leave' ? 'active' : ''}}" bindtap="switchTab" data-type="leave">请假</view>
+  </view>
+
+  <view class="list-container">
+    <block wx:if="{{list.length > 0}}">
+      <view class="audit-card" wx:for="{{list}}" wx:key="id">
+        <view class="card-header">
+          <text class="card-title">{{item.title}}</text>
+          <text class="card-time">{{item.created_at_fmt}}</text>
+        </view>
+        
+        <view class="card-body">
+          <view class="info-row" wx:if="{{item.requester_name}}">
+            <text class="info-label">申请人</text>
+            <text class="info-val">{{item.requester_name}}</text>
+          </view>
+          <view class="info-row">
+            <text class="info-label">详情</text>
+            <text class="info-val">{{item.subtitle}}</text>
+          </view>
+          <view class="info-row" wx:if="{{item.amount_cents}}">
+            <text class="info-label">涉及金额</text>
+            <text class="info-val price">¥{{item.amount_fmt}}</text>
+          </view>
+          
+          <view class="proof-area" wx:if="{{item.proof_url}}" bindtap="previewImage" data-url="{{item.proof_url}}">
+             <view class="proof-btn">📎 查看附件凭证</view>
+          </view>
+        </view>
+
+        <view class="card-footer">
+          <button class="btn btn-reject" bindtap="handleAction" data-action="reject" data-id="{{item.id}}">驳回</button>
+          <button class="btn btn-approve" bindtap="handleAction" data-action="approve" data-id="{{item.id}}">同意</button>
+        </view>
+      </view>
+    </block>
+    
+    <view class="empty-state" wx:else>
+      <text>当前暂无待审批事项</text>
+    </view>
+  </view>
+</view>

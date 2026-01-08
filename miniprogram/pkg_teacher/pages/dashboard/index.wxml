@@ -1,0 +1,106 @@
+<view class="container">
+  <!-- 顶部个人资料 -->
+  <view class="header-section">
+    <view class="user-info">
+      <view class="avatar-wrap">
+        <image class="avatar" src="/assets/images/default-avatar.png" />
+      </view>
+      <view class="text-info">
+        <view class="welcome">{{greeting}}，{{teacherName}} 老师</view>
+        <view class="quote">博学而笃志，切问而近思</view>
+      </view>
+    </view>
+    
+    <!-- 统计磁贴 -->
+    <view class="stats-grid">
+      <view class="stat-item">
+        <view class="num">{{stats.today_class_count}}</view>
+        <view class="label">今日课程</view>
+      </view>
+      <view class="stat-item">
+        <view class="num">{{stats.pending_leads_count}}</view>
+        <view class="label">待跟进客户</view>
+      </view>
+      <view class="stat-item">
+        <view class="num">{{stats.month_lesson_count}}</view>
+        <view class="label">本月消课</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 即将开始的课程 -->
+  <view class="section upcoming-class" wx:if="{{upcoming_classes.length > 0}}">
+    <view class="section-title">
+      <text>即将开始的课程</text>
+      <text class="more" bindtap="navToSchedule">查看完整课表 ></text>
+    </view>
+    <view class="class-card main-class" bindtap="navToClassDetail" data-id="{{upcoming_classes[0].id}}">
+      <view class="class-time">
+        <text class="time">{{upcoming_classes[0].startTimeFmt}}</text>
+        <text class="tag">Next</text>
+      </view>
+      <view class="class-info">
+        <view class="course-name">{{upcoming_classes[0].course_name}}</view>
+        <view class="room-info">
+          <text class="iconfont icon-location"></text>
+          <text>{{upcoming_classes[0].room_name}}</text>
+          <text class="divider">|</text>
+          <text>{{upcoming_classes[0].enrolled_count}}/{{upcoming_classes[0].max_capacity}} 人</text>
+        </view>
+      </view>
+      <view class="checkin-btn">去点名</view>
+    </view>
+  </view>
+
+  <!-- 常用功能 -->
+  <view class="section menu-section">
+    <view class="section-title">常用功能</view>
+    <view class="menu-grid">
+      <view class="menu-item" bindtap="navToSchedule">
+        <view class="icon-wrap color-1">
+          <text class="emoji">📅</text>
+        </view>
+        <text>我的课表</text>
+      </view>
+      <view class="menu-item" bindtap="navToCheckin">
+        <view class="icon-wrap color-2">
+          <text class="emoji">✏️</text>
+        </view>
+        <text>点名签到</text>
+      </view>
+      <view class="menu-item" bindtap="navToLeads">
+        <view class="icon-wrap color-3">
+          <text class="emoji">🔥</text>
+        </view>
+        <text>我的客户</text>
+      </view>
+      <view class="menu-item" bindtap="navToStudents">
+        <view class="icon-wrap color-4">
+          <text class="emoji">🎓</text>
+        </view>
+        <text>我的学员</text>
+      </view>
+      <view class="menu-item" bindtap="navToReport">
+        <view class="icon-wrap color-5">
+          <text class="emoji">📊</text>
+        </view>
+        <text>业绩分析</text>
+      </view>
+      <view class="menu-item" bindtap="navToWaitList">
+        <view class="icon-wrap color-6">
+          <text class="emoji">⏰</text>
+        </view>
+        <text>待办任务</text>
+      </view>
+    </view>
+  </view>
+  
+  <!-- 广告位/快捷操作 -->
+  <view class="promo-banner" bindtap="navToAddLead">
+    <view class="promo-content">
+      <view class="promo-title">发现潜在学员？</view>
+      <view class="promo-sub">立即录入客户，快人一步</view>
+    </view>
+    <view class="promo-btn">快捷录入</view>
+  </view>
+</view>

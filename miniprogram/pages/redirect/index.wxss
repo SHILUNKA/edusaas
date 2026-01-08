@@ -1,0 +1,34 @@
+.redirect-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.loading {
+  text-align: center;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.icon {
+  font-size: 80rpx;
+  display: block;
+  margin-bottom: 30rpx;
+  animation: bounce 1s infinite;
+}
+
+.text {
+  color: white;
+  font-size: 28rpx;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10rpx); }
+}

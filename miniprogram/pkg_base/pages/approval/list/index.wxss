@@ -1,0 +1,122 @@
+
+.container {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  padding: 20rpx;
+  box-sizing: border-box;
+}
+
+.approval-list {
+  padding-bottom: 40rpx;
+}
+
+.approval-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.04);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24rpx;
+  padding-bottom: 20rpx;
+  border-bottom: 2rpx solid #f1f5f9;
+}
+
+.card-header .title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1e293b;
+  flex: 1;
+  margin-right: 20rpx;
+}
+
+.tag-pending {
+  font-size: 22rpx;
+  color: #f59e0b;
+  background: #fffbeb;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  border: 1rpx solid #fcd34d;
+}
+
+.card-body .row {
+  display: flex;
+  margin-bottom: 16rpx;
+  font-size: 28rpx;
+}
+
+.card-body .label {
+  color: #64748b;
+  width: 140rpx;
+  flex-shrink: 0;
+}
+
+.card-body .value {
+  color: #334155;
+  flex: 1;
+}
+
+.card-body .price {
+  color: #ef4444;
+  font-weight: 600;
+  font-family: DIN, sans-serif;
+}
+
+.card-footer {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 30rpx;
+  padding-top: 20rpx;
+}
+
+.btn {
+  flex: 1;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.btn-reject {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.btn-approve {
+  background: #10b981;
+  color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(16, 185, 129, 0.2);
+}
+
+.btn-reject:active { background: #e2e8f0; }
+.btn-approve:active { background: #059669; }
+
+/* Empty State */
+.empty-state {
+  padding-top: 200rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #94a3b8;
+}
+
+.empty-icon {
+  width: 120rpx;
+  height: 120rpx;
+  background: #e2e8f0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60rpx;
+  color: #fff;
+  margin-bottom: 20rpx;
+}

@@ -1,0 +1,85 @@
+.participants-container {
+  min-height: 100vh;
+  background-color: #f7f8fa;
+  padding-bottom: 120rpx;
+}
+
+.participant-list {
+  padding: 30rpx;
+}
+
+.participant-card {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  padding: 30rpx;
+  border-radius: 16rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.05);
+}
+
+.avatar {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background-color: #eee;
+  margin-right: 30rpx;
+}
+
+.info {
+  flex: 1;
+}
+
+.name {
+  display: block;
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10rpx;
+}
+
+.desc {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.arrow {
+  font-size: 24rpx;
+  color: #ccc;
+}
+
+.footer-btn {
+  position: fixed;
+  bottom: 40rpx;
+  left: 0;
+  right: 0;
+  padding: 0 40rpx;
+}
+
+.btn-add {
+  background: #4A90E2 !important;
+  color: #fff !important;
+  border-radius: 44rpx !important;
+  font-size: 32rpx !important;
+  height: 88rpx !important;
+  line-height: 88rpx !important;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 200rpx;
+}
+
+.empty-icon {
+  width: 200rpx;
+  height: 200rpx;
+  margin-bottom: 30rpx;
+  opacity: 0.5;
+}
+
+.empty-text {
+  color: #999;
+  font-size: 28rpx;
+}

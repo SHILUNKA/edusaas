@@ -10,11 +10,11 @@ const TAB_CONFIG = {
     color: "#94A3B8", // 未选中颜色 (灰色)
     selectedColor: "#4F46E5", // 选中颜色 (总部蓝)
     list: [
-      { 
-        pagePath: "/pkg_hq/dashboard/index", 
-        text: "驾驶舱", 
-        iconPath: "/images/tabbar/tab_hq.png", 
-        selectedIconPath: "/images/tabbar/tab_hq_on.png" 
+      {
+        pagePath: "/pkg_hq/dashboard/index",
+        text: "驾驶舱",
+        iconPath: "/images/tabbar/tab_hq.png",
+        selectedIconPath: "/images/tabbar/tab_hq_on.png"
       }
       // 未来可以在这里添加更多总部 Tab，如 "审批", "报表"
     ]
@@ -23,23 +23,47 @@ const TAB_CONFIG = {
     color: "#94A3B8",
     selectedColor: "#059669", // 选中颜色 (校区绿)
     list: [
-      { 
-        pagePath: "/pkg_base/workspace/index", 
-        text: "工作台", 
-        iconPath: "/images/tabbar/tab_base.png", 
-        selectedIconPath: "/images/tabbar/tab_base_on.png" 
+      {
+        pagePath: "/pkg_base/pages/dashboard/index",
+        text: "看板",
+        iconPath: "/images/tabbar/tab_base.png",
+        selectedIconPath: "/images/tabbar/tab_base_on.png"
+      },
+      {
+        pagePath: "/pkg_base/workspace/index",
+        text: "工作台",
+        iconPath: "/images/tabbar/tab_home.png",
+        selectedIconPath: "/images/tabbar/tab_home_on.png"
       }
     ]
   },
   'CONSUMER': { // C端视角
     color: "#94A3B8",
-    selectedColor: "#F59E0B", // 选中颜色 (家长橙)
+    selectedColor: "#3B82F6", // 蓝色系
     list: [
-      { 
-        pagePath: "/pkg_consumer/home/index", 
-        text: "首页", 
-        iconPath: "/images/tabbar/tab_home.png", 
-        selectedIconPath: "/images/tabbar/tab_home_on.png" 
+      {
+        pagePath: "/pkg_customer/pages/home/index",
+        text: "首页",
+        iconPath: "/images/tabbar/tab_home.png",
+        selectedIconPath: "/images/tabbar/tab_home_on.png"
+      },
+      {
+        pagePath: "/pkg_customer/pages/schedule/index",
+        text: "课表",
+        iconPath: "/images/tabbar/tab_home.png", // 暂用 Home 图标
+        selectedIconPath: "/images/tabbar/tab_home_on.png"
+      },
+      {
+        pagePath: "/pkg_customer/pages/honor/index",
+        text: "荣誉",
+        iconPath: "/images/tabbar/tab_base.png", // 暂用 Base 图标
+        selectedIconPath: "/images/tabbar/tab_base_on.png"
+      },
+      {
+        pagePath: "/pkg_customer/pages/profile/index",
+        text: "我的",
+        iconPath: "/images/tabbar/tab_hq.png", // 暂用 HQ 图标
+        selectedIconPath: "/images/tabbar/tab_hq_on.png"
       }
     ]
   }
@@ -76,7 +100,7 @@ Component({
   // 5. 数据监听器
   observers: {
     // 监听 userRole 的变化。当用户登录、退出导致角色变化时，触发此函数
-    'userRole': function(newRole) {
+    'userRole': function (newRole) {
       console.log('🔄 [DynamicTabBar] 检测到角色变化:', newRole);
       this.initTabBarData(newRole);
     }
@@ -101,7 +125,7 @@ Component({
     initTabBarData(role) {
       // 获取对应角色的配置，如果找不到（比如未登录状态的 GUEST），默认使用 CONSUMER 配置
       const config = TAB_CONFIG[role] || TAB_CONFIG['CONSUMER'];
-      
+
       console.log('🎨 [DynamicTabBar] 应用配置:', role, config.list.length + '个菜单项');
 
       this.setData({
@@ -116,7 +140,7 @@ Component({
      */
     switchTab(e) {
       const url = e.currentTarget.dataset.path;
-      
+
       // 获取当前页面栈
       const pages = getCurrentPages();
       const currentPage = pages[pages.length - 1];
@@ -130,14 +154,14 @@ Component({
       }
 
       console.log('🚀 [DynamicTabBar] 切换 Tab 至:', url);
-      
+
       // 核心：因为我们的页面分布在不同的分包，属于“平行世界”
       // 所以必须用 reLaunch 关闭所有旧页面，打开新页面。
       // 这不能用 wx.switchTab，因为我们不是标准的 tabbar 页面。
       wx.reLaunch({
         url: url,
         fail: (err) => {
-             console.error('❌ [DynamicTabBar] 跳转失败，请检查路径:', err);
+          console.error('❌ [DynamicTabBar] 跳转失败，请检查路径:', err);
         }
       });
     }

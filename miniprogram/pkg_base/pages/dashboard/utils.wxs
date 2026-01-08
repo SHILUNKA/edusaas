@@ -1,0 +1,28 @@
+// 数据格式化工具
+var formatMoney = function(cents) {
+  if (!cents) return '0'
+  return (cents / 100).toFixed(0)
+}
+
+var formatMoneyK = function(cents) {
+  if (!cents) return '0'
+  return (cents / 100).toFixed(1) + 'K'
+}
+
+var formatPercent = function(rate) {
+  if (!rate) return '0'
+  return (rate * 100).toFixed(0)
+}
+
+var formatDecimal = function(num, decimals) {
+  if (!num) return '0'
+  decimals = decimals || 1
+  return num.toFixed(decimals)
+}
+
+module.exports = {
+  formatMoney: formatMoney,
+  formatMoneyK: formatMoneyK,
+  formatPercent: formatPercent,
+  formatDecimal: formatDecimal
+}

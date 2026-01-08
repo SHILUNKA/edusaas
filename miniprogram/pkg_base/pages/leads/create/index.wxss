@@ -1,0 +1,122 @@
+.container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f5f5;
+}
+
+.form-container {
+  flex: 1;
+  padding: 20rpx;
+}
+
+/* 分组 */
+.section {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 24rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid#f0f0f0;
+}
+
+/* 表单项 */
+.form-item {
+  margin-bottom: 32rpx;
+}
+
+.form-item:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  display: block;
+  font-size: 28rpx;
+  color: #666;
+  margin-bottom: 16rpx;
+}
+
+.label.required::before {
+  content: '*';
+  color: #F56C6C;
+  margin-right: 4rpx;
+}
+
+.input,
+.picker {
+  height: 80rpx;
+  line-height: 80rpx;
+  padding: 0 20rpx;
+  background: #f8f8f8;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.picker {
+  color: #999;
+}
+
+.textarea {
+  min-height: 200rpx;
+  padding: 20rpx;
+  background: #f8f8f8;
+  border-radius: 12rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+/* 评分 */
+.score-container {
+  display: flex;
+  gap: 16rpx;
+}
+
+.score-item {
+  font-size: 48rpx;
+  color: #ddd;
+  transition: all 0.2s;
+}
+
+.score-item.active {
+  color: #FFD700;
+}
+
+.score-item:active {
+  transform: scale(1.2);
+}
+
+/* 提交按钮 */
+.submit-container {
+  padding: 20rpx;
+  background: #fff;
+  box-shadow: 0 -2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.submit-btn {
+  width: 100%;
+  height: 88rpx;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 44rpx;
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 8rpx 24rpx rgba(102, 126, 234, 0.3);
+}
+
+.submit-btn:active {
+  opacity: 0.8;
+  transform: scale(0.98);
+}
+
+.submit-btn[disabled] {
+  opacity: 0.6;
+}

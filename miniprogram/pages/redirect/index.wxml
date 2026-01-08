@@ -1,0 +1,6 @@
+<view class="redirect-container">
+  <view class="loading">
+    <text class="icon">🚀</text>
+    <text class="text">正在跳转到C端首页...</text>
+  </view>
+</view>

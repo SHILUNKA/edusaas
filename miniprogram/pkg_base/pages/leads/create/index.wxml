@@ -1,0 +1,142 @@
+<view class="container">
+  <scroll-view class="form-container" scroll-y>
+    
+    <!-- 联系人信息 -->
+    <view class="section">
+      <view class="section-title">联系人信息</view>
+      
+      <view class="form-item">
+        <text class="label required">联系人姓名</text>
+        <input 
+          class="input" 
+          placeholder="请输入联系人姓名"
+          value="{{form.contact_name}}"
+          bindinput="onInput"
+          data-field="contact_name"
+        />
+      </view>
+
+      <view class="form-item">
+        <text class="label required">联系电话</text>
+        <input 
+          class="input" 
+          type="number"
+          placeholder="请输入手机号"
+          value="{{form.phone_number}}"
+          bindinput="onInput"
+          data-field="phone_number"
+        />
+      </view>
+
+      <view class="form-item">
+        <text class="label">微信号</text>
+        <input 
+          class="input" 
+          placeholder="请输入微信号（选填）"
+          value="{{form.wechat_id}}"
+          bindinput="onInput"
+          data-field="wechat_id"
+        />
+      </view>
+    </view>
+
+    <!-- 孩子信息 -->
+    <view class="section">
+      <view class="section-title">孩子信息</view>
+      
+      <view class="form-item">
+        <text class="label">孩子姓名</text>
+        <input 
+          class="input" 
+          placeholder="请输入孩子姓名"
+          value="{{form.child_name}}"
+          bindinput="onInput"
+          data-field="child_name"
+        />
+      </view>
+
+      <view class="form-item">
+        <text class="label">孩子年龄</text>
+        <input 
+          class="input" 
+          type="number"
+          placeholder="请输入年龄"
+          value="{{form.child_age}}"
+          bindinput="onInput"
+          data-field="child_age"
+        />
+      </view>
+
+      <view class="form-item">
+        <text class="label">就读年级</text>
+        <picker 
+          mode="selector" 
+          range="{{gradeOptions}}"
+          bindchange="onGradeChange"
+        >
+          <view class="picker">
+            {{form.child_grade || '请选择年级'}}
+          </view>
+        </picker>
+      </view>
+    </view>
+
+    <!-- 线索信息 -->
+    <view class="section">
+      <view class="section-title">客户信息</view>
+      
+      <view class="form-item">
+        <text class="label">客户来源</text>
+        <picker 
+          mode="selector" 
+          range="{{sourceOptions}}"
+          bindchange="onSourceChange"
+        >
+          <view class="picker">
+            {{form.source || '请选择来源'}}
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="label">质量评分</text>
+        <view class="score-container">
+          <view 
+            class="score-item {{form.quality_score >= item ? 'active' : ''}}"
+            wx:for="{{[1,2,3,4,5]}}"
+            wx:key="item"
+            bindtap="onScoreTap"
+            data-score="{{item}}"
+          >
+            {{form.quality_score >= item ? '★' : '☆'}}
+          </view>
+        </view>
+      </view>
+
+      <view class="form-item">
+        <text class="label">备注</text>
+        <textarea 
+          class="textarea" 
+          placeholder="请输入备注信息"
+          value="{{form.notes}}"
+          bindinput="onInput"
+          data-field="notes"
+          maxlength="500"
+        />
+      </view>
+    </view>
+
+  </scroll-view>
+
+  <!-- 提交按钮 -->
+  <view class="submit-container">
+    <button 
+      class="submit-btn" 
+      bindtap="onSubmit"
+      loading="{{submitting}}"
+      disabled="{{submitting}}"
+    >
+      {{submitting ? '创建中...' : '创建客户'}}
+    </button>
+  </view>
+</view>

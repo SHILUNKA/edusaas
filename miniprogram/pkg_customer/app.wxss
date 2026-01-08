@@ -1,0 +1,338 @@
+/* C端小程序全局样式 */
+
+/* 主题色定义 */
+page {
+  --primary-color: #4A90E2;        /* 航天蓝 */
+  --secondary-color: #7B68EE;      /* 科技紫 */
+  --accent-color: #FF7043;         /* 橙色（积分） */
+  --success-color: #4CAF50;        /* 绿色 */
+  --warning-color: #FF9800;        /* 警告色 */
+  --danger-color: #F44336;         /* 红色 */
+  
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-tertiary: #999999;
+  --text-light: #FFFFFF;
+  
+  --bg-page: #F5F7FA;
+  --bg-card: #FFFFFF;
+  --bg-light: #F8F9FB;
+  
+  --border-color: #E0E0E0;
+  --divider-color: #EEEEEE;
+  
+  --shadow-light: 0 2rpx 8rpx rgba(0, 0, 0, 0.08);
+  --shadow-medium: 0 4rpx 16rpx rgba(0, 0, 0, 0.12);
+  --shadow-heavy: 0 8rpx 24rpx rgba(0, 0, 0, 0.16);
+  
+  --radius-small: 8rpx;
+  --radius-medium: 12rpx;
+  --radius-large: 16rpx;
+  --radius-round: 1000rpx;
+  
+  --space-xs: 8rpx;
+  --space-sm: 12rpx;
+  --space-md: 16rpx;
+  --space-lg: 24rpx;
+  --space-xl: 32rpx;
+  
+  font-size: 28rpx;
+  color: var(--text-primary);
+  background-color: var(--bg-page);
+  line-height: 1.6;
+}
+
+/* 通用容器 */
+.container {
+  min-height: 100vh;
+  background-color: var(--bg-page);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 120rpx);
+}
+
+.page-content {
+  padding: var(--space-md);
+}
+
+/* 卡片样式 */
+.card {
+  background-color: var(--bg-card);
+  border-radius: var(--radius-medium);
+  box-shadow: var(--shadow-light);
+  overflow: hidden;
+}
+
+.card-header {
+  padding: var(--space-md);
+  border-bottom: 1rpx solid var(--divider-color);
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.card-body {
+  padding: var(--space-md);
+}
+
+.card-footer {
+  padding: var(--space-md);
+  border-top: 1rpx solid var(--divider-color);
+  text-align: right;
+}
+
+/* 按钮样式 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx 40rpx;
+  border-radius: var(--radius-medium);
+  font-size: 28rpx;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: var(--text-light);
+}
+
+.btn-secondary {
+  background-color: var(--secondary-color);
+  color: var(--text-light);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 2rpx solid var(--primary-color);
+  color: var(--primary-color);
+}
+
+.btn-text {
+  background-color: transparent;
+  color: var(--primary-color);
+  padding: 12rpx 24rpx;
+}
+
+.btn-small {
+  padding: 12rpx 24rpx;
+  font-size: 24rpx;
+}
+
+.btn-large {
+  padding: 28rpx 56rpx;
+  font-size: 32rpx;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* 徽章 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rpx 12rpx;
+  border-radius: var(--radius-round);
+  font-size: 20rpx;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.badge-primary {
+  background-color: var(--primary-color);
+  color: var(--text-light);
+}
+
+.badge-success {
+  background-color: var(--success-color);
+  color: var(--text-light);
+}
+
+.badge-warning {
+  background-color: var(--warning-color);
+  color: var(--text-light);
+}
+
+.badge-danger {
+  background-color: var(--danger-color);
+  color: var(--text-light);
+}
+
+/* 标签 */
+.tag {
+  display: inline-block;
+  padding: 8rpx 16rpx;
+  border-radius: var(--radius-small);
+  font-size: 24rpx;
+  background-color: var(--bg-light);
+  color: var(--text-secondary);
+}
+
+/* 分割线 */
+.divider {
+  height: 1rpx;
+  background-color: var(--divider-color);
+  margin: var(--space-md) 0;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 0;
+  color: var(--text-tertiary);
+}
+
+.empty-state image {
+  width: 200rpx;
+  height: 200rpx;
+  margin-bottom: var(--space-lg);
+  opacity: 0.5;
+}
+
+.empty-state text {
+  font-size: 28rpx;
+}
+
+/* 加载状态 */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60rpx 0;
+  color: var(--text-tertiary);
+}
+
+/* 文本样式 */
+.text-primary {
+  color: var(--text-primary);
+}
+
+.text-secondary {
+  color: var(--text-secondary);
+}
+
+.text-tertiary {
+  color: var(--text-tertiary);
+}
+
+.text-light {
+  color: var(--text-light);
+}
+
+.text-muted {
+  color: var(--text-tertiary);
+  font-size: 24rpx;
+}
+
+.text-bold {
+  font-weight: 600;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+/* 间距工具类 */
+.mt-xs { margin-top: var(--space-xs); }
+.mt-sm { margin-top: var(--space-sm); }
+.mt-md { margin-top: var(--space-md); }
+.mt-lg { margin-top: var(--space-lg); }
+.mt-xl { margin-top: var(--space-xl); }
+
+.mb-xs { margin-bottom: var(--space-xs); }
+.mb-sm { margin-bottom: var(--space-sm); }
+.mb-md { margin-bottom: var(--space-md); }
+.mb-lg { margin-bottom: var(--space-lg); }
+.mb-xl { margin-bottom: var(--space-xl); }
+
+.pt-xs { padding-top: var(--space-xs); }
+.pt-sm { padding-top: var(--space-sm); }
+.pt-md { padding-top: var(--space-md); }
+.pt-lg { padding-top: var(--space-lg); }
+
+.pb-xs { padding-bottom: var(--space-xs); }
+.pb-sm { padding-bottom: var(--space-sm); }
+.pb-md { padding-bottom: var(--space-md); }
+.pb-lg { padding-bottom: var(--space-lg); }
+
+/* Flex布局 */
+.flex {
+  display: flex;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.flex-center {
+  justify-content: center;
+  align-items: center;
+}
+
+.flex-between {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flex-around {
+  justify-content: space-around;
+  align-items: center;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20rpx);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+.pulse {
+  animation: pulse 0.6s ease-in-out;
+}

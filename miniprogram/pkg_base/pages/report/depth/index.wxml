@@ -1,0 +1,77 @@
+<wxs module="utils">
+  module.exports.formatNumber = function(n) {
+    if (n >= 10000) return (n/10000).toFixed(1) + 'w';
+    return n;
+  }
+</wxs>
+<view class="container">
+  <!-- Tabs -->
+  <view class="tabs">
+    <view class="tab {{currentTab === 'revenue' ? 'active' : ''}}" bindtap="switchTab" data-tab="revenue">💰 营收</view>
+    <view class="tab {{currentTab === 'sales' ? 'active' : ''}}" bindtap="switchTab" data-tab="sales">🏆 销售</view>
+    <view class="tab {{currentTab === 'funnel' ? 'active' : ''}}" bindtap="switchTab" data-tab="funnel">🎯 转化</view>
+    <view class="tab {{currentTab === 'course' ? 'active' : ''}}" bindtap="switchTab" data-tab="course">🔥 课程</view>
+  </view>
+
+  <!-- Content -->
+  <view class="content" wx:if="{{chartData}}">
+    
+    <!-- Summary Card -->
+    <view class="summary-card" wx:if="{{chartData.summary}}">
+        <view class="msg-wrap">
+            <text class="msg-icon">💡</text>
+            <text class="msg">{{chartData.summary.msg || '数据洞察'}}</text>
+        </view>
+        <view class="metrics">
+            <text class="trend" wx:if="{{chartData.summary.trend}}">📈 {{chartData.summary.trend}}</text>
+            <text class="rate" wx:if="{{chartData.summary.conversion_rate}}">转化率: {{chartData.summary.conversion_rate}}</text>
+            <text class="top" wx:if="{{chartData.summary.top_sales}}">销冠: {{chartData.summary.top_sales}}</text>
+        </view>
+    </view>
+
+    <!-- Chart Area -->
+    <view class="chart-container">
+      <view class="chart-header">
+         <text class="chart-title">{{chartData.datasets[0].label}}分布</text>
+      </view>
+      
+      <!-- Horizontal Bars (Ranking for Sales, Course) -->
+      <view class="bar-chart-h" wx:if="{{currentTab === 'sales' || currentTab === 'course'}}">
+         <block wx:for="{{chartData.labels}}" wx:key="*this">
+            <view class="bar-row">
+                <view class="row-label">{{item}}</view>
+                <view class="bar-track">
+                    <view class="bar-fill {{index < 3 ? 'top3' : ''}}" style="width: {{chartData.datasets[0].data[index] / maxData * 100}}%"></view>
+                </view>
+                <view class="row-value">{{utils.formatNumber(chartData.datasets[0].data[index])}}</view>
+            </view>
+         </block>
+      </view>
+
+      <!-- Vertical Bars (Trend for Revenue, Funnel) -->
+      <view class="bar-chart-v" wx:if="{{currentTab === 'revenue' || currentTab === 'funnel'}}">
+         <view class="bars-wrap">
+             <view class="bar-col" wx:for="{{chartData.labels}}" wx:key="*this">
+                <view class="bar-value-top">{{utils.formatNumber(chartData.datasets[0].data[index])}}</view>
+                <view class="bar-track-v">
+                    <view class="bar-fill-v" style="height: {{chartData.datasets[0].data[index] / maxData * 100}}%"></view>
+                </view>
+                <view class="col-label">{{item}}</view>
+             </view>
+         </view>
+      </view>
+
+    </view>
+    
+    <!-- Explanation -->
+    <view class="footer-tip">
+        * 数据更新于 {{updatedTime}}
+    </view>
+
+  </view>
+
+  <view class="loading-wrap" wx:else>
+    <view class="loading-spinner"></view>
+    <text>数据加载中...</text>
+  </view>
+</view>

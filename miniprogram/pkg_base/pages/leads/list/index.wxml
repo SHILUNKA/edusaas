@@ -1,0 +1,125 @@
+<view class="container">
+  <!-- 顶部Tab -->
+  <view class="tabs">
+    <view 
+      class="tab-item {{currentTab === 'all' ? 'active' : ''}}"
+      bindtap="onTabChange"
+      data-tab="all"
+    >
+      全部
+    </view>
+    <view 
+      class="tab-item {{currentTab === 'new' ? 'active' : ''}}"
+      bindtap="onTabChange"
+      data-tab="new"
+    >
+      新客户
+    </view>
+    <view 
+      class="tab-item {{currentTab === 'contacted' ? 'active' : ''}}"
+      bindtap="onTabChange"
+      data-tab="contacted"
+    >
+      已联系
+    </view>
+    <view 
+      class="tab-item {{currentTab === 'qualified' ? 'active' : ''}}"
+      bindtap="onTabChange"
+      data-tab="qualified"
+    >
+      已评估
+    </view>
+    <view 
+      class="tab-item {{currentTab === 'converted' ? 'active' : ''}}"
+      bindtap="onTabChange"
+      data-tab="converted"
+    >
+      已转化
+    </view>
+  </view>
+
+  <!-- 线索列表 -->
+  <scroll-view 
+    class="lead-list" 
+    scroll-y
+    refresher-enabled
+    refresher-triggered="{{loading}}"
+    bindrefresherrefresh="onPullDownRefresh"
+  >
+    <view 
+      class="lead-card" 
+      wx:for="{{leads}}" 
+      wx:key="id"
+      bindtap="onLeadTap"
+      data-id="{{item.id}}"
+    >
+      <!-- 状态标签 -->
+      <view class="status-badge {{getStatusClass(item.status)}}">
+        {{getStatusText(item.status)}}
+      </view>
+
+      <!-- 主要信息 -->
+      <view class="lead-header">
+        <view class="contact-info">
+          <text class="contact-name">{{item.contact_name}}</text>
+          <text class="phone">{{item.phone_number}}</text>
+        </view>
+        <view class="quality-score" wx:if="{{item.quality_score}}">
+          <text class="star" wx:for="{{[1,2,3,4,5]}}" wx:for-item="star" wx:key="star">
+            {{star <= item.quality_score ? '★' : '☆'}}
+          </text>
+        </view>
+      </view>
+
+      <!-- 孩子信息 -->
+      <view class="child-info" wx:if="{{item.child_name}}">
+        <text class="label">孩子：</text>
+        <text>{{item.child_name}}</text>
+        <text wx:if="{{item.child_age}}" class="age">（{{item.child_age}}岁）</text>
+      </view>
+
+      <!-- 来源 -->
+      <view class="source" wx:if="{{item.source}}">
+        <text class="label">来源：</text>
+        <text>{{item.source}}</text>
+      </view>
+
+      <!-- 底部信息 -->
+      <view class="lead-footer">
+        <view class="assigned" wx:if="{{item.assigned_to_name}}">
+          <text class="icon">👤</text>
+          <text>{{item.assigned_to_name}}</text>
+        </view>
+        <view class="next-follow-up" wx:if="{{item.next_follow_up_at}}">
+          <text class="icon">🔔</text>
+          <text>{{formatDate(item.next_follow_up_at)}}</text>
+        </view>
+        <view class="created-time">
+          {{formatDate(item.created_at)}}
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载更多 -->
+    <view class="load-more" wx:if="{{loading}}">
+      <text>加载中...</text>
+    </view>
+
+    <!-- 没有更多 -->
+    <view class="no-more" wx:if="{{!hasMore && leads.length > 0}}">
+      <text>没有更多了</text>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty" wx:if="{{!loading && leads.length === 0}}">
+      <image src="/images/empty-leads.png" mode="aspectFit"></image>
+      <text>暂无客户</text>
+    </view>
+  </scroll-view>
+
+  <!-- 创建线索按钮 -->
+  <view class="create-btn" bindtap="onCreateLead">
+    <text class="icon">+</text>
+    <text>创建客户</text>
+  </view>
+</view>

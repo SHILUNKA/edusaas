@@ -1,0 +1,60 @@
+<view class="detail-container">
+  <view wx:if="{{classDetail && !loading}}">
+    <!-- 课程信息卡片 -->
+    <view class="class-card">
+      <view class="course-name">{{classDetail.course_name}}</view>
+      
+      <view class="info-row">
+        <text class="label">⏰ 时间</text>
+        <text class="value">{{classDetail.start_time}} - {{classDetail.end_time}}</text>
+      </view>
+      
+      <view class="info-row">
+        <text class="label">📍 教室</text>
+        <text class="value">{{classDetail.room_name}}</text>
+      </view>
+      
+      <view class="info-row">
+        <text class="label">👨‍🏫 老师</text>
+        <text class="value">{{classDetail.teacher_name}}</text>
+      </view>
+    </view>
+
+    <!-- 考勤信息 -->
+    <view class="section-card">
+      <view class="section-title">考勤信息</view>
+      
+      <view class="status-row">
+        <text class="label">签到状态</text>
+        <view class="status-badge {{classDetail.enrollment.status}}">
+          {{classDetail.enrollment.status === 'signed_in' ? '已签到' : '未签到'}}
+        </view>
+      </view>
+      
+      <view class="info-row" wx:if="{{classDetail.enrollment.signed_in_at}}">
+        <text class="label">签到时间</text>
+        <text class="value">{{classDetail.enrollment.signed_in_at}}</text>
+      </view>
+    </view>
+
+    <!-- 课后评价 -->
+    <view class="section-card" wx:if="{{classDetail.enrollment.teacher_feedback}}">
+      <view class="section-title">课后评价</view>
+      
+      <view class="rating" wx:if="{{classDetail.enrollment.rating}}">
+        <text class="star" wx:for="{{[1,2,3,4,5]}}" wx:key="*this">
+          {{item <= classDetail.enrollment.rating ? '⭐' : '☆'}}
+        </text>
+      </view>
+      
+      <view class="feedback-text">
+        {{classDetail.enrollment.teacher_feedback}}
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view class="loading-state" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+</view>

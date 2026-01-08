@@ -15,7 +15,7 @@ use super::AppState;
 use crate::models::{
     Claims, HqProduct, SupplyOrder, CreateSupplyOrderPayload, 
     UploadPaymentProofPayload, ShipOrderPayload,
-    CreateProductPayload, UpdateProductPayload, ConsumeInventoryPayload
+    CreateProductPayload, UpdateProductPayload
 };
 
 // ==========================================

@@ -1,0 +1,175 @@
+/* pkg_customer/pages/home/index.wxss */
+.home-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding-bottom: 120rpx;
+}
+
+/* 顶部学员选择 */
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 30rpx;
+  color: white;
+}
+
+.participant-picker {
+  width: 100%;
+}
+
+.picker-content {
+  display: flex;
+  align-items: center;
+  padding: 20rpx;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 16rpx;
+}
+
+.avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+  border: 3rpx solid rgba(255, 255, 255, 0.3);
+}
+
+.picker-content .info {
+  flex: 1;
+}
+
+.picker-content .name {
+  font-size: 32rpx;
+  font-weight: bold;
+  display: block;
+}
+
+.picker-content .rank {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  opacity: 0.9;
+}
+
+.rank-name {
+  margin-right: 20rpx;
+}
+
+.arrow {
+  font-size: 24rpx;
+  opacity: 0.7;
+}
+
+/* 今日课程卡片 */
+.today-class-card {
+  margin: 30rpx;
+  background: white;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  padding: 30rpx;
+  border-bottom: 1rpx solid #eee;
+}
+
+.card-header .title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.class-item {
+  display: flex;
+  padding: 30rpx;
+  border-bottom: 1rpx solid #f5f5f5;
+}
+
+.class-item:last-child {
+  border-bottom: none;
+}
+
+.class-time {
+  width: 150rpx;
+  margin-right: 20rpx;
+}
+
+.class-time .time {
+  font-size: 28rpx;
+  color: #667eea;
+  font-weight: 500;
+}
+
+.class-info {
+  flex: 1;
+}
+
+.course-name {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.details {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.empty-class {
+  margin: 30rpx;
+  padding: 80rpx 30rpx;
+  background: white;
+  border-radius: 16rpx;
+  text-align: center;
+}
+
+.empty-text {
+  color: #999;
+  font-size: 28rpx;
+}
+
+/* 快捷功能网格 */
+.quick-menu {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20rpx;
+  margin: 30rpx;
+}
+
+.menu-item {
+  background: white;
+  border-radius: 16rpx;
+  padding: 40rpx 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+}
+
+.menu-item:active {
+  transform: scale(0.95);
+}
+
+.menu-icon {
+  font-size: 48rpx;
+  margin-bottom: 16rpx;
+}
+
+.menu-label {
+  font-size: 26rpx;
+  color: #333;
+}
+
+/* 轮播Banner */
+.banner-swiper {
+  height: 300rpx;
+  margin: 30rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.banner-image {
+  width: 100%;
+  height: 100%;
+}

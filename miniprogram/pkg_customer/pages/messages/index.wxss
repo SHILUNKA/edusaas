@@ -1,0 +1,93 @@
+.messages-container {
+  min-height: 100vh;
+  background-color: #f7f8fa;
+}
+
+.message-list {
+  padding: 30rpx;
+}
+
+.message-card {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.05);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+}
+
+.priority-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  margin-right: 15rpx;
+}
+
+.priority-high { background-color: #f44336; }
+.priority-normal { background-color: #4A90E2; }
+.priority-low { background-color: #999; }
+
+.title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.date {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.card-body {
+  margin-bottom: 20rpx;
+}
+
+.content-preview {
+  font-size: 26rpx;
+  color: #666;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.card-footer {
+  text-align: right;
+  border-top: 1rpx solid #f0f0f0;
+  padding-top: 15rpx;
+}
+
+.more {
+  font-size: 24rpx;
+  color: #4A90E2;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 200rpx;
+}
+
+.empty-icon {
+  width: 200rpx;
+  height: 200rpx;
+  margin-bottom: 30rpx;
+  opacity: 0.5;
+}
+
+.empty-text {
+  color: #999;
+  font-size: 28rpx;
+}

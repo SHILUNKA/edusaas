@@ -1,0 +1,48 @@
+<wxs module="utils">
+  module.exports.formatMoney = function(cents) {
+    if (!cents && cents !== 0) return '0.00';
+    return (cents / 100).toFixed(2);
+  }
+</wxs>
+
+<view class="container">
+  <!-- 概览卡片 -->
+  <view class="summary-card">
+    <view class="today-section">
+      <view class="label">今日实收 (元)</view>
+      <view class="amount lg">{{utils.formatMoney(summary.today_income_cents)}}</view>
+    </view>
+    <view class="divider"></view>
+    <view class="month-row">
+      <view class="col">
+        <view class="label">本月实收</view>
+        <view class="amount">{{utils.formatMoney(summary.month_income_cents)}}</view>
+      </view>
+      <view class="col">
+        <view class="label">本月支出</view>
+        <view class="amount expense">{{utils.formatMoney(summary.month_expense_cents)}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 最近流水 -->
+  <view class="list-section">
+    <view class="section-title">最近流水</view>
+    
+    <view class="transaction-list" wx:if="{{summary.recent_transactions.length > 0}}">
+      <view class="trans-item" wx:for="{{summary.recent_transactions}}" wx:key="id">
+        <view class="left">
+          <view class="title">{{item.title}}</view>
+          <view class="date">{{item.created_at}}</view>
+        </view>
+        <view class="right {{item.type_ === 'income' ? 'income' : 'expense'}}">
+          {{item.type_ === 'income' ? '+' : '-'}}{{utils.formatMoney(item.amount_cents)}}
+        </view>
+      </view>
+    </view>
+
+    <view class="empty-state" wx:else>
+      <text>暂无流水记录</text>
+    </view>
+  </view>
+</view>

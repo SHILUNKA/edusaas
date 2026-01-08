@@ -1,0 +1,45 @@
+<view class="container">
+  <!-- 搜索/筛选栏 (预留) -->
+  <view class="search-bar">
+    <view class="search-wrap">
+        <text class="search-icon">🔍</text>
+        <input class="search-input" placeholder="搜索姓名或手机号" placeholder-class="ph-color"/>
+    </view>
+  </view>
+
+  <!-- 员工列表 -->
+  <view class="staff-list">
+    <block wx:if="{{list.length > 0}}">
+      <view class="staff-card" wx:for="{{list}}" wx:key="id">
+        <image class="avatar" src="{{item.avatar_url}}" mode="aspectFill"></image>
+        
+        <view class="info">
+          <view class="header">
+            <text class="name">{{item.name}}</text>
+            <view class="badge {{item.role === '管理员' ? 'admin' : ''}}">{{item.role}}</view>
+          </view>
+          <view class="sub-info">
+            <text class="status {{item.status === 'active' ? 'active' : 'inactive'}}">{{item.status === 'active' ? '在职' : '离职'}}</text>
+            <text class="divider">|</text>
+            <text class="phone">{{item.phone_number || '无电话'}}</text>
+          </view>
+          <view class="email">{{item.email}}</view>
+        </view>
+
+        <view class="action" bindtap="callStaff" data-phone="{{item.phone_number}}">
+          <view class="icon-btn">📞</view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:else>
+      <text>暂无员工信息</text>
+    </view>
+  </view>
+
+  <!-- FAB Is optional, maybe remove if not ready -->
+  <view class="fab-btn" bindtap="onAddStaff">
+    <text class="fab-icon">+</text>
+  </view>
+</view>

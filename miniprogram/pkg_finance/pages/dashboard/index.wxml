@@ -1,0 +1,89 @@
+<wxs module="utils">
+  module.exports.formatMoney = function(cents) {
+    if (!cents && cents !== 0) return '0.00';
+    return (cents / 100).toFixed(2);
+  }
+</wxs>
+
+<view class="container">
+  <!-- 资金概览 -->
+  <view class="header-card">
+    <view class="date-row">
+        <text class="date">今日 · {{dateDesc}}</text>
+        <view class="refresh-tips" wx:if="{{loading}}">更新中...</view>
+    </view>
+    <view class="balance-row">
+      <view class="item">
+        <view class="label">今日实收 <text class="unit">(元)</text></view>
+        <view class="amount income">+{{utils.formatMoney(stats.today_income_cents)}}</view>
+      </view>
+      <view class="v-divider"></view>
+      <view class="item">
+        <view class="label">今日实支 <text class="unit">(元)</text></view>
+        <view class="amount expense">-{{utils.formatMoney(stats.today_expense_cents)}}</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 待办任务 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="title">待办事项</text>
+      <text class="desc">Priority Tasks</text>
+    </view>
+    
+    <view class="todo-list">
+      <view class="todo-card" bindtap="navToAudit" data-type="income">
+        <view class="icon-bg blue">
+          <text class="emoji">💰</text>
+        </view>
+        <view class="info">
+          <view class="name">待确认收款</view>
+          <view class="sub">学员转账凭证审核</view>
+        </view>
+        <view class="badge" wx:if="{{stats.pending_incomes > 0}}">{{stats.pending_incomes}}</view>
+        <view class="arr">></view>
+      </view>
+
+      <view class="todo-card" bindtap="navToAudit" data-type="expense">
+        <view class="icon-bg orange">
+          <text class="emoji">💸</text>
+        </view>
+        <view class="info">
+          <view class="name">待执行付款</view>
+          <view class="sub">报销打款与退费</view>
+        </view>
+        <view class="badge" wx:if="{{stats.pending_expenses > 0}}">{{stats.pending_expenses}}</view>
+        <view class="arr">></view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 常用功能 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="title">常用功能</text>
+    </view>
+    <view class="grid-menu">
+      <view class="grid-item" bindtap="navToLedger">
+        <view class="grid-icon-wrap ledger">
+            <text class="emoji">📒</text>
+        </view>
+        <text>收支流水</text>
+      </view>
+      <view class="grid-item" bindtap="navToBookkeeping">
+        <view class="grid-icon-wrap book">
+            <text class="emoji">📝</text>
+        </view>
+        <text>记一笔</text>
+      </view>
+      <!-- 预留位置 -->
+       <view class="grid-item" bindtap="navToInvoice">
+        <view class="grid-icon-wrap invoice">
+            <text class="emoji">🧾</text>
+        </view>
+        <text>发票管理</text>
+      </view>
+    </view>
+  </view>
+</view>

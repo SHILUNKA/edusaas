@@ -1,0 +1,55 @@
+<wxs module="utils">
+  module.exports.formatDate = function(dateStr) {
+    if (!dateStr) return '';
+    var date = getDate(dateStr);
+    var month = date.getMonth() + 1;
+    var day = date.getDate();
+    return month + '/' + day + ' ' + (date.getHours()<10?'0':'') + date.getHours() + ':' + (date.getMinutes()<10?'0':'') + date.getMinutes();
+  }
+  module.exports.formatMoney = function(cents) {
+    if (!cents && cents !== 0) return '0.00';
+    return (cents / 100).toFixed(2);
+  }
+</wxs>
+
+<view class="container">
+  <!-- 列表 -->
+  <view class="approval-list" wx:if="{{list.length > 0}}">
+    <view class="approval-card" wx:for="{{list}}" wx:key="id">
+      <view class="card-header">
+        <text class="title">{{item.title}}</text>
+        <view class="status tag-pending">待审批</view>
+      </view>
+      
+      <view class="card-body">
+        <view class="row" wx:if="{{item.amount_cents !== null}}">
+          <text class="label">金额</text>
+          <text class="value price">¥{{utils.formatMoney(item.amount_cents)}}</text>
+        </view>
+        <view class="row">
+          <text class="label">详情</text>
+          <text class="value">{{item.subtitle}}</text>
+        </view>
+        <view class="row" wx:if="{{item.requester_name}}">
+          <text class="label">申请人</text>
+          <text class="value">{{item.requester_name}}</text>
+        </view>
+        <view class="row">
+          <text class="label">提交时间</text>
+          <text class="value">{{utils.formatDate(item.created_at)}}</text>
+        </view>
+      </view>
+
+      <view class="card-footer">
+        <view class="btn btn-reject" bindtap="handleAction" data-id="{{item.id}}" data-action="reject">拒绝</view>
+        <view class="btn btn-approve" bindtap="handleAction" data-id="{{item.id}}" data-action="approve">通过</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:else>
+    <view class="empty-icon">✓</view>
+    <text>暂无待审批项</text>
+  </view>
+</view>

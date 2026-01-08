@@ -1,0 +1,9 @@
+{
+    "navigationBarTitleText": "决策看板",
+    "enablePullDownRefresh": true,
+    "backgroundColor": "#f5f5f5",
+    "backgroundTextStyle": "dark",
+    "usingComponents": {
+        "dynamic-tab-bar": "/components/dynamic-tab-bar/index"
+    }
+}

@@ -1,9 +1,110 @@
-<view class="container">
-  <view style="padding: 100rpx; text-align: center;">
-    <icon type="info" size="64" color="#059669"/>
-    <view style="margin-top:20rpx; font-weight:bold;">校区工作台</view>
-    <view>Campus Workspace</view>
-  </view>
-</view>
+<view class="workspace-container">
+  <!-- 自定义顶部导航背景 (装饰用) -->
+  <view class="custom-header-bg"></view>
 
-<dynamic-tab-bar selected="{{0}}"></dynamic-tab-bar>
+  <view class="content-wrapper">
+    <!-- 头部问候 -->
+    <view class="header-section">
+      <view>
+        <view class="title">管理工作台</view>
+        <view class="subtitle">Management Workspace</view>
+      </view>
+      <view class="user-avatar">
+        <text>🧑‍💼</text>
+      </view>
+    </view>
+
+    <!-- 1. 待办审批核心区 -->
+    <view class="section-title">✨ 待我审批</view>
+    <view class="approval-cards">
+      <view class="approval-item" bindtap="onNavTo" data-url="/pkg_base/pages/approval/list/index?type=discount">
+        <view class="icon-circle blue">
+          <text>🏷️</text>
+        </view>
+        <view class="info">
+          <text class="count">{{approvals.discount || 0}}</text>
+          <text class="label">特价/折扣</text>
+        </view>
+      </view>
+      
+      <view class="approval-item" bindtap="onNavTo" data-url="/pkg_base/pages/approval/list/index?type=refund">
+        <view class="icon-circle red">
+          <text>💸</text>
+        </view>
+        <view class="info">
+          <text class="count">{{approvals.refund || 0}}</text>
+          <text class="label">退费申请</text>
+        </view>
+      </view>
+
+      <view class="approval-item" bindtap="onNavTo" data-url="/pkg_base/pages/approval/list/index?type=expense">
+        <view class="icon-circle orange">
+          <text>🧾</text>
+        </view>
+        <view class="info">
+          <text class="count">{{approvals.expense || 0}}</text>
+          <text class="label">报销/支出</text>
+        </view>
+      </view>
+
+      <view class="approval-item" bindtap="onNavTo" data-url="/pkg_base/pages/approval/list/index?type=leave">
+        <view class="icon-circle purple">
+          <text>📅</text>
+        </view>
+        <view class="info">
+          <text class="count">{{approvals.leave || 0}}</text>
+          <text class="label">请假/考勤</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 2. 经营风险预警 -->
+    <view class="section-title warning-title">
+      <text>🛡️ 风险监控</text>
+      <view class="status-tag {{risks.length > 0 ? 'danger' : 'success'}}">
+        {{risks.length > 0 ? risks.length + '项异常' : '运行平稳'}}
+      </view>
+    </view>
+    
+    <view class="risk-list" wx:if="{{risks.length > 0}}">
+      <view class="risk-item" wx:for="{{risks}}" wx:key="id">
+        <text class="risk-icon">⚠️</text>
+        <view class="risk-content">
+          <text class="risk-text">{{item.text}}</text>
+          <text class="risk-desc">{{item.desc}}</text>
+        </view>
+        <button class="handle-btn" size="mini">处理</button>
+      </view>
+    </view>
+    <view class="empty-state" wx:else>
+      <text class="empty-icon">✅</text>
+      <text class="empty-text">当前无经营风险，请保持！</text>
+    </view>
+
+    <!-- 3. 管理工具箱 -->
+    <view class="section-title">🛠️ 管理工具</view>
+    <view class="tools-grid">
+      <view class="tool-item" bindtap="onNavTo" data-url="/pkg_base/pages/finance/index">
+        <view class="tool-icon" style="background: #e0f2fe; color: #0284c7">💰</view>
+        <text class="tool-name">财务中心</text>
+      </view>
+      <view class="tool-item" bindtap="onNavTo" data-url="/pkg_base/pages/staff/index">
+        <view class="tool-icon" style="background: #f3e8ff; color: #9333ea">👥</view>
+        <text class="tool-name">人事管理</text>
+      </view>
+      <view class="tool-item" bindtap="onNavTo" data-url="/pkg_base/pages/report/depth/index">
+        <view class="tool-icon" style="background: #dcfce7; color: #16a34a">📈</view>
+        <text class="tool-name">深度报表</text>
+      </view>
+      <view class="tool-item" bindtap="onNavTo" data-url="/pkg_base/pages/notice/send/index">
+        <view class="tool-icon" style="background: #ffedd5; color: #ea580c">📢</view>
+        <text class="tool-name">发布通知</text>
+      </view>
+    </view>
+
+  </view>
+
+  <!-- 底部导航 (固定) -->
+  <view style="height: 180rpx;"></view> <!-- 占位符 -->
+  <dynamic-tab-bar selected="{{1}}"></dynamic-tab-bar>
+</view>

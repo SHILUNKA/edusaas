@@ -10,5 +10,18 @@
     "autoAudits": false,
     "showShadowRootInWxmlPanel": true,
     "compileHotReLoad": true
+  },
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "扫码登录测试",
+          "pathName": "pages/customer-login/index",
+          "query": "b_test-base-123_c_poster",
+          "scene": null,
+          "launchMode": "default"
+        }
+      ]
+    }
   }
 }

@@ -1,0 +1,92 @@
+<view class="schedule-container">
+  <!-- 顶部筛选栏 -->
+  <view class="filter-bar">
+    <view class="view-mode">
+      <view 
+        class="mode-btn {{viewMode === 'list' ? 'active' : ''}}"
+        bindtap="onViewModeChange"
+        data-mode="list"
+      >
+        列表
+      </view>
+      <view 
+        class="mode-btn {{viewMode === 'calendar' ? 'active' : ''}}"
+        bindtap="onViewModeChange"
+        data-mode="calendar"
+      >
+        月历
+      </view>
+    </view>
+    
+    <view class="status-filter">
+      <view 
+        class="filter-btn {{filterStatus === 'all' ? 'active' : ''}}"
+        bindtap="onFilterChange"
+        data-status="all"
+      >
+        全部
+      </view>
+      <view 
+        class="filter-btn {{filterStatus === 'upcoming' ? 'active' : ''}}"
+        bindtap="onFilterChange"
+        data-status="upcoming"
+      >
+        未上课
+      </view>
+      <view 
+        class="filter-btn {{filterStatus === 'completed' ? 'active' : ''}}"
+        bindtap="onFilterChange"
+        data-status="completed"
+      >
+        已完成
+      </view>
+    </view>
+  </view>
+
+  <!-- 课程列表 -->
+  <scroll-view scroll-y class="class-list" refresher-enabled bindrefresherrefresh="onPullDownRefresh">
+    <view 
+      class="class-card"
+      wx:for="{{classes}}"
+      wx:key="id"
+      bindtap="onClassTap"
+      data-id="{{item.id}}"
+    >
+      <view class="class-date">
+        <text class="month-day">{{item.start_time}}</text>
+      </view>
+      
+      <view class="class-content">
+        <view class="course-name">{{item.course_name}}</view>
+        <view class="class-meta">
+          <text class="time">⏰ {{item.start_time}} - {{item.end_time}}</text>
+          <text class="room">📍 {{item.room_name}}</text>
+          <text class="teacher">👨‍🏫 {{item.teacher_name}}</text>
+        </view>
+        
+        <view class="enrollment-status">
+          <view class="status-badge {{item.enrollment.status}}">
+            {{item.enrollment.status === 'signed_in' ? '已签到' : item.enrollment.status === 'absent' ? '缺勤' : '待上课'}}
+          </view>
+          
+          <text class="feedback-tip" wx:if="{{item.enrollment.teacher_feedback}}">
+            💬 有评价
+          </text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:if="{{classes.length === 0 && !loading}}">
+      <text class="empty-icon">📅</text>
+      <text class="empty-text">暂无课程安排</text>
+    </view>
+
+    <!-- 加载状态 -->
+    <view class="loading-state" wx:if="{{loading}}">
+      <text>加载中...</text>
+    </view>
+  </scroll-view>
+</view>
+
+<dynamic-tab-bar selected="1"></dynamic-tab-bar>

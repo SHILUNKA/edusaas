@@ -4,31 +4,31 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { API_BASE_URL } from '@/lib/config';
 import { TrendingUp, Users, AlertTriangle, Wallet, CalendarDays, Clock, BarChart3, PieChart } from 'lucide-react';
-import { 
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-    PieChart as RePie, Pie, Cell, Legend 
+import {
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    PieChart as RePie, Pie, Cell, Legend
 } from 'recharts';
 
-// 定义接口 (与后端 BaseDashboardFullData 对齐)
-interface DashboardData {
-    month_revenue: number;
-    revenue_growth: number;
-    month_headcount: number;
-    headcount_growth: number;
-    pending_payment_amount: number;
-    pending_alerts: number;
-    trend_labels: string[];
-    trend_headcount: number[];
-    trend_revenue: number[];
-    customer_composition: { name: string; value: number; color: string }[];
-    upcoming_events: { date: string; customer_name: string; type_name: string; headcount: number; }[];
-    todo_list: { id: string; title: string; tag: string; tag_color: string; date: string; }[];
+// 定义接口 (适配后端 DashboardMetrics)
+interface DashboardResponse {
+    metrics: {
+        cash_flow: any;
+        today_revenue: any;
+        students: any;
+        revenue_progress: any;
+        tob_status: any;
+        alerts: { critical: any[], warning: any[] };
+        trends: { labels: string[], revenue: number[], students: number[] };
+        customer_composition: any[];
+        upcoming_events: any[];
+        todo_list: any[];
+    }
 }
 
 export default function PrincipalDashboard({ baseName }: { baseName?: string }) {
     const { data: session } = useSession();
     const token = (session?.user as any)?.rawToken;
-    const [data, setData] = useState<DashboardData | null>(null);
+    const [data, setData] = useState<DashboardResponse | null>(null);
     const [loading, setLoading] = useState(true);
 
     // ★ 1. 获取真实数据
@@ -37,16 +37,28 @@ export default function PrincipalDashboard({ baseName }: { baseName?: string }) 
         fetch(`${API_BASE_URL}/base/dashboard/overview`, {
             headers: { 'Authorization': `Bearer ${token}` }
         })
-        .then(res => res.json())
-        .then(json => { setData(json); setLoading(false); })
-        .catch(err => { console.error(err); setLoading(false); });
+            .then(res => res.json())
+            .then(json => { setData(json); setLoading(false); })
+            .catch(err => { console.error(err); setLoading(false); });
     }, [token]);
 
     if (loading) return <div className="p-10 text-center text-gray-400 animate-pulse">正在加载运营数据...</div>;
     if (!data) return <div className="p-10 text-center text-gray-400">暂无数据</div>;
 
+    const m = data.metrics;
+
     // 格式化金额 (分 -> 万)
     const fmtW = (cents: number) => `¥${(cents / 100 / 10000).toFixed(2)}万`;
+
+    // 转换图表数据
+    const chartData = (m.trends?.labels || []).map((l, i) => ({
+        name: l,
+        people: m.trends.students[i],
+        revenue: m.trends.revenue[i] / 10000
+    }));
+
+    // 计算 Alert 数量
+    const alertCount = (m.alerts?.critical?.length || 0) + (m.alerts?.warning?.length || 0);
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -63,55 +75,51 @@ export default function PrincipalDashboard({ baseName }: { baseName?: string }) 
 
             {/* 1. 核心 KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard 
-                    icon={Wallet} label="本月确认营收" 
-                    value={fmtW(data.month_revenue)} 
-                    color="emerald" 
-                    sub={`环比 +${(data.revenue_growth * 100).toFixed(0)}%`} 
+                <StatCard
+                    icon={Wallet} label="本月确认营收"
+                    value={fmtW(m.revenue_progress.actual)}
+                    color="emerald"
+                    sub={`进度 ${(m.revenue_progress.completion_rate * 100).toFixed(0)}%`}
                 />
-                <StatCard 
-                    icon={Users} label="本月接待人数" 
-                    value={data.month_headcount} 
-                    color="blue" 
-                    sub={`新增 +${(data.headcount_growth * 100).toFixed(0)}%`} 
+                <StatCard
+                    icon={Users} label="在校学员"
+                    value={m.students.active_students}
+                    color="blue"
+                    sub={`净增 ${m.students.net_growth}`}
                 />
-                <StatCard 
-                    icon={Clock} label="待回款金额 (AR)" 
-                    value={fmtW(data.pending_payment_amount)} 
-                    color="orange" 
-                    sub="B2B/G 账期中" 
+                <StatCard
+                    icon={Clock} label="待回款金额 (AR)"
+                    value={fmtW(m.cash_flow.accounts_receivable)}
+                    color="orange"
+                    sub={`逾期 ${m.cash_flow.overdue_count} 笔`}
                 />
-                <StatCard 
-                    icon={AlertTriangle} label="待办预警" 
-                    value={data.pending_alerts} 
-                    color="red" 
-                    sub="需立即处理" 
+                <StatCard
+                    icon={AlertTriangle} label="待办预警"
+                    value={alertCount}
+                    color="red"
+                    sub="需立即处理"
                 />
             </div>
 
             {/* 2. 图表区域 */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+
                 {/* 左侧：趋势柱状图 */}
                 <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                     <h3 className="font-bold text-gray-800 mb-6 flex items-center gap-2">
-                        <BarChart3 className="text-indigo-600" size={20}/> 接待量与营收趋势
+                        <BarChart3 className="text-indigo-600" size={20} /> 接待量与营收趋势
                     </h3>
                     <div className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data.trend_labels.map((l, i) => ({
-                                name: l,
-                                people: data.trend_headcount[i],
-                                revenue: data.trend_revenue[i] / 10000 // 万
-                            }))}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6"/>
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize:12, fill:'#9ca3af'}}/>
-                                <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} label={{ value: '人数', angle: -90, position: 'insideLeft', fill:'#9ca3af', fontSize:10 }}/>
-                                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} unit="万" tick={{fontSize:12, fill:'#9ca3af'}}/>
-                                <Tooltip contentStyle={{borderRadius:'8px', border:'none', boxShadow:'0 4px 12px rgba(0,0,0,0.1)'}}/>
+                            <BarChart data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                                <YAxis yAxisId="left" orientation="left" axisLine={false} tickLine={false} label={{ value: '人数', angle: -90, position: 'insideLeft', fill: '#9ca3af', fontSize: 10 }} />
+                                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} unit="万" tick={{ fontSize: 12, fill: '#9ca3af' }} />
+                                <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                                 <Legend />
-                                <Bar yAxisId="left" dataKey="people" name="接待人数" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20}/>
-                                <Bar yAxisId="right" dataKey="revenue" name="营收(万)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20}/>
+                                <Bar yAxisId="left" dataKey="people" name="接待人数" fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={20} />
+                                <Bar yAxisId="right" dataKey="revenue" name="营收(万)" fill="#10b981" radius={[4, 4, 0, 0]} barSize={20} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -120,28 +128,28 @@ export default function PrincipalDashboard({ baseName }: { baseName?: string }) 
                 {/* 右侧：饼图 */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col">
                     <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-                        <PieChart className="text-indigo-600" size={20}/> 客群结构
+                        <PieChart className="text-indigo-600" size={20} /> 营收结构
                     </h3>
                     <div className="flex-1 relative">
                         <ResponsiveContainer width="100%" height="100%">
                             <RePie>
-                                <Pie data={data.customer_composition} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                                    {data.customer_composition.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                                <Pie data={m.customer_composition} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                                    {m.customer_composition.map((entry: any, index: number) => <Cell key={index} fill={entry.color} />)}
                                 </Pie>
                                 <Tooltip />
                             </RePie>
                         </ResponsiveContainer>
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div className="text-center">
-                                <div className="text-2xl font-bold text-gray-900">{data.customer_composition.length}</div>
+                                <div className="text-2xl font-bold text-gray-900">{m.customer_composition.length}</div>
                                 <div className="text-xs text-gray-400">类目</div>
                             </div>
                         </div>
                     </div>
                     <div className="space-y-2 mt-4">
-                        {data.customer_composition.map(d => (
+                        {m.customer_composition.map((d: any) => (
                             <div key={d.name} className="flex justify-between text-xs">
-                                <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{backgroundColor:d.color}}></span>{d.name}</span>
+                                <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: d.color }}></span>{d.name}</span>
                                 <span className="font-bold text-gray-700">{d.value} 单</span>
                             </div>
                         ))}
@@ -155,12 +163,12 @@ export default function PrincipalDashboard({ baseName }: { baseName?: string }) 
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                            <CalendarDays className="text-indigo-600" size={20}/> 未来7天接待
+                            <CalendarDays className="text-indigo-600" size={20} /> 未来7天接待
                         </h3>
-                        <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">{data.upcoming_events.length} 场</span>
+                        <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">{m.upcoming_events?.length || 0} 场</span>
                     </div>
                     <div className="space-y-3">
-                        {data.upcoming_events.map((evt, i) => (
+                        {m.upcoming_events?.map((evt: any, i: number) => (
                             <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                                 <div className="flex items-center gap-4">
                                     <div className="bg-white border border-gray-200 rounded-lg p-2 text-center min-w-[50px] shadow-sm">
@@ -177,30 +185,30 @@ export default function PrincipalDashboard({ baseName }: { baseName?: string }) 
                                 </div>
                             </div>
                         ))}
-                        {data.upcoming_events.length === 0 && <div className="text-center py-8 text-gray-400 text-sm">近期无接待安排</div>}
+                        {(m.upcoming_events || []).length === 0 && <div className="text-center py-8 text-gray-400 text-sm">近期无接待安排</div>}
                     </div>
                 </div>
 
                 {/* 待办事项 */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm">
                     <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <Clock className="text-orange-600" size={20}/> 待处理事项
+                        <Clock className="text-orange-600" size={20} /> 待处理事项
                     </h3>
                     <div className="space-y-3">
-                        {data.todo_list.map((todo, i) => (
+                        {m.todo_list?.map((todo: any, i: number) => (
                             <div key={i} className="flex justify-between items-center p-3 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer group">
                                 <div>
                                     <div className="text-sm font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">{todo.title}</div>
                                     <div className="text-xs text-gray-400 mt-1">{todo.date}</div>
                                 </div>
                                 <span className={`text-[10px] font-bold px-2 py-1 rounded-md 
-                                    ${todo.tag_color === 'red' ? 'bg-red-50 text-red-600' : 
-                                      todo.tag_color === 'blue' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
+                                    ${todo.tag_color === 'red' ? 'bg-red-50 text-red-600' :
+                                        todo.tag_color === 'blue' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
                                     {todo.tag}
                                 </span>
                             </div>
                         ))}
-                        {data.todo_list.length === 0 && <div className="text-center py-8 text-gray-400 text-sm">🎉 暂无待办事项</div>}
+                        {(m.todo_list || []).length === 0 && <div className="text-center py-8 text-gray-400 text-sm">🎉 暂无待办事项</div>}
                     </div>
                 </div>
             </div>

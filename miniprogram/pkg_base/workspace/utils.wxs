@@ -1,0 +1,8 @@
+var formatMoney = function(cents) {
+  if (!cents && cents !== 0) return '0';
+  return (cents / 100).toFixed(0);
+}
+
+module.exports = {
+  formatMoney: formatMoney
+}

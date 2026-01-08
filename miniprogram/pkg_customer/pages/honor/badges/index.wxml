@@ -1,0 +1,50 @@
+<view class="badges-container">
+  <!-- 统计头部 -->
+  <view class="stats-header">
+    <view class="stats-item">
+      <text class="stats-value">{{unlockedCount}}</text>
+      <text class="stats-label">已解锁</text>
+    </view>
+    <view class="stats-divider"></view>
+    <view class="stats-item">
+      <text class="stats-value">{{totalCount}}</text>
+      <text class="stats-label">勋章总数</text>
+    </view>
+  </view>
+
+  <!-- 勋章网格 -->
+  <view class="badges-grid">
+    <view 
+      class="badge-item {{item.unlocked ? 'unlocked' : 'locked'}}"
+      wx:for="{{badges}}"
+      wx:key="id"
+      bindtap="onBadgeTap"
+      data-badge="{{item}}"
+    >
+      <view class="badge-icon">{{item.icon_url}}</view>
+      <view class="badge-name">{{item.name}}</view>
+      
+      <!-- 已解锁显示日期 -->
+      <view class="badge-date" wx:if="{{item.unlocked}}">
+        {{item.unlocked_at}}
+      </view>
+      
+      <!-- 未解锁显示进度 -->
+      <view class="badge-progress" wx:else>
+        <view class="progress-bar">
+          <view 
+            class="progress-fill" 
+            style="width: {{(item.progress.current / item.progress.target * 100)}}%"
+          ></view>
+        </view>
+        <text class="progress-text">{{item.progress.current}}/{{item.progress.target}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{badges.length === 0 && !loading}}">
+    <text class="empty-icon">🏅</text>
+    <text class="empty-text">暂无勋章</text>
+  </view>
+</view>

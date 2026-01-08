@@ -1,0 +1,115 @@
+
+.container {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  padding: 20rpx;
+  box-sizing: border-box;
+}
+
+.summary-card {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #fff;
+  border-radius: 20rpx;
+  padding: 40rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 8rpx 20rpx rgba(37, 99, 235, 0.2);
+}
+
+.today-section {
+  text-align: center;
+  margin-bottom: 30rpx;
+}
+
+.today-section .label {
+  font-size: 28rpx;
+  opacity: 0.9;
+  margin-bottom: 10rpx;
+}
+
+.today-section .amount.lg {
+  font-size: 64rpx;
+  font-weight: bold;
+  font-family: DIN, sans-serif;
+}
+
+.divider {
+  height: 1rpx;
+  background: rgba(255,255,255,0.2);
+  margin-bottom: 30rpx;
+}
+
+.month-row {
+  display: flex;
+}
+
+.month-row .col {
+  flex: 1;
+  text-align: center;
+}
+
+.month-row .amount {
+  font-size: 36rpx;
+  font-weight: 600;
+  font-family: DIN, sans-serif;
+  margin-top: 8rpx;
+}
+
+.list-section {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 24rpx;
+  padding-left: 16rpx;
+  border-left: 8rpx solid #3b82f6;
+  line-height: 1;
+}
+
+.trans-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #f1f5f9;
+}
+
+.trans-item:last-child {
+  border-bottom: none;
+}
+
+.trans-item .left .title {
+  font-size: 30rpx;
+  color: #334155;
+  margin-bottom: 6rpx;
+}
+
+.trans-item .left .date {
+  font-size: 24rpx;
+  color: #94a3b8;
+}
+
+.trans-item .right {
+  font-size: 32rpx;
+  font-weight: 600;
+  font-family: DIN, sans-serif;
+}
+
+.trans-item .right.income {
+  color: #10b981;
+}
+
+.trans-item .right.expense {
+  color: #ef4444;
+}
+
+.empty-state {
+  padding: 60rpx;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 28rpx;
+}

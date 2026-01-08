@@ -32,24 +32,64 @@ export default function TenantDashboardView({ roles = [] }: { roles: string[] })
     const isHR = roles.includes('role.hq.hr');
 
     // 统一数据获取 (Parent Fetch Pattern)
-    // 这样做的好处是：如果 Boss 同时想看 HR 数据，我们可以一次性传给他，不用子组件再发请求
+    // ✅ Only fetch data that the user role has permission to access
     useEffect(() => {
         async function fetchData() {
             if (!token) return;
             setIsLoading(true);
             try {
                 const headers = { 'Authorization': `Bearer ${token}` };
-                
-                // 并发请求所有可能用到的数据
-                const [resBasic, resAdv, resStaff] = await Promise.all([
-                    fetch(`${API_BASE_URL}/hq/dashboard/stats`, { headers }),
-                    fetch(`${API_BASE_URL}/hq/dashboard/analytics`, { headers }),
-                    fetch(`${API_BASE_URL}/hq/dashboard/pending-staff`, { headers })
-                ]);
 
-                if (resBasic.ok) setBasicStats(await resBasic.json());
-                if (resAdv.ok) setAdvStats(await resAdv.json());
-                if (resStaff.ok) setPendingStaff(await resStaff.json());
+                // ✅ Conditionally fetch based on roles
+                const promises: Promise<any>[] = [];
+
+                // Stats API - accessible by admin, finance
+                if (isBoss || isFinance) {
+                    promises.push(
+                        fetch(`${API_BASE_URL}/hq/dashboard/stats`, { headers })
+                            .then(res => res.ok ? res.json().then(data => ({ type: 'basic', data })) : null)
+                    );
+                }
+
+                // Analytics API - accessible by admin, finance, operation
+                if (isBoss || isFinance || isOps) {
+                    promises.push(
+                        fetch(`${API_BASE_URL}/hq/dashboard/analytics`, { headers })
+                            .then(res => res.ok ? res.json().then(data => ({ type: 'adv', data })) : null)
+                    );
+                }
+
+                // Pending staff API - accessible by admin, HR only
+                if (isBoss || isHR) {
+                    promises.push(
+                        fetch(`${API_BASE_URL}/hq/dashboard/pending-staff`, { headers })
+                            .then(res => res.ok ? res.json().then(data => ({ type: 'staff', data })) : null)
+                    );
+                }
+
+                // ✅ Finance specific: Pending payment records for approval
+                if (isBoss || isFinance) {
+                    promises.push(
+                        fetch(`${API_BASE_URL}/finance/payments?status=PENDING`, { headers })
+                            .then(res => res.ok ? res.json().then(data => ({ type: 'pending_payments', data })) : null)
+                    );
+                }
+
+                const results = await Promise.all(promises);
+
+                // Process results
+                results.forEach(result => {
+                    if (!result) return;
+                    if (result.type === 'basic') {
+                        setBasicStats(result.data);
+                    }
+                    if (result.type === 'adv') setAdvStats(result.data);
+                    if (result.type === 'staff') setPendingStaff(result.data);
+                    if (result.type === 'pending_payments') {
+                        // Attach to basicStats for finance dashboard to consume
+                        setBasicStats((prev: any) => ({ ...prev, pending_payments: result.data }));
+                    }
+                });
 
             } catch (e) {
                 console.error("Fetch dashboard failed:", e);
@@ -58,10 +98,10 @@ export default function TenantDashboardView({ roles = [] }: { roles: string[] })
             }
         }
         fetchData();
-    }, [token]);
+    }, [token, isBoss, isFinance, isOps, isHR]);
 
     if (isLoading) {
-        return <div className="h-64 flex items-center justify-center text-gray-400"><Loader2 className="animate-spin mr-2"/> 加载集团数据...</div>;
+        return <div className="h-64 flex items-center justify-center text-gray-400"><Loader2 className="animate-spin mr-2" /> 加载集团数据...</div>;
     }
 
     // === 角色分发 ===
@@ -73,7 +113,7 @@ export default function TenantDashboardView({ roles = [] }: { roles: string[] })
 
     // 2. 财务总监
     if (isFinance) {
-        return <FinanceDashboard />; // 财务数据暂用 Mock，如果后端好了可以传 props
+        return <FinanceDashboard stats={{ basic: basicStats, adv: advStats }} />;
     }
 
     // 3. 运营总监
@@ -83,7 +123,7 @@ export default function TenantDashboardView({ roles = [] }: { roles: string[] })
 
     // 4. 人事主管
     if (isHR) {
-        return <HRDashboard pendingStaff={pendingStaff} />;
+        return <HRDashboard pendingStaff={pendingStaff} advStats={advStats} />;
     }
 
     return <div>欢迎进入总部系统</div>;

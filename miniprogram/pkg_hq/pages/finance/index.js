@@ -41,12 +41,14 @@ Page({
             total_prepaid_pool_fmt: fmt(data.total_prepaid_pool || 0),
             month_cash_in_fmt: fmt(data.month_cash_in || 0),
             month_revenue_fmt: fmt(data.month_revenue || 0),
-            // Mock trend data for chart if empty
-            trend_revenue: data.trend_revenue?.length ? data.trend_revenue : [120, 150, 180, 220, 260, 300]
+            // Use real trend data from backend
+            trend_revenue: data.trend_revenue || []
         };
 
         this.setData({ stats }, () => {
-            this.initChart(stats.trend_revenue);
+            if (stats.trend_revenue.length > 0) {
+                this.initChart(stats.trend_revenue);
+            }
         });
     },
 

@@ -31,7 +31,7 @@ pub async fn create_enrollment_handler(
     // ... (请保留原有的 create 逻辑) ...
     // (为节省篇幅，此处省略 create 代码，请直接复制之前的或保持原样)
     let hq_id = claims.hq_id;
-    let base_id = match claims.base_id { Some(id) => id, None => return Err(StatusCode::FORBIDDEN) };
+    let _base_id = match claims.base_id { Some(id) => id, None => return Err(StatusCode::FORBIDDEN) };
     let mut tx = state.db_pool.begin().await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let exists = sqlx::query("SELECT id FROM class_enrollments WHERE class_id=$1 AND participant_id=$2").bind(payload.class_id).bind(payload.participant_id).fetch_optional(&mut *tx).await.unwrap_or(None);
@@ -55,7 +55,7 @@ pub async fn get_enrollments_for_class_handler(
     Path(class_id): Path<Uuid>,
 ) -> Result<Json<Vec<EnrollmentDetail>>, StatusCode> {
     let hq_id = claims.hq_id;
-    let base_id = match claims.base_id { Some(id) => id, None => return Err(StatusCode::FORBIDDEN) };
+    let _base_id = match claims.base_id { Some(id) => id, None => return Err(StatusCode::FORBIDDEN) };
 
     let enrollments = match sqlx::query_as::<_, EnrollmentDetail>(
         r#"

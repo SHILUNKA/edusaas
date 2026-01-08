@@ -29,6 +29,7 @@ pub struct Claims {
     pub base_id: Option<Uuid>,
     pub base_name: Option<String>,
     pub base_logo: Option<String>,
+    pub full_name: String,
     pub exp: usize,
 }
 
@@ -359,6 +360,22 @@ pub struct Customer {
     pub phone_number: String,
     pub wechat_openid: Option<String>,
     pub avatar_url: Option<String>,
+    
+    // 销售相关字段
+    #[sqlx(default)]
+    pub customer_type: Option<String>,  // prospect/trial/active/inactive/churned
+    #[sqlx(default)]
+    pub lead_source: Option<String>,    // 来源渠道
+    #[sqlx(default)]
+    pub assigned_sales: Option<Uuid>,   // 负责销售
+    #[sqlx(default)]
+    pub tags: Option<Vec<String>>,      // 客户标签
+    #[sqlx(default)]
+    pub last_contact_at: Option<DateTime<Utc>>, // 最后联系时间
+    #[sqlx(default)]
+    pub notes: Option<String>,          // 备注
+    #[sqlx(default)]
+    pub created_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -735,7 +752,9 @@ pub struct OrderDetail {
     pub sales_name: Option<String>, 
     #[sqlx(default)]
     pub invoice_status: Option<String>, 
-    pub contract_url: Option<String>,   
+    pub contract_url: Option<String>,
+    pub invoice_no: Option<String>,
+    pub invoice_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
@@ -772,7 +791,9 @@ pub struct CreateOrderItemPayload {
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateInvoiceStatusPayload {
-    pub status: String, 
+    pub status: String,
+    pub invoice_no: Option<String>,
+    pub invoice_url: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -797,6 +818,8 @@ pub struct Expense {
     pub description: Option<String>,
     pub expense_date: chrono::NaiveDate,
     pub created_at: DateTime<Utc>,
+    pub proof_image_url: Option<String>,
+    pub status: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -805,6 +828,7 @@ pub struct CreateExpensePayload {
     pub amount: f64, 
     pub description: String,
     pub date: chrono::NaiveDate,
+    pub proof_url: Option<String>,
 }
 
 #[derive(Debug, Serialize, FromRow)]
@@ -839,10 +863,11 @@ pub struct PaymentQuery {
 // 11. 看板统计 (Dashboard)
 // ==========================================
 
-#[derive(Debug, Serialize, FromRow)]
+#[derive(Debug, Serialize)]
 pub struct DashboardStats {
     pub total_bases: i64,
     pub today_revenue: i64,
+    pub month_revenue: i64,
     pub revenue_growth_rate: f64,
     pub today_new_students: i64,
     pub student_growth_rate: f64,
@@ -851,6 +876,19 @@ pub struct DashboardStats {
     // Trends for chart (last 7 days ordered)
     pub revenue_trend: Vec<i64>,
     pub trend_dates: Vec<String>,
+    pub student_trend: Vec<i64>,
+    pub base_rankings: Vec<BaseRankingItem>,
+    // ✅ New field for expense composition
+    pub expense_composition: Vec<ExpenseComposition>,
+}
+
+#[derive(Debug, Serialize, FromRow)]
+pub struct ExpenseComposition {
+    pub category: String,
+    pub category_name: String,
+    pub total_amount: i64,
+    pub percentage: f64,
+    pub color: String,
 }
 
 #[derive(Debug, Serialize, FromRow)]
@@ -1024,7 +1062,7 @@ pub struct HqFinanceDashboardData {
 #[derive(Debug, Serialize)]
 pub struct CompositionItem {
     pub name: String,
-    pub value: i32, // 百分比
+    pub value: f64, // 百分比 (支持小数)
     pub color: String,
 }
 
@@ -1134,4 +1172,33 @@ pub struct BatchSummary {
     pub created_at: Option<chrono::DateTime<chrono::Utc>>,
     pub active_count: Option<i64>,
     pub scan_count: Option<i64>,
+}
+
+// ==========================================
+// 14. 老师端 (Teacher Dashboard)
+// ==========================================
+
+#[derive(Debug, Serialize)]
+pub struct TeacherDashboardResponse {
+    pub stats: TeacherDashboardStats,
+    pub upcoming_classes: Vec<UpcomingClass>,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct TeacherDashboardStats {
+    pub today_class_count: i64,
+    pub pending_leads_count: i64,
+    pub month_lesson_count: i64,
+}
+
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct UpcomingClass {
+    pub id: Uuid,
+    pub course_name: String,
+    pub start_time: DateTime<Utc>,
+    pub end_time: DateTime<Utc>,
+    pub room_name: String,
+    #[sqlx(default)]
+    pub enrolled_count: i64,
+    pub max_capacity: i32,
 }

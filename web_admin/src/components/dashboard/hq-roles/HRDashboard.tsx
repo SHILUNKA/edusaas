@@ -1,7 +1,7 @@
 'use client';
 import { Users, UserPlus, Briefcase, AlertCircle } from 'lucide-react';
 
-export default function HRDashboard({ pendingStaff }: { pendingStaff: any[] }) {
+export default function HRDashboard({ pendingStaff, advStats }: { pendingStaff: any[], advStats?: any }) {
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex justify-between items-center">
@@ -14,15 +14,15 @@ export default function HRDashboard({ pendingStaff }: { pendingStaff: any[] }) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* 概览卡片 */}
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-                    <div className="bg-orange-100 p-3 rounded-xl text-orange-600"><Users size={24}/></div>
-                    <div><div className="text-2xl font-bold">48</div><div className="text-xs text-gray-500 font-bold">在职员工总数</div></div>
+                    <div className="bg-orange-100 p-3 rounded-xl text-orange-600"><Users size={24} /></div>
+                    <div><div className="text-2xl font-bold">{advStats?.staff_total_count || 0}</div><div className="text-xs text-gray-500 font-bold">在职员工总数</div></div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-                    <div className="bg-blue-100 p-3 rounded-xl text-blue-600"><UserPlus size={24}/></div>
+                    <div className="bg-blue-100 p-3 rounded-xl text-blue-600"><UserPlus size={24} /></div>
                     <div><div className="text-2xl font-bold">{pendingStaff.length}</div><div className="text-xs text-gray-500 font-bold">待入职人员</div></div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-                    <div className="bg-red-100 p-3 rounded-xl text-red-600"><AlertCircle size={24}/></div>
+                    <div className="bg-red-100 p-3 rounded-xl text-red-600"><AlertCircle size={24} /></div>
                     <div><div className="text-2xl font-bold">2</div><div className="text-xs text-gray-500 font-bold">合同即将到期</div></div>
                 </div>
             </div>
@@ -30,7 +30,7 @@ export default function HRDashboard({ pendingStaff }: { pendingStaff: any[] }) {
             {/* 待入职名单 (复用真实数据) */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
                 <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Briefcase size={18} className="text-orange-500"/> 待办理入职名单
+                    <Briefcase size={18} className="text-orange-500" /> 待办理入职名单
                 </h3>
                 <div className="divide-y divide-gray-100">
                     {pendingStaff.length > 0 ? (

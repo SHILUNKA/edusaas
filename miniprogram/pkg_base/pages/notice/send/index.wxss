@@ -1,0 +1,123 @@
+
+.container {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  padding: 30rpx;
+}
+
+.form-card {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 40rpx 30rpx;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.03);
+}
+
+.form-group {
+    margin-bottom: 20rpx;
+}
+
+.label {
+  font-size: 28rpx;
+  color: #334155;
+  margin-bottom: 20rpx;
+  font-weight: 500;
+}
+
+.required {
+  color: #ef4444;
+}
+
+.input {
+  height: 80rpx;
+  background: #f8fafc;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #1e293b;
+  border: 1rpx solid #e2e8f0;
+}
+
+.textarea {
+  width: 100%;
+  height: 300rpx;
+  background: #f8fafc;
+  border-radius: 12rpx;
+  padding: 24rpx;
+  font-size: 28rpx;
+  color: #1e293b;
+  box-sizing: border-box;
+  border: 1rpx solid #e2e8f0;
+}
+
+.count {
+  text-align: right;
+  font-size: 22rpx;
+  color: #94a3b8;
+  margin-top: 10rpx;
+}
+
+.divider {
+  height: 1rpx;
+  background: #f1f5f9;
+  margin: 30rpx 0;
+}
+
+.priority-options {
+  display: flex;
+  gap: 20rpx;
+}
+
+.p-option {
+  flex: 1;
+  height: 72rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  border: 1rpx solid #e2e8f0;
+  color: #64748b;
+  background: #f8fafc;
+  transition: all 0.3s ease;
+}
+
+.p-option .dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #ccc;
+  margin-right: 12rpx;
+}
+
+.p-option.normal.active {
+  background: #ecfdf5;
+  border-color: #d1fae5;
+  color: #059669;
+}
+.p-option.normal.active .dot { background: #10b981; }
+
+.p-option.high.active {
+  background: #fef2f2;
+  border-color: #fee2e2;
+  color: #dc2626;
+}
+.p-option.high.active .dot { background: #ef4444; }
+
+
+.btn-area {
+  margin-top: 60rpx;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #fff;
+  border-radius: 50rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  box-shadow: 0 8rpx 20rpx rgba(37, 99, 235, 0.3);
+}
+
+.submit-btn:active {
+  opacity: 0.9;
+  transform: scale(0.98);
+}

@@ -1,0 +1,143 @@
+/* pkg_customer/pages/honor/points-detail/index.wxss */
+.points-detail-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+/* 总积分卡片 */
+.total-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 60rpx 40rpx;
+  text-align: center;
+  color: white;
+}
+
+.total-label {
+  font-size: 28rpx;
+  opacity: 0.9;
+  margin-bottom: 16rpx;
+}
+
+.total-value {
+  font-size: 80rpx;
+  font-weight: bold;
+  margin-bottom: 16rpx;
+}
+
+.total-desc {
+  font-size: 24rpx;
+  opacity: 0.8;
+}
+
+/* 记录列表 */
+.records-list {
+  height: calc(100vh - 280rpx);
+  padding: 20rpx 30rpx;
+}
+
+.record-item {
+  background: white;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.record-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.record-icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  margin-right: 20rpx;
+  background: #f5f5f5;
+}
+
+.record-icon.attendance {
+  background: #E3F2FD;
+}
+
+.record-icon.homework {
+  background: #FFF3E0;
+}
+
+.record-icon.competition {
+  background: #FCE4EC;
+}
+
+.record-icon.activity {
+  background: #F3E5F5;
+}
+
+.record-info {
+  flex: 1;
+}
+
+.record-reason {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.record-category {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 8rpx;
+}
+
+.record-time {
+  font-size: 22rpx;
+  color: #bbb;
+}
+
+.record-points {
+  font-size: 36rpx;
+  font-weight: bold;
+  min-width: 100rpx;
+  text-align: right;
+}
+
+.record-points.positive {
+  color: #4CAF50;
+}
+
+.record-points.negative {
+  color: #F44336;
+}
+
+/* 加载状态 */
+.loading-more, .no-more {
+  text-align: center;
+  padding: 30rpx;
+  color: #999;
+  font-size: 26rpx;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 150rpx 0;
+}
+
+.empty-icon {
+  font-size: 100rpx;
+  display: block;
+  margin-bottom: 30rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999;
+}

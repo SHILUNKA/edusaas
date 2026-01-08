@@ -1,0 +1,57 @@
+<view class="page">
+  <!-- 金额输入 -->
+  <view class="card amount-card">
+    <view class="label">支出金额 (元)</view>
+    <view class="amount-wrap">
+      <text class="currency">¥</text>
+      <input class="input-large" type="digit" placeholder="0.00" model:value="{{amount}}" />
+    </view>
+  </view>
+
+  <!-- 表单项 -->
+  <view class="card form-card">
+    <picker range="{{categories}}" bindchange="onCategoryChange" value="{{categoryIndex}}">
+      <view class="form-item">
+        <text class="label">支出类目</text>
+        <view class="value">
+          <text>{{categories[categoryIndex]}}</text>
+          <text class="arrow">></text>
+        </view>
+      </view>
+    </picker>
+    <view class="divider"></view>
+    
+    <picker mode="date" bindchange="onDateChange" value="{{date}}">
+      <view class="form-item">
+        <text class="label">发生日期</text>
+         <view class="value">
+          <text>{{date}}</text>
+          <text class="arrow">></text>
+        </view>
+      </view>
+    </picker>
+
+    <view class="divider"></view>
+    <view class="form-item vertical">
+      <text class="label">备注说明</text>
+      <textarea class="textarea" placeholder="请填写支出用途及详情..." model:value="{{desc}}" auto-height />
+    </view>
+  </view>
+
+  <!-- 凭证上传 -->
+  <view class="card upload-card">
+    <view class="label">上传凭证 (发票/收据)</view>
+    <view class="upload-box" bindtap="handleUpload">
+      <image wx:if="{{tempFilePath}}" src="{{tempFilePath}}" mode="aspectFill" class="preview-img" />
+      <view wx:else class="placeholder">
+        <view class="icon">+</view>
+        <text>点击上传图片</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 提交按钮 -->
+  <view class="footer">
+    <button class="btn-submit" bindtap="handleSubmit" loading="{{submitting}}">提交审批</button>
+  </view>
+</view>

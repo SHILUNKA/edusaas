@@ -1,0 +1,36 @@
+<view class="profile-container">
+  <!-- 用户信息卡片 -->
+  <view class="user-card" wx:if="{{customer}}">
+    <image class="avatar" src="{{customer.avatar_url || '/images/default-avatar.png'}}" />
+    <view class="user-info">
+      <view class="user-name">{{customer.name || '未设置'}}</view>
+      <view class="user-phone">{{customer.phone_number}}</view>
+    </view>
+  </view>
+
+  <!-- 功能菜单 -->
+  <view class="menu-section">
+    <view 
+      class="menu-item"
+      wx:for="{{menuItems}}"
+      wx:key="title"
+      bindtap="onMenuTap"
+      data-url="{{item.url}}"
+    >
+      <view class="menu-left">
+        <text class="menu-icon">{{item.icon}}</text>
+        <text class="menu-title">{{item.title}}</text>
+      </view>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 退出登录 -->
+  <view class="logout-section">
+    <view class="logout-btn" bindtap="onLogout">
+      <text>退出登录</text>
+    </view>
+  </view>
+</view>
+
+<dynamic-tab-bar selected="3"></dynamic-tab-bar>

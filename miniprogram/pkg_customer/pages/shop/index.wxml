@@ -1,0 +1,38 @@
+<view class="shop-container">
+  <!-- Banner -->
+  <view class="shop-header">
+    <image class="banner" src="/images/shop-banner.png" mode="aspectFill" />
+    <view class="slogan">探索宇宙，从这一课开始</view>
+  </view>
+
+  <!-- 会员卡片列表 -->
+  <view class="product-list">
+    <view class="section-title">课程套餐 & 会员</view>
+    
+    <view 
+      class="product-card" 
+      wx:for="{{tiers}}" 
+      wx:key="id"
+    >
+      <view class="card-left">
+        <text class="tier-name">{{item.name_key}}</text>
+        <text class="tier-desc">{{item.description_key || '开启精彩科技探索之旅'}}</text>
+        <view class="tags">
+          <text class="tag">{{item.tier_type === 'usage_based' ? item.usage_count + '课时' : '有效期' + item.duration_days + '天'}}</text>
+        </view>
+      </view>
+      
+      <view class="card-right">
+        <view class="price-box">
+          <text class="symbol">¥</text>
+          <text class="price">{{item.price_in_cents / 100}}</text>
+        </view>
+        <button class="btn-buy" size="mini" bindtap="onBuy" data-id="{{item.id}}">立即预约</button>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:if="{{tiers.length === 0 && !loading}}">
+    <text>暂无商品上架</text>
+  </view>
+</view>

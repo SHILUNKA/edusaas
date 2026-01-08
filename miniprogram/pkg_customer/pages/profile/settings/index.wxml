@@ -1,0 +1,5 @@
+<view class="container">
+  <view style="padding: 100rpx; text-align: center;">
+    <text>页面开发中...</text>
+  </view>
+</view>

@@ -1,19 +1,59 @@
+import ReportService from '../../../services/ReportService';
+
 Page({
     data: {
-        topProducts: [
-            { id: 1, name: 'L1 启蒙课程包', category: '课程', type: 'course', sales: 120, amount: '360,000' },
-            { id: 2, name: '智能机器狗教具', category: '教具', type: 'material', sales: 85, amount: '127,500' },
-            { id: 3, name: 'L2 进阶课程包', category: '课程', type: 'course', sales: 60, amount: '240,000' },
-            { id: 4, name: '少儿编程拓展包', category: '课程', type: 'course', sales: 45, amount: '90,000' },
-            { id: 5, name: '品牌装修物料箱', category: '物料', type: 'material', sales: 30, amount: '15,000' },
-        ]
+        topProducts: [],
+        funnelData: {
+            leads: 0,
+            contracts: 0,
+            firstOrders: 0,
+            contractRate: 0,
+            orderRate: 0
+        },
+        loading: true
     },
 
     onLoad() {
-        this.initChart();
+        this.loadData();
     },
 
-    initChart() {
+    async loadData() {
+        try {
+            wx.showLoading({ title: '加载中...' });
+
+            // Load top products
+            const products = await ReportService.getTopProducts();
+
+            // Load order trend
+            const trendData = await ReportService.getOrderTrend();
+
+            // Load funnel data
+            const funnel = await ReportService.getFunnelData();
+
+            this.setData({
+                topProducts: products || [],
+                funnelData: funnel || this.data.funnelData,
+                loading: false
+            }, () => {
+                // Draw chart after data is loaded
+                if (trendData && trendData.values && trendData.values.length > 0) {
+                    this.initChart(trendData.values, trendData.labels);
+                }
+            });
+
+        } catch (err) {
+            console.error('加载数据失败', err);
+            wx.showToast({
+                title: '加载失败',
+                icon: 'none'
+            });
+            this.setData({ loading: false });
+        } finally {
+            wx.hideLoading();
+        }
+    },
+
+    initChart(dataValues, dataLabels) {
         const query = wx.createSelectorQuery();
         query.select('#orderTrendChart')
             .fields({ node: true, size: true })
@@ -27,13 +67,12 @@ Page({
                 canvas.height = res[0].height * dpr;
                 ctx.scale(dpr, dpr);
 
-                this.drawBarChart(ctx, res[0].width, res[0].height);
+                this.drawBarChart(ctx, res[0].width, res[0].height, dataValues, dataLabels);
             });
     },
 
-    drawBarChart(ctx, width, height) {
-        const data = [12, 18, 15, 25, 32, 45]; // Mock Order Amounts (in 10k)
-        const labels = ['7月', '8月', '9月', '10月', '11月', '12月'];
+    drawBarChart(ctx, width, height, data, labels) {
+
 
         const padding = 30;
         const chartW = width - padding * 2;

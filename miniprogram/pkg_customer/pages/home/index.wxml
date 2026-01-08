@@ -1,0 +1,55 @@
+<view class="home-container">
+  <!-- 顶部学员选择区 -->
+  <view class="header" wx:if="{{participants.length > 0}}">
+    <picker class="participant-picker" mode="selector" range="{{participants}}" range-key="name" value="{{selectedParticipantIndex}}" bindchange="onParticipantChange">
+      <view class="picker-content">
+        <image class="avatar" src="{{participants[selectedParticipantIndex].avatar_url || '/images/default-avatar.png'}}" />
+        <view class="info">
+          <text class="name">{{participants[selectedParticipantIndex].name}}</text>
+          <view class="rank" wx:if="{{participants[selectedParticipantIndex].current_honor_rank}}">
+            <text class="rank-name">{{participants[selectedParticipantIndex].current_honor_rank.rank_name}}</text>
+            <text class="points">积分: {{participants[selectedParticipantIndex].current_honor_rank.total_points}}</text>
+          </view>
+        </view>
+        <text class="arrow">▼</text>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 今日课程卡片 -->
+  <view class="today-class-card" wx:if="{{todayClasses.length > 0}}">
+    <view class="card-header">
+      <text class="title">📅 今日课程</text>
+    </view>
+    <view class="class-item" wx:for="{{todayClasses}}" wx:key="id">
+      <view class="class-time">
+        <text class="time">{{item.start_time}}</text>
+      </view>
+      <view class="class-info">
+        <text class="course-name">{{item.course_name}}</text>
+        <text class="details">{{item.room_name}} | {{item.teacher_name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="empty-class" wx:else>
+    <text class="empty-text">今天没有安排课程</text>
+  </view>
+
+  <!-- 快捷功能网格 -->
+  <view class="quick-menu">
+    <view class="menu-item" wx:for="{{quickMenu}}" wx:key="label" bindtap="onMenuTap" data-url="{{item.url}}">
+      <view class="menu-icon">{{item.icon}}</view>
+      <text class="menu-label">{{item.label}}</text>
+    </view>
+  </view>
+
+  <!-- 轮播Banner -->
+  <!-- <swiper class="banner-swiper" indicator-dots autoplay interval="3000" circular>
+    <swiper-item wx:for="{{banners}}" wx:key="title">
+      <image class="banner-image" src="{{item.image}}" mode="aspectFill" />
+    </swiper-item>
+  </swiper> -->
+</view>
+
+<dynamic-tab-bar selected="0"></dynamic-tab-bar>

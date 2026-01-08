@@ -1,0 +1,27 @@
+<view class="participants-container">
+  <view class="participant-list" wx:if="{{participants.length > 0}}">
+    <view 
+      class="participant-card" 
+      wx:for="{{participants}}" 
+      wx:key="id"
+      bindtap="onEdit"
+      data-id="{{item.id}}"
+    >
+      <image class="avatar" src="{{item.avatar_url || '/images/default-avatar.png'}}" />
+      <view class="info">
+        <text class="name">{{item.name}}</text>
+        <text class="desc">{{item.gender === 'male' ? '男' : '女'}} | {{item.school_name || '未填写学校'}}</text>
+      </view>
+      <view class="arrow">编辑 ></view>
+    </view>
+  </view>
+
+  <view class="empty-state" wx:elif="{{!loading}}">
+    <image class="empty-icon" src="/images/empty-participants.png" />
+    <text class="empty-text">您还没有添加学员哦</text>
+  </view>
+
+  <view class="footer-btn">
+    <button class="btn-add" bindtap="onAdd">添加新学员</button>
+  </view>
+</view>

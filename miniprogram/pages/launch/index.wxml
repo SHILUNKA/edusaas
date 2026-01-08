@@ -1,2 +1,7 @@
-<!--pages/launch/index.wxml-->
-<text>pages/launch/index.wxml</text>
+<view class="launch-container">
+  <view class="logo-container">
+    <text class="logo-text">🎓</text>
+    <text class="app-name">EduSaaS</text>
+    <text class="loading-text">智能加载中...</text>
+  </view>
+</view>

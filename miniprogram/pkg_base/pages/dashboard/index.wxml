@@ -1,0 +1,213 @@
+<wxs module="utils" src="./utils.wxs"></wxs>
+
+<view class="dashboard-container" style="padding-bottom: 200rpx;">
+  <!-- 底部导航 -->
+  <dynamic-tab-bar selected="{{0}}"></dynamic-tab-bar>
+  
+  <!-- 头部信息 -->
+  <view class="header">
+    <view class="base-info">
+      <text class="base-name">{{baseName}}</text>
+      <text class="update-time">{{updateTime}}</text>
+    </view>
+    <view class="refresh-btn" bindtap="onRefresh">
+      <text class="icon">↻</text>
+    </view>
+  </view>
+
+  <!-- 现金流警报（如果有异常） -->
+  <view class="alert-banner critical" wx:if="{{metrics.cash_flow.status === 'critical'}}">
+    <text class="alert-icon">🔴</text>
+    <view class="alert-content">
+      <text class="alert-title">现金流告急</text>
+      <text class="alert-desc">可用资金仅够{{utils.formatDecimal(metrics.cash_flow.runway_months, 1)}}个月</text>
+    </view>
+  </view>
+
+  <view class="alert-banner warning" wx:if="{{metrics.cash_flow.status === 'warning'}}">
+    <text class="alert-icon">🟡</text>
+    <view class="alert-content">
+      <text class="alert-title">现金流预警</text>
+      <text class="alert-desc">应收款逾期: {{metrics.cash_flow.overdue_count}}人 ¥{{utils.formatMoney(metrics.cash_flow.accounts_receivable)}}</text>
+    </view>
+  </view>
+
+  <!-- 指标1: 现金流健康度 -->
+  <view class="metric-card priority">
+    <view class="card-header">
+      <text class="card-title">💵 现金流健康度</text>
+      <text class="status-badge status-{{metrics.cash_flow.status}}">
+        {{metrics.cash_flow.status === 'healthy' ? '健康' : metrics.cash_flow.status === 'warning' ? '预警' : '告急'}}
+      </text>
+    </view>
+    <view class="card-body">
+      <view class="metric-row">
+        <text class="label">可用资金</text>
+        <text class="value big">¥{{utils.formatMoneyK(metrics.cash_flow.available_funds)}}</text>
+      </view>
+      <view class="metric-row">
+        <text class="label">应收逾期</text>
+        <text class="value {{metrics.cash_flow.overdue_count > 0 ? 'danger' : ''}}">
+          ¥{{utils.formatMoneyK(metrics.cash_flow.accounts_receivable)}} ({{metrics.cash_flow.overdue_count}}人)
+        </text>
+      </view>
+      <view class="metric-row">
+        <text class="label">资金可用</text>
+        <text class="value">{{utils.formatDecimal(metrics.cash_flow.runway_months, 1)}}个月</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 指标2: 今日收款 -->
+  <view class="metric-card">
+    <view class="card-header">
+      <text class="card-title">💰 今日收款</text>
+      <text class="card-subtitle">{{metrics.today_revenue.order_count}}笔订单</text>
+    </view>
+    <view class="card-body">
+      <text class="big-number">¥{{utils.formatMoney(metrics.today_revenue.total)}}</text>
+      <view class="split-bar">
+        <view class="split-item">
+          <text class="split-label">ToC</text>
+          <text class="split-value">¥{{utils.formatMoney(metrics.today_revenue.toc)}}</text>
+        </view>
+        <view class="split-divider"></view>
+        <view class="split-item">
+          <text class="split-label">ToB</text>
+          <text class="split-value">¥{{utils.formatMoney(metrics.today_revenue.tob)}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 指标3 & 4: 学员数 & 招生效率 -->
+  <view class="metric-row-group">
+    <!-- 学员数 -->
+    <view class="metric-card half">
+      <view class="card-header">
+        <text class="card-title">👥 学员数</text>
+      </view>
+      <view class="card-body">
+        <text class="big-number">{{metrics.students.active_students}}</text>
+        <text class="small-text">/ {{metrics.students.capacity}} ({{utils.formatPercent(metrics.students.utilization_rate)}}%)</text>
+        <view class="metric-row mini">
+          <text class="label">本月</text>
+          <text class="value">
+            <text class="success">+{{metrics.students.this_month_new}}</text>
+            <text class="danger"> -{{metrics.students.this_month_churned}}</text>
+          </text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 招生效率 -->
+    <view class="metric-card half">
+      <view class="card-header">
+        <text class="card-title">📈 招生效率</text>
+      </view>
+      <view class="card-body">
+        <text class="big-number">{{utils.formatPercent(metrics.recruitment.trial_conversion_rate)}}%</text>
+        <text class="small-text">试听转化率</text>
+        <view class="metric-row mini">
+          <text class="label">LTV/CAC</text>
+          <text class="value success">{{utils.formatDecimal(metrics.recruitment.ltv_cac_ratio, 1)}}倍</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 指标5: 营收进度 -->
+  <view class="metric-card">
+    <view class="card-header">
+      <text class="card-title">📊 本月营收进度</text>
+      <text class="status-badge status-{{metrics.revenue_progress.pace_status}}">
+        {{metrics.revenue_progress.pace_status === 'ahead' ? '超前' : 
+          metrics.revenue_progress.pace_status === 'on_track' ? '正常' : '落后'}}
+      </text>
+    </view>
+    <view class="card-body">
+      <view class="progress-info">
+        <text class="progress-label">目标 ¥{{utils.formatMoney(metrics.revenue_progress.target)}}</text>
+        <text class="progress-value">实际 ¥{{utils.formatMoney(metrics.revenue_progress.actual)}}</text>
+      </view>
+      <view class="progress-bar-container">
+        <view class="progress-bar" style="width: {{utils.formatPercent(metrics.revenue_progress.completion_rate)}}%"></view>
+      </view>
+      <text class="progress-percent">{{utils.formatDecimal(metrics.revenue_progress.completion_rate * 100, 1)}}%</text>
+    </view>
+  </view>
+
+  <!-- 指标6: 利润健康度 -->
+  <view class="metric-card">
+    <view class="card-header">
+      <text class="card-title">💰 利润健康度</text>
+      <text class="status-badge status-{{metrics.profitability.profit_status}}">
+        {{metrics.profitability.profit_status === 'healthy' ? '优秀' : 
+          metrics.profitability.profit_status === 'warning' ? '一般' : '偏低'}}
+      </text>
+    </view>
+    <view class="card-body">
+      <view class="metric-row">
+        <text class="label">毛利率</text>
+        <text class="value big">{{utils.formatPercent(metrics.profitability.gross_margin)}}%</text>
+      </view>
+      <view class="metric-row">
+        <text class="label">ToB占比</text>
+        <text class="value">
+          {{utils.formatPercent(metrics.profitability.tob_ratio)}}% 
+          <text class="small-text">/ 目标{{utils.formatPercent(metrics.profitability.tob_target)}}%</text>
+        </text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 指标7: ToB订单状态 -->
+  <view class="metric-card">
+    <view class="card-header">
+      <text class="card-title">🏢 ToB订单状态</text>
+    </view>
+    <view class="card-body">
+      <view class="metric-row" wx:if="{{metrics.tob_status.tomorrow_events_count > 0}}">
+        <text class="label highlight">明日活动</text>
+        <text class="value highlight">{{metrics.tob_status.tomorrow_events_count}}场</text>
+      </view>
+      <view class="metric-row">
+        <text class="label">执行中</text>
+        <text class="value">{{metrics.tob_status.in_progress_count}}个 
+          <text class="small-text">¥{{utils.formatMoney(metrics.tob_status.in_progress_amount)}}</text>
+        </text>
+      </view>
+      <view class="metric-row" wx:if="{{metrics.tob_status.overdue_count > 0}}">
+        <text class="label">延期</text>
+        <text class="value danger">{{metrics.tob_status.overdue_count}}个</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 指标8: 异常预警 -->
+  <view class="metric-card alert-card" wx:if="{{hasAlerts}}">
+    <view class="card-header">
+      <text class="card-title">⚠️ 需要关注</text>
+    </view>
+    <view class="card-body">
+      <view class="alert-list">
+        <view class="alert-item critical" wx:for="{{metrics.alerts.critical}}" wx:key="index">
+          <text class="alert-dot">🔴</text>
+          <text class="alert-text">{{item.message}}</text>
+        </view>
+        <view class="alert-item warning" wx:for="{{metrics.alerts.warning}}" wx:key="index">
+          <text class="alert-dot">🟡</text>
+          <text class="alert-text">{{item.message}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="loading-mask" wx:if="{{loading}}">
+    <view class="loading-content">
+      <text>加载中...</text>
+    </view>
+  </view>
+
+</view>

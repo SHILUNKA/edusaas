@@ -1,0 +1,168 @@
+/* pkg_customer/pages/schedule/index.wxss */
+.schedule-container {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding-bottom: 120rpx;
+}
+
+/* 筛选栏 */
+.filter-bar {
+  background: white;
+  padding: 20rpx 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+}
+
+.view-mode {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 20rpx;
+  text-align: center;
+  background: #f5f5f5;
+  border-radius: 8rpx;
+  font-size: 28rpx;
+  color: #666;
+  transition: all 0.3s;
+}
+
+.mode-btn.active {
+  background: #667eea;
+  color: white;
+  font-weight: bold;
+}
+
+.status-filter {
+  display: flex;
+  gap: 15rpx;
+}
+
+.filter-btn {
+  flex: 1;
+  padding: 15rpx;
+  text-align: center;
+  background: #f5f5f5;
+  border-radius: 8rpx;
+  font-size: 26rpx;
+  color: #666;
+  transition: all 0.3s;
+}
+
+.filter-btn.active {
+  background: #667eea;
+  color: white;
+}
+
+/* 课程列表 */
+.class-list {
+  height: calc(100vh - 240rpx);
+  padding: 20rpx 30rpx;
+}
+
+.class-card {
+  background: white;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  display: flex;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+}
+
+.class-card:active {
+  transform: scale(0.98);
+}
+
+.class-date {
+  width: 120rpx;
+  text-align: center;
+  margin-right: 20rpx;
+  padding-right: 20rpx;
+  border-right: 2rpx solid #eee;
+}
+
+.month-day {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.class-content {
+  flex: 1;
+}
+
+.course-name {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.class-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  margin-bottom: 16rpx;
+}
+
+.class-meta text {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.enrollment-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.status-badge {
+  padding: 8rpx 20rpx;
+  border-radius: 20rpx;
+  font-size: 24rpx;
+  color: white;
+}
+
+.status-badge.signed_in {
+  background: #4CAF50;
+}
+
+.status-badge.absent {
+  background: #F44336;
+}
+
+.status-badge.enrolled {
+  background: #FF9800;
+}
+
+.feedback-tip {
+  font-size: 24rpx;
+  color: #667eea;
+}
+
+/* 空状态 */
+.empty-state {
+  text-align: center;
+  padding: 100rpx 0;
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999;
+}
+
+/* 加载状态 */
+.loading-state {
+  text-align: center;
+  padding: 50rpx 0;
+  color: #999;
+}

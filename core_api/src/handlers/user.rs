@@ -183,7 +183,7 @@ pub async fn create_hq_user(
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    if final_role_key == "role.teacher" || final_role_key == "role.base.admin" {
+    if final_role_key == "role.teacher" || final_role_key == "role.base.academic" || final_role_key == "role.base.admin" {
         if let Some(bid) = final_base_id {
             sqlx::query(
                 "INSERT INTO teachers (user_id, hq_id, base_id, is_active) VALUES ($1, $2, $3, true)"

@@ -7,10 +7,11 @@ import { userStore } from '../store/userStore';
  * Key 必须与后端返回的角色标识（存在 userStore.role）保持一致
  */
 const ROLE_HOME_MAP = {
-  'HQ': '/pkg_hq/dashboard/index',       // 总部视角：驾驶舱
-  'BASE': '/pkg_base/workspace/index',   // 校区视角：工作台
-  'CONSUMER': '/pkg_customer/home/index' // C端视角：首页
-  // 你可以在这里添加更多角色，比如 'TEACHER', 'FINANCE' 等
+  'HQ': '/pkg_hq/dashboard/index',       // 总部视角
+  'BASE': '/pkg_base/pages/dashboard/index',   // 校区校长视角
+  'BASE_FINANCE': '/pkg_finance/pages/dashboard/index', // 校区财务视角
+  'BASE_TEACHER': '/pkg_teacher/pages/dashboard/index', // 老师/销售视角
+  'CONSUMER': '/pkg_customer/home/index' // C端视角
 };
 
 // 默认跳转页面（当角色无法识别时作为兜底）
@@ -38,12 +39,12 @@ class AuthService {
       // 映射角色 (后端 role.hq.xxx -> 前端 HQ)
       const frontendRole = this._mapBackendRoleToFrontend(claims.roles || []);
 
-      // 构造用户信息对象 (后端登录接口目前只返 token，这里先用 claims 拼凑)
+      // 构造用户信息对象 (从 JWT Claims 中提取)
       const userInfo = {
         id: claims.sub,
         hq_id: claims.hq_id,
         base_id: claims.base_id,
-        name: 'User', // 后端暂未返回 name，后续优化
+        name: claims.full_name || '用户',
       };
 
       // 存入 Store
@@ -66,10 +67,6 @@ class AuthService {
     try {
       const base64Url = token.split('.')[1];
       const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-
-      // 微信小程序特定 Base64 解码方式
-      // 既然只是 simple JSON，我们可以用简单的 polyfill 或者 hack
-      // 鉴于兼容性，这里用一个简易的 base64 decode (仅适用于 ASCII/UTF8 JSON)
       const jsonStr = this._b64DecodeUnicode(base64);
       return JSON.parse(jsonStr);
     } catch (e) {
@@ -79,25 +76,47 @@ class AuthService {
   }
 
   _b64DecodeUnicode(str) {
-    // 简易 Base64 解码，处理中文需注意
-    // 小程序环境有 wx.base64ToArrayBuffer，但转 string 麻烦
-    // 这里使用简化的 pure js 实现，假设 payload key 都是英文，value 一般也是
-    // 只有中文名称可能乱码，但 role 是英文 key 就够了
-
-    // Polyfill for atob
+    // 正确处理 UTF-8 编码的 Base64 解码
+    // Step 1: Base64 decode
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
     let output = '';
     str = String(str).replace(/=+$/, '');
+
     for (let bc = 0, bs = 0, buffer, i = 0; buffer = str.charAt(i++); ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer, bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0) {
       buffer = chars.indexOf(buffer);
     }
-    return output;
+
+    // Step 2: UTF-8 decode (处理中文字符)
+    try {
+      // 使用 decodeURIComponent + escape 来正确解码 UTF-8
+      return decodeURIComponent(escape(output));
+    } catch (e) {
+      // 如果解码失败，返回原始字符串
+      console.warn('UTF-8 decode failed:', e);
+      return output;
+    }
   }
 
   _mapBackendRoleToFrontend(roles) {
-    // roles is array: ["role.hq.admin"]
+    // roles is array: ["role.hq.admin", "role.base.finance"]
     if (roles.some(r => r.startsWith('role.hq'))) return 'HQ';
-    if (roles.some(r => r.startsWith('role.base'))) return 'BASE';
+
+    // 优先匹配具体职能角色
+    if (roles.includes('role.base.finance')) return 'BASE_FINANCE';
+    if (
+      roles.includes('role.base.teacher') ||
+      roles.includes('role.base.sales') ||
+      roles.includes('role.base.academic') ||
+      roles.includes('role.base.hr') ||
+      roles.includes('role.teacher')
+    ) return 'BASE_TEACHER';
+
+    // 基地管理者
+    if (roles.includes('role.base.admin')) return 'BASE';
+
+    // 其他基地角色默认也作为员工处理，防止误入老板看板
+    if (roles.some(r => r.startsWith('role.base'))) return 'BASE_TEACHER';
+
     if (roles.some(r => r.startsWith('role.consumer'))) return 'CONSUMER';
     return 'CONSUMER'; // default
   }

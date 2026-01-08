@@ -1,0 +1,157 @@
+/* pages/ledger/index.wxss */
+.page {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+  padding: 20rpx;
+}
+
+.bill-item {
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.02);
+}
+
+.bill-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.bill-left {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.cat-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  font-weight: bold;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+}
+/* 简单的不同颜色 */
+.cat-avatar.marketing { background: #fee2e2; color: #ef4444; }
+.cat-avatar.rent { background: #dbeafe; color: #3b82f6; }
+.cat-avatar.office { background: #f3e8ff; color: #a855f7; }
+.cat-avatar.equipment { background: #ffedd5; color: #f97316; }
+.cat-avatar.salary { background: #dcfce7; color: #22c55e; }
+
+.bill-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  flex: 1;
+  min-width: 0;
+}
+
+.bill-desc {
+  font-size: 30rpx;
+  color: #1e293b;
+  font-weight: 500;
+  margin-bottom: 8rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bill-meta {
+  display: flex;
+  align-items: center;
+  font-size: 24rpx;
+  color: #94a3b8;
+}
+
+.bill-cat-tag {
+  margin-left: 10rpx;
+  background: #f1f5f9;
+  padding: 2rpx 8rpx;
+  border-radius: 4rpx;
+  font-size: 20rpx;
+}
+
+.bill-right {
+  text-align: right;
+  margin-left: 20rpx;
+  flex-shrink: 0;
+}
+
+.bill-amount {
+  font-size: 36rpx;
+  color: #334155;
+  font-weight: bold;
+  margin-bottom: 8rpx;
+}
+
+.bill-status {
+  font-size: 22rpx;
+  display: inline-block;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.status-pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+.status-approved, .status-paid {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.status-rejected {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.proof-row {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx dashed #f1f5f9;
+}
+
+.proof-badge {
+  font-size: 24rpx;
+  color: #3b82f6;
+}
+
+.list-footer {
+  text-align: center;
+  padding: 30rpx;
+  font-size: 24rpx;
+  color: #cbd5e1;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 200rpx;
+}
+.empty-text {
+  color: #94a3b8;
+  font-size: 30rpx;
+  margin-bottom: 40rpx;
+}
+.btn-create {
+  margin-top: 20rpx;
+  background: #4f46e5;
+  color: white;
+  padding: 0 40rpx;
+  font-size: 28rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  border-radius: 32rpx;
+}

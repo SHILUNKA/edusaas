@@ -1,0 +1,172 @@
+<view class="container" wx:if="{{!loading && lead}}">
+  
+  <!-- 基本信息卡片 -->
+  <view class="info-card">
+    <view class="status-badge">{{getStatusText(lead.status)}}</view>
+    
+    <view class="contact-info">
+      <text class="name">{{lead.contact_name}}</text>
+      <view class="phone-row">
+        <text class="phone">{{lead.phone_number}}</text>
+        <button class="call-btn" size="mini" bindtap="onCall">
+          📞 拨打
+        </button>
+      </view>
+    </view>
+
+    <view class="quality-score" wx:if="{{lead.quality_score}}">
+      <text class="label">质量评分：</text>
+      <text class="stars">
+        <text wx:for="{{[1,2,3,4,5]}}" wx:key="item">
+          {{item <= lead.quality_score ? '★' : '☆'}}
+        </text>
+      </text>
+    </view>
+
+    <view class="detail-row" wx:if="{{lead.child_name}}">
+      <text class="label">孩子：</text>
+      <text>{{lead.child_name}}</text>
+      <text wx:if="{{lead.child_age}}">（{{lead.child_age}}岁）</text>
+    </view>
+
+    <view class="detail-row" wx:if="{{lead.child_grade}}">
+      <text class="label">年级：</text>
+      <text>{{lead.child_grade}}</text>
+    </view>
+
+    <view class="detail-row" wx:if="{{lead.source}}">
+      <text class="label">来源：</text>
+      <text>{{lead.source}}</text>
+    </view>
+
+    <view class="detail-row" wx:if="{{lead.wechat_id}}">
+      <text class="label">微信：</text>
+      <text>{{lead.wechat_id}}</text>
+    </view>
+
+    <view class="detail-row" wx:if="{{lead.assigned_to_name}}">
+      <text class="label">负责人：</text>
+      <text>{{lead.assigned_to_name}}</text>
+    </view>
+
+    <view class="detail-row" wx:if="{{lead.next_follow_up_at}}">
+      <text class="label">下次跟进：</text>
+      <text class="highlight">{{formatDateTime(lead.next_follow_up_at)}}</text>
+    </view>
+
+    <view class="notes" wx:if="{{lead.notes}}">
+      <text class="label">备注：</text>
+      <text>{{lead.notes}}</text>
+    </view>
+  </view>
+
+  <!-- 跟进记录 -->
+  <view class="follow-up-section">
+    <view class="section-title">跟进记录</view>
+
+    <view class="timeline" wx:if="{{lead.follow_up_records && lead.follow_up_records.length > 0}}">
+      <view 
+        class="timeline-item" 
+        wx:for="{{lead.follow_up_records}}" 
+        wx:key="id"
+      >
+        <view class="timeline-dot"></view>
+        <view class="timeline-content">
+          <view class="item-header">
+            <view class="type-badge">{{item.follow_up_type}}</view>
+            <view class="outcome" wx:if="{{item.outcome}}">
+              {{getOutcomeIcon(item.outcome)}}
+            </view>
+          </view>
+          <view class="content">{{item.content}}</view>
+          <view class="footer">
+            <text class="author">{{item.created_by_name}}</text>
+            <text class="time">{{formatDateTime(item.created_at)}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty-timeline" wx:else>
+      <text>暂无跟进记录</text>
+    </view>
+  </view>
+
+  <!-- 添加跟进按钮 -->
+  <view class="action-btn" bindtap="onAddFollowUp">
+    <text class="icon">+</text>
+    <text>添加跟进</text>
+  </view>
+
+</view>
+
+<!-- 加载中 -->
+<view class="loading" wx:if="{{loading}}">
+  <text>加载中...</text>
+</view>
+
+<!-- 跟进对话框 -->
+<view class="dialog-mask" wx:if="{{showFollowUpDialog}}" catchtap="onCloseFollowUpDialog">
+  <view class="dialog" catchtap="">
+    <view class="dialog-title">添加跟进记录</view>
+    
+    <view class="dialog-content">
+      <view class="form-item">
+        <text class="label">跟进方式</text>
+        <picker 
+          mode="selector" 
+          range="{{typeOptions}}"
+          range-key="label"
+          bindchange="onTypeChange"
+        >
+          <view class="picker">
+            {{typeOptions[0].label}}
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="label">跟进内容</text>
+        <textarea 
+          class="textarea" 
+          placeholder="请输入跟进内容"
+          value="{{followUpForm.content}}"
+          bindinput="onFollowUpInput"
+          data-field="content"
+          maxlength="500"
+        />
+      </view>
+
+      <view class="form-item">
+        <text class="label">跟进结果</text>
+        <picker 
+          mode="selector" 
+          range="{{outcomeOptions}}"
+          range-key="label"
+          bindchange="onOutcomeChange"
+        >
+          <view class="picker">
+            {{outcomeOptions[0].label}}
+          </view>
+        </picker>
+      </view>
+
+      <view class="form-item">
+        <text class="label">下次跟进时间</text>
+        <picker 
+          mode="date" 
+          bindchange="onDateChange"
+        >
+          <view class="picker">
+            {{followUpForm.next_follow_up_at || '选择日期'}}
+          </view>
+        </picker>
+      </view>
+    </view>
+
+    <view class="dialog-actions">
+      <button class="cancel-btn" bindtap="onCloseFollowUpDialog">取消</button>
+      <button class="confirm-btn" bindtap="onSubmitFollowUp">确定</button>
+    </view>
+  </view>
+</view>

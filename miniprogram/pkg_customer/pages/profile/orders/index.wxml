@@ -1,0 +1,51 @@
+<view class="orders-container">
+  <!-- 状态切换栏 -->
+  <view class="tabs">
+    <view 
+      wx:for="{{tabs}}" 
+      wx:key="*this"
+      class="tab-item {{activeTab === index ? 'active' : ''}}"
+      bindtap="onTabChange"
+      data-index="{{index}}"
+    >
+      {{item}}
+    </view>
+  </view>
+
+  <!-- 订单列表 -->
+  <scroll-view scroll-y class="order-list" wx:if="{{orders.length > 0}}">
+    <view 
+      class="order-card" 
+      wx:for="{{orders}}" 
+      wx:key="id"
+      bindtap="onOrderDetail"
+      data-id="{{item.id}}"
+    >
+      <view class="order-header">
+        <text class="order-no">订单号: {{item.order_no}}</text>
+        <text class="order-status status-{{item.status}}">{{item.status}}</text>
+      </view>
+      
+      <view class="order-body">
+        <view class="order-info">
+          <text class="label">日期:</text>
+          <text class="value">{{item.created_at}}</text>
+        </view>
+        <view class="order-info">
+          <text class="label">金额:</text>
+          <text class="amount">¥{{item.total_amount_cents / 100}}</text>
+        </view>
+      </view>
+      
+      <view class="order-footer">
+        <button class="btn-detail" size="mini">查看详情</button>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:elif="{{!loading}}">
+    <image class="empty-icon" src="/images/empty-orders.png" />
+    <text class="empty-text">暂无订单记录</text>
+  </view>
+</view>

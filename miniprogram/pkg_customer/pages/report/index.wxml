@@ -1,0 +1,64 @@
+<view class="report-container">
+  <block wx:if="{{report}}">
+    <!-- 学员基本信息卡片 -->
+    <view class="header-card">
+      <view class="user-info">
+        <text class="name">{{report.participant_name}}</text>
+        <text class="rank" wx:if="{{report.rank_name}}">{{report.rank_name}}</text>
+      </view>
+      <view class="total-points">
+        <text class="value">{{report.total_points}}</text>
+        <text class="label">当前总积分</text>
+      </view>
+    </view>
+
+    <!-- 学习统计卡片 -->
+    <view class="stats-grid">
+      <view class="stat-item">
+        <text class="stat-value">{{report.total_classes}}</text>
+        <text class="stat-label">总课程数</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-value">{{report.attended_classes}}</text>
+        <text class="stat-label">已出勤数</text>
+      </view>
+      <view class="stat-item highlight">
+        <text class="stat-value">{{report.attendance_rate}}%</text>
+        <text class="stat-label">出勤率</text>
+      </view>
+    </view>
+
+    <!-- 积分趋势图表区域 (简化版) -->
+    <view class="section-card">
+      <view class="section-title">学习表现趋势 (最近7天积分)</view>
+      <view class="trend-list" wx:if="{{report.points_trend.length > 0}}">
+        <view class="trend-item" wx:for="{{report.points_trend}}" wx:key="date">
+          <text class="date">{{item.date}}</text>
+          <view class="trend-bar-bg">
+            <view class="trend-bar-fill" style="width:{{item.points * 5}}rpx"></view>
+          </view>
+          <text class="points">+{{item.points}}</text>
+        </view>
+      </view>
+      <view class="empty-hint" wx:else>暂无积分记录</view>
+    </view>
+
+    <!-- 老师评价卡片 -->
+    <view class="section-card feedback-section">
+      <view class="section-title">老师最新评价</view>
+      <view class="feedback-content" wx:if="{{report.latest_feedback}}">
+        <text class="quote">“</text>
+        <text class="text">{{report.latest_feedback}}</text>
+        <text class="quote">”</text>
+      </view>
+      <view class="empty-hint" wx:else>本阶段暂未收到老师评价</view>
+    </view>
+  </block>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:elif="{{!loading}}">
+    <text class="empty-icon">📊</text>
+    <text class="empty-text">暂无相关报告数据</text>
+    <text class="empty-hint-sub">学员课程、积分等数据将在这里展示</text>
+  </view>
+</view>

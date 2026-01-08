@@ -11,19 +11,19 @@
     <view class="funnel-container">
       <view class="funnel-step step-1">
         <text class="step-label">线索</text>
-        <text class="step-val">128</text>
+        <text class="step-val">{{funnelData.leads || 0}}</text>
       </view>
       <view class="funnel-arrow">↓</view>
       <view class="funnel-step step-2">
         <text class="step-label">签约授权</text>
-        <text class="step-val">45</text>
-        <text class="step-rate">35%</text>
+        <text class="step-val">{{funnelData.contracts || 0}}</text>
+        <text class="step-rate">{{funnelData.contractRate || 0}}%</text>
       </view>
       <view class="funnel-arrow">↓</view>
       <view class="funnel-step step-3">
         <text class="step-label">首批进货</text>
-        <text class="step-val">42</text>
-        <text class="step-rate">93%</text>
+        <text class="step-val">{{funnelData.firstOrders || 0}}</text>
+        <text class="step-rate">{{funnelData.orderRate || 0}}%</text>
       </view>
     </view>
   </view>

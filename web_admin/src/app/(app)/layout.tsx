@@ -7,11 +7,11 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { 
-    LayoutDashboard, Building2, Users, BookOpen, 
+import {
+    LayoutDashboard, Building2, Users, BookOpen,
     Package, CreditCard, Award, Settings, LogOut,
     Bell, Calendar, GraduationCap, School, ShoppingCart, Briefcase,
-    FileCheck, ShoppingBag, Truck, ClipboardList, QrCode, ShieldCheck
+    FileCheck, ShoppingBag, Truck, ClipboardList, QrCode, ShieldCheck, Target
 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { jwtDecode } from 'jwt-decode';
@@ -26,173 +26,197 @@ const MENU_CONFIG = [
     // =================================
     // --- 总部菜单 (Tenant) ---
     // =================================
-    { 
-        name: '全局看板', 
-        href: '/hq/dashboard', 
-        icon: LayoutDashboard, 
-        allowedRoles: ['role.hq.admin', 'role.hq.operation', 'role.hq.finance', 'role.hq.hr'] 
+    {
+        name: '全局看板',
+        href: '/hq/dashboard',
+        icon: LayoutDashboard,
+        allowedRoles: ['role.hq.admin', 'role.hq.operation', 'role.hq.finance', 'role.hq.hr']
     },
-    { 
-        name: '财务中心', 
-        href: '/hq/finance', 
-        icon: CreditCard, 
-        allowedRoles: ['role.hq.admin', 'role.hq.finance'] 
+    {
+        name: '财务中心',
+        href: '/hq/finance',
+        icon: CreditCard,
+        allowedRoles: ['role.hq.admin', 'role.hq.finance']
     },
-    { 
-        name: '基地管理', 
-        href: '/hq/bases', 
-        icon: Building2, 
-        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
+    {
+        name: '基地管理',
+        href: '/hq/bases',
+        icon: Building2,
+        allowedRoles: ['role.hq.admin', 'role.hq.operation']
     },
-    { 
-        name: '学员总览', 
-        href: '/hq/participants', 
-        icon: Users, 
-        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
+    {
+        name: '学员总览',
+        href: '/hq/participants',
+        icon: Users,
+        allowedRoles: ['role.hq.admin', 'role.hq.operation']
     },
-    { 
-        name: '中央课程库', 
-        href: '/hq/courses', 
-        icon: BookOpen, 
-        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
+    {
+        name: '中央课程库',
+        href: '/hq/courses',
+        icon: BookOpen,
+        allowedRoles: ['role.hq.admin', 'role.hq.operation']
     },
-    { 
-        name: '固定资产', 
-        href: '/hq/assets', 
-        icon: Package, 
-        allowedRoles: ['role.hq.admin', 'role.hq.operation', 'role.hq.finance'] 
+    {
+        name: '固定资产',
+        href: '/hq/assets',
+        icon: Package,
+        allowedRoles: ['role.hq.admin', 'role.hq.operation', 'role.hq.finance']
     },
     // --- 供应链 (总部端) ---
-    { 
-        name: '商品管理', 
-        href: '/hq/supply/products', 
-        icon: Package, 
-        allowedRoles: ['role.hq.admin', 'role.hq.operation', 'role.hq.finance'] 
+    {
+        name: '商品管理',
+        href: '/hq/supply/products',
+        icon: Package,
+        allowedRoles: ['role.hq.admin', 'role.hq.operation', 'role.hq.finance']
     },
-    { 
-        name: '采购审批', 
-        href: '/hq/supply/orders', 
-        icon: ShoppingCart, 
-        allowedRoles: ['role.hq.admin', 'role.hq.finance', 'role.hq.operation'] 
+    {
+        name: '采购审批',
+        href: '/hq/supply/orders',
+        icon: ShoppingCart,
+        allowedRoles: ['role.hq.admin', 'role.hq.finance', 'role.hq.operation']
     },
     // --- 其他 ---
-    { 
-        name: '荣誉体系', 
-        href: '/hq/honor-ranks', 
-        icon: Award, 
-        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
+    {
+        name: '荣誉体系',
+        href: '/hq/honor-ranks',
+        icon: Award,
+        allowedRoles: ['role.hq.admin', 'role.hq.operation']
     },
-    { 
-        name: '会员卡种', 
-        href: '/hq/membership-tiers', 
-        icon: CreditCard, 
-        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
+    {
+        name: '会员卡种',
+        href: '/hq/membership-tiers',
+        icon: CreditCard,
+        allowedRoles: ['role.hq.admin', 'role.hq.operation']
     },
-    { 
-        name: '员工权限', 
-        href: '/hq/users', 
-        icon: Settings, 
-        allowedRoles: ['role.hq.admin', 'role.hq.hr'] 
+    {
+        name: '员工权限',
+        href: '/hq/users',
+        icon: Settings,
+        allowedRoles: ['role.hq.admin', 'role.hq.hr']
     },
-    { 
+    {
         name: '赋码中心',
-        href: '/hq/qrcode', 
-        icon: QrCode, 
-        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
+        href: '/hq/qrcode',
+        icon: QrCode,
+        allowedRoles: ['role.hq.admin', 'role.hq.operation']
     },
-    { 
+    {
         name: '防伪管理',
-        href: '/hq/qrcode/manage', 
-        icon: ShieldCheck, 
-        allowedRoles: ['role.hq.admin', 'role.hq.operation'] 
+        href: '/hq/qrcode/manage',
+        icon: ShieldCheck,
+        allowedRoles: ['role.hq.admin', 'role.hq.operation']
+    },
+    {
+        name: '客户管理',
+        href: '/hq/leads',
+        icon: Target,
+        allowedRoles: ['role.hq.admin', 'role.hq.marketing', 'role.hq.operation']
     },
 
     // =================================
     // --- 校区菜单 (Campus) ---
     // =================================
-    { 
-        name: '校区工作台', 
-        href: '/base/dashboard', 
-        icon: LayoutDashboard, 
-        allowedRoles: ['role.base.admin', 'role.base.academic', 'role.base.finance', 'role.base.hr'] 
+    {
+        name: '校区工作台',
+        href: '/base/dashboard',
+        icon: LayoutDashboard,
+        allowedRoles: ['role.base.admin', 'role.base.academic', 'role.base.finance', 'role.base.hr']
     },
-    { 
-        name: '排课/课表', 
-        href: '/base/schedule', 
-        icon: Calendar, 
-        allowedRoles: ['role.base.admin', 'role.base.academic'] 
+    {
+        name: '客户管理',
+        href: '/base/leads',
+        icon: Target,
+        allowedRoles: ['role.base.admin', 'role.base.marketing']
     },
-    { 
-        name: '教务班级', 
-        href: '/base/classes', 
-        icon: School, 
-        allowedRoles: ['role.base.admin', 'role.base.academic'] 
+    {
+        name: '试听课管理',
+        href: '/base/trial-classes',
+        icon: Calendar,
+        allowedRoles: ['role.base.admin', 'role.base.marketing']
     },
-    { 
-        name: '本校学员', 
-        href: '/base/students', 
-        icon: GraduationCap, 
-        allowedRoles: ['role.base.admin', 'role.base.academic', 'role.base.finance'] 
+    {
+        name: '排课/课表',
+        href: '/base/schedule',
+        icon: Calendar,
+        allowedRoles: ['role.base.admin', 'role.base.academic']
     },
-    { 
-        name: '教职工管理', 
-        href: '/base/staff', 
-        icon: Briefcase, 
-        allowedRoles: ['role.base.admin', 'role.base.hr'] 
+    {
+        name: '教务班级',
+        href: '/base/classes',
+        icon: School,
+        allowedRoles: ['role.base.admin', 'role.base.academic']
     },
-    { 
-        name: '教室管理', 
-        href: '/base/rooms', 
-        icon: Building2, 
-        allowedRoles: ['role.base.admin', 'role.base.academic'] 
+    {
+        name: '本校学员',
+        href: '/base/students',
+        icon: GraduationCap,
+        allowedRoles: ['role.base.admin', 'role.base.academic', 'role.base.finance']
     },
-    
+    {
+        name: '小程序码',
+        href: '/base/miniprogram-codes',
+        icon: QrCode,
+        allowedRoles: ['role.base.admin', 'role.base.marketing']
+    },
+    {
+        name: '教职工管理',
+        href: '/base/staff',
+        icon: Briefcase,
+        allowedRoles: ['role.base.admin', 'role.base.hr']
+    },
+    {
+        name: '教室管理',
+        href: '/base/rooms',
+        icon: Building2,
+        allowedRoles: ['role.base.admin', 'role.base.academic']
+    },
+
     // --- ★★★ 供应链采购 (对外) ★★★ ---
-    { 
-        name: '采购商城', 
-        href: '/base/supply/market', 
-        icon: ShoppingBag, 
-        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
+    {
+        name: '采购商城',
+        href: '/base/supply/market',
+        icon: ShoppingBag,
+        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic']
     },
-    { 
+    {
         name: '我的进货单', // 新增：用于付款、物流、收货
-        href: '/base/supply/my-orders', 
-        icon: Truck, 
-        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
+        href: '/base/supply/my-orders',
+        icon: Truck,
+        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic']
     },
 
     // --- ★★★ 库存管理 (对内) ★★★ ---
-    { 
-        name: '库存台账', 
-        href: '/base/inventory/stock', 
-        icon: Package, 
-        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
+    {
+        name: '库存台账',
+        href: '/base/inventory/stock',
+        icon: Package,
+        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic']
     },
-    { 
+    {
         name: '库存变动记录', // 新增：用于审计领用流水
-        href: '/base/inventory/requests', 
-        icon: ClipboardList, 
-        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
+        href: '/base/inventory/requests',
+        icon: ClipboardList,
+        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic']
     },
 
     // --- 财务与销售 ---
-    { 
-        name: '财务支出', 
-        href: '/base/finance/expenses', 
-        icon: Calendar, 
-        allowedRoles: ['role.base.admin', 'role.base.finance'] 
+    {
+        name: '财务支出',
+        href: '/base/finance/expenses',
+        icon: Calendar,
+        allowedRoles: ['role.base.admin', 'role.base.finance']
     },
-    { 
+    {
         name: '销售订单管理', // To C 销售
-        href: '/base/finance/orders', 
-        icon: FileCheck, 
-        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic'] 
+        href: '/base/finance/orders',
+        icon: FileCheck,
+        allowedRoles: ['role.base.admin', 'role.base.finance', 'role.base.academic']
     },
-    { 
-        name: '财务审核', 
-        href: '/base/audit', 
-        icon: FileCheck, 
-        allowedRoles: ['role.base.admin', 'role.base.finance'] 
+    {
+        name: '财务审核',
+        href: '/base/audit',
+        icon: FileCheck,
+        allowedRoles: ['role.base.admin', 'role.base.finance']
     },
 ];
 
@@ -232,7 +256,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
             // === 2. 核心过滤逻辑 ===
             // 只有当 item.allowedRoles 包含当前用户的任意一个角色时，才显示该菜单
-            const filtered = MENU_CONFIG.filter(item => 
+            const filtered = MENU_CONFIG.filter(item =>
                 item.allowedRoles.some(allowed => userRoles.includes(allowed))
             );
 
@@ -270,17 +294,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
-            
+
             {/* Sidebar */}
             <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20 transition-all duration-500">
-                
+
                 {/* Logo Area */}
                 <div className="h-20 flex items-center px-6 border-b border-slate-800 bg-slate-950/30">
                     <div className="w-10 h-10 mr-3 shadow-lg rounded-lg overflow-hidden relative bg-slate-800 flex items-center justify-center">
                         {isTenantUser ? (
                             <HqLogo className="w-full h-full object-cover" viewBox="0 0 600 400" />
                         ) : (
-                            <DynamicBaseLogo location={appTitle} hideText={true} className="w-full h-full object-cover"/>
+                            <DynamicBaseLogo location={appTitle} hideText={true} className="w-full h-full object-cover" />
                         )}
                     </div>
                     <div className="flex flex-col">
@@ -297,14 +321,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         const Icon = item.icon;
                         const isActive = pathname.startsWith(item.href);
                         return (
-                            <Link 
-                                key={item.href} 
+                            <Link
+                                key={item.href}
                                 href={item.href}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${
-                                    isActive 
-                                    ? `${activeBgClass} text-white shadow-md` 
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${isActive
+                                    ? `${activeBgClass} text-white shadow-md`
                                     : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
-                                }`}
+                                    }`}
                             >
                                 <Icon size={18} className={isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'} />
                                 {item.name}

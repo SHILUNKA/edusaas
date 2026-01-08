@@ -98,7 +98,7 @@ pub async fn login_handler(
     let user_query = sqlx::query(
         r#"
         SELECT 
-            u.id, u.password_hash, u.hq_id, u.base_id, u.is_active, u.password_changed_at,
+            u.id, u.password_hash, u.hq_id, u.base_id, u.is_active, u.password_changed_at, u.full_name,
             b.name as base_name, b.logo_url as base_logo
         FROM users u
         LEFT JOIN bases b ON u.base_id = b.id
@@ -120,6 +120,7 @@ pub async fn login_handler(
     let hq_id: Uuid = user_row.get("hq_id");
     let base_id: Option<Uuid> = user_row.get("base_id");
     let is_active: bool = user_row.get("is_active");
+    let full_name: String = user_row.get("full_name");
     let base_name: Option<String> = user_row.get("base_name");
     let base_logo: Option<String> = user_row.get("base_logo");
 
@@ -161,6 +162,7 @@ pub async fn login_handler(
         roles,
         base_name, 
         base_logo,
+        full_name,
         exp: (Utc::now() + Duration::days(1)).timestamp() as usize,
     };
 

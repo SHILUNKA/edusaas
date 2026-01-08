@@ -34,6 +34,16 @@ pub use base::*;
 pub mod customer;
 pub use customer::*;
 
+// --- 【新增】C端专用模块 ---
+pub mod customer_schedule;
+pub use customer_schedule::*;
+
+pub mod customer_honor;
+pub use customer_honor::*;
+
+pub mod customer_auth;
+pub use customer_auth::*;
+
 pub mod participant;
 pub use participant::*;
 
@@ -95,6 +105,21 @@ pub use upload::*;
 
 pub mod qrcode;
 pub use qrcode::*;
+
+pub mod staff;
+pub use staff::*;
+
+pub mod report;
+pub use report::*;
+
+pub mod lead;
+pub use lead::*;
+
+pub mod trial_class;
+pub use trial_class::*;
+
+pub mod workspace;
+pub use workspace::*;
 
 // --- (★ V16.0 新增: 通用状态切换逻辑) ---
 // 这是一个辅助函数，不是 Handler，供具体 Handler 调用

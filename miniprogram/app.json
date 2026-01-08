@@ -1,9 +1,10 @@
 {
   "pages": [
+    "pages/redirect/index",
     "pages/launch/index",
     "pages/login/index",
-    "pages/mine/index",
-    "components/dynamic-tab-bar/index"
+    "pages/customer-login/index",
+    "pages/mine/index"
   ],
   "subPackages": [
     {
@@ -21,14 +22,65 @@
     },
     {
       "root": "pkg_base",
+      "name": "pkg_base",
       "pages": [
-        "workspace/index"
+        "workspace/index",
+        "pages/dashboard/index",
+        "pages/leads/list/index",
+        "pages/leads/create/index",
+        "pages/leads/detail/index",
+        "pages/approval/list/index",
+        "pages/finance/index",
+        "pages/staff/index",
+        "pages/report/depth/index",
+        "pages/notice/send/index"
       ]
     },
     {
       "root": "pkg_customer",
       "pages": [
-        "home/index"
+        "pages/home/index",
+        "pages/schedule/index",
+        "pages/schedule/detail/index",
+        "pages/honor/index",
+        "pages/honor/points-detail/index",
+        "pages/honor/badges/index",
+        "pages/honor/leaderboard/index",
+        "pages/honor/timeline/index",
+        "pages/shop/index",
+        "pages/shop/detail/index",
+        "pages/shop/cart/index",
+        "pages/messages/index",
+        "pages/messages/detail/index",
+        "pages/report/index",
+        "pages/profile/index",
+        "pages/profile/participants/index",
+        "pages/profile/orders/index",
+        "pages/profile/orders/detail/index",
+        "pages/profile/addresses/index",
+        "pages/profile/invoice/index",
+        "pages/profile/settings/index",
+        "pages/leave/apply/index",
+        "pages/leave/records/index"
+      ]
+    },
+    {
+      "root": "pkg_finance",
+      "pages": [
+        "pages/dashboard/index",
+        "pages/audit/index",
+        "pages/ledger/index",
+        "pages/bookkeeping/index",
+        "pages/invoice/index"
+      ]
+    },
+    {
+      "root": "pkg_teacher",
+      "pages": [
+        "pages/dashboard/index",
+        "pages/schedule/index",
+        "pages/class/detail/index",
+        "pages/students/list/index"
       ]
     }
   ],

@@ -289,18 +289,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
     // 样式配置
     const isIndigo = theme === 'indigo';
-    const activeBgClass = isIndigo ? 'bg-indigo-600' : 'bg-emerald-600';
-    const logoBgClass = isIndigo ? 'bg-indigo-500' : 'bg-emerald-500';
+
+    // Soft UI配色
+    const softGradient = isIndigo
+        ? 'bg-gradient-to-br from-sky-50 via-blue-50 to-indigo-50'
+        : 'bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50';
+    const softActiveBg = isIndigo
+        ? 'bg-gradient-to-r from-sky-400 to-indigo-500'
+        : 'bg-gradient-to-r from-emerald-400 to-teal-500';
+    const softHoverBg = isIndigo
+        ? 'hover:bg-sky-100/60'
+        : 'hover:bg-emerald-100/60';
 
     return (
-        <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
+        <div className="flex h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-blue-50/30 font-sans text-gray-900">
 
-            {/* Sidebar */}
-            <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-xl z-20 transition-all duration-500">
+            {/* Soft UI Sidebar */}
+            <aside className={`w-64 ${softGradient} flex flex-col shadow-2xl shadow-sky-200/50 border-r border-white/60 backdrop-blur-xl z-20 transition-all duration-500`}>
 
-                {/* Logo Area */}
-                <div className="h-20 flex items-center px-6 border-b border-slate-800 bg-slate-950/30">
-                    <div className="w-10 h-10 mr-3 shadow-lg rounded-lg overflow-hidden relative bg-slate-800 flex items-center justify-center">
+                {/* Logo Area - Soft UI Style */}
+                <div className="h-20 flex items-center px-6 border-b border-white/40 bg-white/30 backdrop-blur-md">
+                    <div className={`w-11 h-11 mr-3 shadow-lg shadow-${isIndigo ? 'sky' : 'emerald'}-300/40 rounded-2xl overflow-hidden relative bg-gradient-to-br ${isIndigo ? 'from-sky-100 to-indigo-100' : 'from-emerald-100 to-teal-100'} flex items-center justify-center border border-white/50`}>
                         {isTenantUser ? (
                             <HqLogo className="w-full h-full object-cover" viewBox="0 0 600 400" />
                         ) : (
@@ -308,15 +317,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         )}
                     </div>
                     <div className="flex flex-col">
-                        <span className="font-bold text-sm tracking-wide text-slate-100 leading-tight">
+                        <span className="font-bold text-sm tracking-wide text-slate-700 leading-tight">
                             {appTitle}
                         </span>
-                        <span className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Operation System</span>
+                        <span className="text-[10px] text-slate-400 uppercase tracking-widest mt-0.5">Operation System</span>
                     </div>
                 </div>
 
-                {/* Nav Items */}
-                <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+                {/* Nav Items - Soft UI Cards */}
+                <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-2">
                     {visibleNavItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = pathname.startsWith(item.href);
@@ -324,29 +333,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             <Link
                                 key={item.href}
                                 href={item.href}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group ${isActive
-                                    ? `${activeBgClass} text-white shadow-md`
-                                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                                className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold transition-all duration-300 group ${isActive
+                                    ? `${softActiveBg} text-white shadow-lg shadow-${isIndigo ? 'sky' : 'emerald'}-300/50 scale-[1.02]`
+                                    : `text-slate-700 ${softHoverBg} hover:shadow-lg hover:shadow-${isIndigo ? 'sky' : 'emerald'}-200/40 hover:scale-[1.01] bg-white/90 backdrop-blur-sm border border-${isIndigo ? 'sky' : 'emerald'}-100/50 shadow-sm shadow-slate-200/30`
                                     }`}
                             >
-                                <Icon size={18} className={isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'} />
-                                {item.name}
+                                <Icon size={18} className={isActive ? 'text-white drop-shadow-sm' : `text-${isIndigo ? 'sky' : 'emerald'}-600 group-hover:text-${isIndigo ? 'sky' : 'emerald'}-700 drop-shadow-sm`} />
+                                <span className={isActive ? 'drop-shadow-sm' : ''}>{item.name}</span>
                             </Link>
                         );
                     })}
                 </nav>
 
-                {/* User Profile */}
-                <div className="p-4 border-t border-slate-800 bg-slate-950/30">
-                    <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-full bg-opacity-20 flex items-center justify-center text-sm font-bold border border-white/10 ${logoBgClass}`}>
+                {/* User Profile - Soft UI Card */}
+                <div className="p-4 border-t border-white/40 bg-white/40 backdrop-blur-md">
+                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-white/60 backdrop-blur-sm shadow-md shadow-slate-200/50 border border-white/80">
+                        <div className={`w-10 h-10 rounded-full ${softActiveBg} bg-opacity-90 flex items-center justify-center text-sm font-bold text-white shadow-md shadow-${isIndigo ? 'sky' : 'emerald'}-300/40`}>
                             {session?.user?.email?.[0].toUpperCase() || 'U'}
                         </div>
                         <div className="flex-1 overflow-hidden">
-                            <p className="text-sm font-medium text-slate-200 truncate">{session?.user?.email}</p>
+                            <p className="text-sm font-semibold text-slate-700 truncate">{session?.user?.email}</p>
                             <p className="text-xs text-slate-500 truncate" title={userTitle}>{userTitle}</p>
                         </div>
-                        <button onClick={() => signOut({ callbackUrl: '/login' })} className="p-1.5 text-slate-500 hover:text-red-400 rounded hover:bg-slate-800 transition-colors" title="退出登录">
+                        <button
+                            onClick={() => signOut({ callbackUrl: '/login' })}
+                            className="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition-all duration-200 hover:shadow-sm"
+                            title="退出登录"
+                        >
                             <LogOut size={16} />
                         </button>
                     </div>
@@ -355,27 +368,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
             {/* Main Content */}
             <main className="flex-1 flex flex-col overflow-hidden relative">
-                <header className="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-8 shadow-sm z-10">
+                <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-white/60 flex items-center justify-between px-8 shadow-sm shadow-slate-200/50 z-10">
                     <div className="flex items-center text-sm text-gray-500">
-                        <span className="text-gray-400">位置</span>
-                        <span className="mx-2">/</span>
+                        <span className="text-gray-400 font-medium">位置</span>
+                        <span className="mx-2 text-gray-300">/</span>
                         <span className="text-gray-800 font-bold text-lg">
                             {visibleNavItems.find(i => pathname.startsWith(i.href))?.name || '控制台'}
                         </span>
                     </div>
 
                     <div className="flex items-center gap-6">
-                        <div className="hidden md:block border-r border-gray-100 pr-6">
+                        <div className="hidden md:block border-r border-gray-200/60 pr-6">
                             <RealTimeClock />
                         </div>
-                        <button className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 relative">
-                            <Bell size={22} />
-                            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                        <button className="p-2.5 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gradient-to-br hover:from-sky-50 hover:to-indigo-50 hover:shadow-md transition-all duration-200 relative">
+                            <Bell size={20} />
+                            <span className="absolute top-2 right-2 w-2 h-2 bg-gradient-to-br from-red-400 to-pink-500 rounded-full border-2 border-white shadow-sm"></span>
                         </button>
                     </div>
                 </header>
 
-                <div className="flex-1 overflow-y-auto bg-gray-50">
+                <div className="flex-1 overflow-y-auto bg-gradient-to-br from-slate-50 via-gray-50 to-blue-50/30">
                     {children}
                 </div>
             </main>

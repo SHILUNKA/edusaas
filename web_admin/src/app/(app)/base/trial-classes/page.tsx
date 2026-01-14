@@ -30,11 +30,12 @@ interface TrialClass {
     conversion_intent?: string;
 }
 
+// Soft UI Status Map
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-    pending: { label: '待确认', color: 'text-yellow-700', bg: 'bg-yellow-50' },
-    confirmed: { label: '已安排', color: 'text-blue-700', bg: 'bg-blue-50' },
-    completed: { label: '已完成', color: 'text-green-700', bg: 'bg-green-50' },
-    cancelled: { label: '已取消', color: 'text-gray-700', bg: 'bg-gray-50' },
+    pending: { label: '待确认', color: 'text-amber-700', bg: 'bg-gradient-to-r from-amber-100 to-yellow-100 border border-amber-200/50 shadow-sm' },
+    confirmed: { label: '已安排', color: 'text-sky-700', bg: 'bg-gradient-to-r from-sky-100 to-blue-100 border border-sky-200/50 shadow-sm' },
+    completed: { label: '已完成', color: 'text-emerald-700', bg: 'bg-gradient-to-r from-emerald-100 to-teal-100 border border-emerald-200/50 shadow-sm' },
+    cancelled: { label: '已取消', color: 'text-slate-700', bg: 'bg-gradient-to-r from-slate-100 to-gray-100 border border-slate-200/50 shadow-sm' },
 };
 
 export default function TrialClassesPage() {
@@ -134,31 +135,34 @@ export default function TrialClassesPage() {
     }
 
     return (
-        <div className="p-8 space-y-6">
-            {/* Header */}
+        <div className="p-8 space-y-6 min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-indigo-50/20">
+            {/* Header - Soft UI */}
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                        <Calendar className="text-indigo-600" size={32} /> 试听课管理
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-3">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center shadow-md shadow-indigo-200/40">
+                            <Calendar className="text-indigo-600" size={28} />
+                        </div>
+                        试听课管理
                     </h1>
-                    <div className="flex gap-4 mt-2 text-sm text-gray-500">
-                        <span>总数: <b className="text-gray-900">{stats.total}</b></span>
-                        <span className="w-[1px] bg-gray-300 h-4 self-center"></span>
-                        <span className="text-yellow-600">待确认: <b>{stats.pending}</b></span>
-                        <span className="text-blue-600">已安排: <b>{stats.confirmed}</b></span>
-                        <span className="text-green-600">已完成: <b>{stats.completed}</b></span>
+                    <div className="flex gap-4 mt-3 text-sm text-slate-600 ml-[4.5rem] font-medium">
+                        <span>总数: <b className="text-slate-800">{stats.total}</b></span>
+                        <span className="w-[1px] bg-slate-300 h-4 self-center"></span>
+                        <span className="text-amber-600">待确认: <b>{stats.pending}</b></span>
+                        <span className="text-sky-600">已安排: <b>{stats.confirmed}</b></span>
+                        <span className="text-emerald-600">已完成: <b>{stats.completed}</b></span>
                     </div>
                 </div>
                 <button
-                    className="bg-indigo-600 text-white px-6 py-2.5 rounded-full font-bold hover:bg-indigo-700 shadow-lg flex items-center gap-2 transition-all hover:scale-105"
+                    className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-2xl font-bold hover:shadow-lg hover:shadow-indigo-300/50 shadow-md flex items-center gap-2 transition-all hover:scale-105"
                     onClick={() => setShowCreateModal(true)}
                 >
                     <Plus size={18} /> 安排试听课
                 </button>
             </div>
 
-            {/* Filters */}
-            <div className="bg-white rounded-xl shadow-sm p-4 flex gap-4">
+            {/* Filters - Soft UI */}
+            <div className="bg-gradient-to-br from-white to-slate-50/30 rounded-3xl shadow-lg shadow-slate-200/40 p-5 flex gap-4 border border-slate-100 backdrop-blur-sm">
                 {/* Search */}
                 <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -167,7 +171,7 @@ export default function TrialClassesPage() {
                         placeholder="搜索学员、家长姓名或电话..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-400 focus:border-transparent bg-white shadow-sm"
                     />
                 </div>
 
@@ -182,9 +186,9 @@ export default function TrialClassesPage() {
                         <button
                             key={status.key}
                             onClick={() => setStatusFilter(status.key)}
-                            className={`px-4 py-2 rounded-lg font-medium transition-all ${statusFilter === status.key
-                                ? 'bg-indigo-600 text-white shadow-md'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            className={`px-4 py-2.5 rounded-2xl font-bold transition-all ${statusFilter === status.key
+                                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-300/50'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
                                 }`}
                         >
                             {status.label}
@@ -199,11 +203,11 @@ export default function TrialClassesPage() {
                     <div
                         key={tc.id}
                         onClick={() => setSelectedClass(tc.id)}
-                        className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer p-5 border border-gray-100"
+                        className="bg-gradient-to-br from-white to-slate-50/30 rounded-3xl shadow-lg shadow-slate-200/30 hover:shadow-xl hover:shadow-indigo-200/40 transition-all cursor-pointer p-6 border border-slate-100 backdrop-blur-sm hover:scale-[1.02] duration-300"
                     >
                         {/* Status Badge */}
                         <div className="flex justify-between items-start mb-3">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${STATUS_MAP[tc.status].bg} ${STATUS_MAP[tc.status].color}`}>
+                            <span className={`px-3 py-1.5 rounded-2xl text-xs font-bold ${STATUS_MAP[tc.status].bg} ${STATUS_MAP[tc.status].color}`}>
                                 {STATUS_MAP[tc.status].label}
                             </span>
                             {tc.conversion_intent === 'high' && (

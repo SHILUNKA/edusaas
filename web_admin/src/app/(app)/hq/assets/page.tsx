@@ -2,13 +2,13 @@
  * 总部管理: 全网固定资产驾驶舱 (V16.5 - 修复类型创建功能)
  * 路径: /hq/assets
  */
-'use client'; 
+'use client';
 
 import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import { API_BASE_URL } from '@/lib/config';
-import { 
-    Package, Filter, Search, Plus, Box, Layers, 
+import {
+    Package, Filter, Search, Plus, Box, Layers,
     ArrowRightLeft, Trash2, DollarSign, Tag, AlertCircle,
     QrCode, Download, Printer, Wrench, Settings, X
 } from 'lucide-react';
@@ -19,8 +19,8 @@ interface AssetDetail {
     name: string;
     model_number: string | null;
     serial_number: string | null;
-    status: string; 
-    type_name: string; 
+    status: string;
+    type_name: string;
     base_name: string | null;
     base_id: string | null;
     purchase_date: string | null;
@@ -41,7 +41,7 @@ export default function TenantAssetsPage() {
     const [types, setTypes] = useState<AssetType[]>([]);
     const [bases, setBases] = useState<Base[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     // 筛选
     const [selectedTypeId, setSelectedTypeId] = useState<string>("all");
     const [filterBase, setFilterBase] = useState("all");
@@ -103,48 +103,51 @@ export default function TenantAssetsPage() {
     const handleExport = () => {
         if (filteredAssets.length === 0) return alert("当前列表为空");
         const headers = "资产名称,序列号,型号,分类,归属基地,状态,原值(元),购入日期\n";
-        const rows = filteredAssets.map(a => 
-            `${a.name},${a.serial_number||''},${a.model_number||''},${a.type_name},${a.base_name||'未分配'},${a.status},${(a.price_in_cents/100).toFixed(2)},${a.purchase_date||''}`
+        const rows = filteredAssets.map(a =>
+            `${a.name},${a.serial_number || ''},${a.model_number || ''},${a.type_name},${a.base_name || '未分配'},${a.status},${(a.price_in_cents / 100).toFixed(2)},${a.purchase_date || ''}`
         ).join("\n");
         const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.download = `资产台账_${new Date().toISOString().slice(0,10)}.csv`;
+        link.download = `资产台账_${new Date().toISOString().slice(0, 10)}.csv`;
         link.click();
     };
 
     const handleDelete = async (id: string) => {
-        if(!confirm("⚠️ 确定报废/删除此资产吗？")) return;
+        if (!confirm("⚠️ 确定报废/删除此资产吗？")) return;
         try {
             await fetch(`${API}/hq/assets/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             setAssets(prev => prev.filter(a => a.id !== id));
-        } catch(e) { alert("错误"); }
+        } catch (e) { alert("错误"); }
     };
 
     return (
-        <div className="flex h-[calc(100vh-64px)] bg-gray-50">
-            
-            {/* --- 左侧: 分类树 --- */}
-            <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
-                <div className="p-5 border-b border-gray-100">
-                    <h2 className="font-bold text-gray-800 flex items-center gap-2">
-                        <Layers className="text-indigo-600"/> 资产分类
+        <div className="flex h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 via-gray-50 to-blue-50/20">
+
+            {/* --- 左侧: 分类树 - Soft UI --- */}
+            <div className="w-64 bg-gradient-to-b from-white to-slate-50/30 border-r border-slate-100 flex flex-col shadow-lg shadow-slate-200/30">
+                <div className="p-5 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+                    <h2 className="font-bold text-slate-800 flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center shadow-sm">
+                            <Layers className="text-indigo-600" size={16} />
+                        </div>
+                        资产分类
                     </h2>
                 </div>
                 <div className="flex-1 overflow-y-auto p-3 space-y-1">
-                    <button 
+                    <button
                         onClick={() => setSelectedTypeId("all")}
                         className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium transition-colors flex justify-between ${selectedTypeId === 'all' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                         <span>全部资产</span>
-                        <span className="text-xs bg-white px-2 py-0.5 rounded-full border">{assets.length}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-xl font-bold shadow-sm ${selectedTypeId === 'all' ? 'bg-white/90 text-indigo-600' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>{assets.length}</span>
                     </button>
-                    <div className="pt-2 px-4 text-xs font-bold text-gray-400 uppercase">Types</div>
+                    <div className="pt-2 px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Types</div>
                     {types.map(t => (
-                        <button 
+                        <button
                             key={t.id}
                             onClick={() => setSelectedTypeId(t.id)}
                             className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-colors ${selectedTypeId === t.id ? 'bg-white border border-indigo-200 text-indigo-700 shadow-sm' : 'text-gray-600 hover:bg-gray-50 border border-transparent'}`}
@@ -153,10 +156,10 @@ export default function TenantAssetsPage() {
                         </button>
                     ))}
                 </div>
-                <div className="p-4 border-t bg-gray-50">
+                <div className="p-4 border-t border-slate-100 bg-gradient-to-r from-slate-50 to-gray-50">
                     {/* (★ 绑定弹窗事件) */}
-                    <button onClick={() => setIsTypeModalOpen(true)} className="w-full py-2 text-xs text-indigo-600 border border-indigo-200 rounded hover:bg-white transition-colors flex items-center justify-center gap-1">
-                        <Settings size={12}/> 管理分类定义
+                    <button onClick={() => setIsTypeModalOpen(true)} className="w-full py-2.5 text-xs font-semibold text-indigo-600 border border-indigo-200 rounded-xl hover:bg-white hover:shadow-md transition-all flex items-center justify-center gap-1.5">
+                        <Settings size={12} /> 管理分类定义
                     </button>
                 </div>
             </div>
@@ -172,26 +175,26 @@ export default function TenantAssetsPage() {
                         </div>
                         <div className="flex gap-3">
                             <button onClick={handleExport} className="bg-white border border-gray-300 text-gray-700 px-4 py-2.5 rounded-full font-medium hover:bg-gray-50 flex items-center gap-2 text-sm">
-                                <Download size={16}/> 导出台账
+                                <Download size={16} /> 导出台账
                             </button>
                             <button onClick={() => setIsCreateOpen(true)} className="bg-black text-white px-5 py-2.5 rounded-full font-bold hover:bg-gray-800 flex items-center gap-2 shadow-lg hover:scale-105 transition-all">
-                                <Plus size={18}/> 录入新资产
+                                <Plus size={18} /> 录入新资产
                             </button>
                         </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-4 gap-6">
-                        <KpiCard label="资产总估值" value={`¥${stats.totalValue.toLocaleString()}`} icon={<DollarSign className="text-green-600"/>} bg="bg-green-50"/>
-                        <KpiCard label="实物资产总数" value={stats.count} icon={<Box className="text-blue-600"/>} bg="bg-blue-50"/>
-                        <KpiCard label="闲置率" value={`${stats.idleRate}%`} icon={<AlertCircle className="text-gray-500"/>} bg="bg-gray-50" sub="库存/总数"/>
-                        <KpiCard label="维修率" value={`${stats.maintenanceRate}%`} icon={<Wrench className="text-orange-600"/>} bg="bg-orange-50" sub="需关注设备健康"/>
+                        <KpiCard label="资产总估值" value={`¥${stats.totalValue.toLocaleString()}`} icon={<DollarSign className="text-green-600" />} bg="bg-green-50" />
+                        <KpiCard label="实物资产总数" value={stats.count} icon={<Box className="text-blue-600" />} bg="bg-blue-50" />
+                        <KpiCard label="闲置率" value={`${stats.idleRate}%`} icon={<AlertCircle className="text-gray-500" />} bg="bg-gray-50" sub="库存/总数" />
+                        <KpiCard label="维修率" value={`${stats.maintenanceRate}%`} icon={<Wrench className="text-orange-600" />} bg="bg-orange-50" sub="需关注设备健康" />
                     </div>
                 </div>
 
                 <div className="flex-1 overflow-hidden flex flex-col px-8 py-6">
                     <div className="flex gap-4 mb-4">
                         <div className="flex items-center gap-2 px-3 py-2 bg-white border rounded-lg w-64">
-                            <Filter size={16} className="text-gray-400"/>
+                            <Filter size={16} className="text-gray-400" />
                             <select value={filterBase} onChange={e => setFilterBase(e.target.value)} className="w-full bg-transparent outline-none text-sm text-gray-700">
                                 <option value="all">全部分店</option>
                                 {bases.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -199,7 +202,7 @@ export default function TenantAssetsPage() {
                         </div>
                         <div className="relative flex-1 max-w-md">
                             <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                            <input type="text" placeholder="搜索资产名称、型号或序列号..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-10 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"/>
+                            <input type="text" placeholder="搜索资产名称、型号或序列号..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-10 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" />
                         </div>
                     </div>
 
@@ -224,16 +227,16 @@ export default function TenantAssetsPage() {
                                                 <div className="text-xs text-gray-400 mt-0.5 font-mono">SN: {a.serial_number || 'N/A'}</div>
                                             </td>
                                             <td className="px-6 py-4 text-gray-600">
-                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs"><Tag size={10}/> {a.type_name}</span>
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded text-xs"><Tag size={10} /> {a.type_name}</span>
                                             </td>
                                             <td className="px-6 py-4">{a.base_name || '未分配'}</td>
-                                            <td className="px-6 py-4"><StatusBadge status={a.status}/></td>
-                                            <td className="px-6 py-4 font-mono text-gray-600">¥ {(a.price_in_cents/100).toFixed(2)}</td>
+                                            <td className="px-6 py-4"><StatusBadge status={a.status} /></td>
+                                            <td className="px-6 py-4 font-mono text-gray-600">¥ {(a.price_in_cents / 100).toFixed(2)}</td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-2 opacity-80 group-hover:opacity-100">
-                                                    <button onClick={() => setQrAsset(a)} className="p-1.5 bg-white border border-gray-200 text-gray-600 rounded hover:border-indigo-300 transition-colors"><QrCode size={14}/></button>
-                                                    <button onClick={() => setTransferAsset(a)} className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded hover:border-indigo-300 hover:text-indigo-600 transition-colors text-xs flex items-center gap-1"><ArrowRightLeft size={12}/> 调拨</button>
-                                                    <button onClick={() => handleDelete(a.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14}/></button>
+                                                    <button onClick={() => setQrAsset(a)} className="p-1.5 bg-white border border-gray-200 text-gray-600 rounded hover:border-indigo-300 transition-colors"><QrCode size={14} /></button>
+                                                    <button onClick={() => setTransferAsset(a)} className="px-3 py-1.5 bg-white border border-gray-200 text-gray-700 rounded hover:border-indigo-300 hover:text-indigo-600 transition-colors text-xs flex items-center gap-1"><ArrowRightLeft size={12} /> 调拨</button>
+                                                    <button onClick={() => handleDelete(a.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"><Trash2 size={14} /></button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -246,10 +249,10 @@ export default function TenantAssetsPage() {
             </div>
 
             {/* 弹窗: 录入新资产 */}
-            {isCreateOpen && <CreateAssetModal token={token} types={types} bases={bases} onClose={() => setIsCreateOpen(false)} onSuccess={fetchData}/>}
+            {isCreateOpen && <CreateAssetModal token={token} types={types} bases={bases} onClose={() => setIsCreateOpen(false)} onSuccess={fetchData} />}
 
             {/* 弹窗: 调拨资产 */}
-            {transferAsset && <TransferAssetModal token={token} asset={transferAsset} bases={bases} onClose={() => setTransferAsset(null)} onSuccess={fetchData}/>}
+            {transferAsset && <TransferAssetModal token={token} asset={transferAsset} bases={bases} onClose={() => setTransferAsset(null)} onSuccess={fetchData} />}
 
             {/* 弹窗: 二维码 */}
             {qrAsset && (
@@ -272,27 +275,35 @@ export default function TenantAssetsPage() {
 
             {/* (★ 新增: 弹窗: 管理资产分类) */}
             {isTypeModalOpen && (
-                <ManageTypesModal 
-                    token={token} 
-                    types={types} 
-                    onClose={() => setIsTypeModalOpen(false)} 
-                    onSuccess={fetchData} 
+                <ManageTypesModal
+                    token={token}
+                    types={types}
+                    onClose={() => setIsTypeModalOpen(false)}
+                    onSuccess={fetchData}
                 />
             )}
         </div>
     );
 }
 
-// --- 子组件 ---
+// --- 子组件 - Soft UI KpiCard ---
 function KpiCard({ label, value, icon, bg, sub }: any) {
+    const colorScheme: any = bg.includes('green')
+        ? { gradient: 'from-emerald-50 to-teal-50', shadow: 'shadow-emerald-200/40', border: 'border-emerald-100/50', iconBg: 'from-emerald-100 to-teal-100' }
+        : bg.includes('blue')
+            ? { gradient: 'from-sky-50 to-blue-50', shadow: 'shadow-sky-200/40', border: 'border-sky-100/50', iconBg: 'from-sky-100 to-blue-100' }
+            : bg.includes('orange')
+                ? { gradient: 'from-orange-50 to-amber-50', shadow: 'shadow-orange-200/40', border: 'border-orange-100/50', iconBg: 'from-orange-100 to-amber-100' }
+                : { gradient: 'from-slate-50 to-gray-50', shadow: 'shadow-slate-200/40', border: 'border-slate-100/50', iconBg: 'from-slate-100 to-gray-100' };
+
     return (
-        <div className="p-5 rounded-xl border shadow-sm bg-white flex items-start justify-between hover:shadow-md transition-shadow">
+        <div className={`p-5 rounded-3xl border ${colorScheme.border} shadow-lg ${colorScheme.shadow} bg-gradient-to-br ${colorScheme.gradient} backdrop-blur-sm flex items-start justify-between hover:scale-[1.02] transition-all duration-300 group cursor-pointer`}>
             <div>
-                <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{label}</div>
-                <div className="text-2xl font-extrabold text-gray-900">{value}</div>
-                {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
+                <div className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">{label}</div>
+                <div className="text-3xl font-extrabold text-slate-800">{value}</div>
+                {sub && <div className="text-xs text-slate-500 mt-2 font-medium">{sub}</div>}
             </div>
-            <div className={`p-3 rounded-lg ${bg}`}>{icon}</div>
+            <div className={`p-4 rounded-2xl bg-gradient-to-br ${colorScheme.iconBg} shadow-md shadow-slate-300/30 group-hover:scale-110 transition-transform duration-300`}>{icon}</div>
         </div>
     );
 }
@@ -326,26 +337,26 @@ function CreateAssetModal({ token, types, bases, onClose, onSuccess }: any) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ name, serial_number: sn || null, price: parseFloat(price) || 0, asset_type_id: typeId || null, base_id: baseId || null, status: 'in_stock' })
             });
-            if(res.ok) { onSuccess(); onClose(); } else alert("失败");
-        } catch(e) { alert("错误"); } finally { setLoading(false); }
+            if (res.ok) { onSuccess(); onClose(); } else alert("失败");
+        } catch (e) { alert("错误"); } finally { setLoading(false); }
     };
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
             <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-xl animate-in zoom-in-95">
                 <h3 className="text-lg font-bold mb-4">📦 录入新资产</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div><label className="text-xs font-bold text-gray-500 block mb-1">资产名称</label><input required value={name} onChange={e=>setName(e.target.value)} className="w-full p-2 border rounded"/></div>
+                    <div><label className="text-xs font-bold text-gray-500 block mb-1">资产名称</label><input required value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded" /></div>
                     <div className="grid grid-cols-2 gap-3">
-                        <div><label className="text-xs font-bold text-gray-500 block mb-1">分类</label><select value={typeId} onChange={e=>setTypeId(e.target.value)} className="w-full p-2 border rounded">{types.map((t:any)=><option key={t.id} value={t.id}>{t.name_key}</option>)}</select></div>
-                        <div><label className="text-xs font-bold text-gray-500 block mb-1">初始位置</label><select value={baseId} onChange={e=>setBaseId(e.target.value)} className="w-full p-2 border rounded">{bases.map((b:any)=><option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
+                        <div><label className="text-xs font-bold text-gray-500 block mb-1">分类</label><select value={typeId} onChange={e => setTypeId(e.target.value)} className="w-full p-2 border rounded">{types.map((t: any) => <option key={t.id} value={t.id}>{t.name_key}</option>)}</select></div>
+                        <div><label className="text-xs font-bold text-gray-500 block mb-1">初始位置</label><select value={baseId} onChange={e => setBaseId(e.target.value)} className="w-full p-2 border rounded">{bases.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                        <div><label className="text-xs font-bold text-gray-500 block mb-1">序列号 (S/N)</label><input value={sn} onChange={e=>setSn(e.target.value)} className="w-full p-2 border rounded"/></div>
-                        <div><label className="text-xs font-bold text-gray-500 block mb-1">采购价 (元)</label><input type="number" value={price} onChange={e=>setPrice(e.target.value)} className="w-full p-2 border rounded"/></div>
+                        <div><label className="text-xs font-bold text-gray-500 block mb-1">序列号 (S/N)</label><input value={sn} onChange={e => setSn(e.target.value)} className="w-full p-2 border rounded" /></div>
+                        <div><label className="text-xs font-bold text-gray-500 block mb-1">采购价 (元)</label><input type="number" value={price} onChange={e => setPrice(e.target.value)} className="w-full p-2 border rounded" /></div>
                     </div>
                     <div className="flex justify-end gap-2 pt-2">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">取消</button>
-                        <button type="submit" disabled={loading} className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800">{loading?'提交中...':'确认录入'}</button>
+                        <button type="submit" disabled={loading} className="px-4 py-2 bg-black text-white rounded hover:bg-gray-800">{loading ? '提交中...' : '确认录入'}</button>
                     </div>
                 </form>
             </div>
@@ -366,8 +377,8 @@ function TransferAssetModal({ token, asset, bases, onClose, onSuccess }: any) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ target_base_id: targetBase })
             });
-            if(res.ok) { onSuccess(); onClose(); alert(`成功调拨至新基地`); } else alert("调拨失败");
-        } catch(e) { alert("错误"); } finally { setLoading(false); }
+            if (res.ok) { onSuccess(); onClose(); alert(`成功调拨至新基地`); } else alert("调拨失败");
+        } catch (e) { alert("错误"); } finally { setLoading(false); }
     };
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -376,10 +387,10 @@ function TransferAssetModal({ token, asset, bases, onClose, onSuccess }: any) {
                 <p className="text-sm text-gray-500 mb-4">将 <b>{asset.name}</b> 转移至其他校区。</p>
                 <div className="bg-gray-50 p-3 rounded mb-4 text-sm"><span className="text-gray-400">当前位置:</span> {asset.base_name || "未分配"}</div>
                 <label className="text-xs font-bold text-gray-500 block mb-1">目标基地</label>
-                <select value={targetBase} onChange={e=>setTargetBase(e.target.value)} className="w-full p-2 border rounded mb-6">{bases.filter((b:any) => b.id !== asset.base_id).map((b:any) => (<option key={b.id} value={b.id}>{b.name}</option>))}</select>
+                <select value={targetBase} onChange={e => setTargetBase(e.target.value)} className="w-full p-2 border rounded mb-6">{bases.filter((b: any) => b.id !== asset.base_id).map((b: any) => (<option key={b.id} value={b.id}>{b.name}</option>))}</select>
                 <div className="flex justify-end gap-2">
                     <button onClick={onClose} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded">取消</button>
-                    <button onClick={handleTransfer} disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">{loading?'调拨中...':'确认调拨'}</button>
+                    <button onClick={handleTransfer} disabled={loading} className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">{loading ? '调拨中...' : '确认调拨'}</button>
                 </div>
             </div>
         </div>
@@ -402,12 +413,12 @@ function ManageTypesModal({ token, types, onClose, onSuccess }: any) {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ name_key: name, description_key: desc || null })
             });
-            if(res.ok) { 
-                alert("分类创建成功"); 
+            if (res.ok) {
+                alert("分类创建成功");
                 setName(""); setDesc("");
                 onSuccess(); // 刷新父页面数据
             } else alert("创建失败");
-        } catch(e) { alert("错误"); } finally { setLoading(false); }
+        } catch (e) { alert("错误"); } finally { setLoading(false); }
     };
 
     return (
@@ -415,7 +426,7 @@ function ManageTypesModal({ token, types, onClose, onSuccess }: any) {
             <div className="bg-white p-6 rounded-xl w-full max-w-md shadow-xl animate-in zoom-in-95 flex flex-col max-h-[80vh]">
                 <div className="flex justify-between items-center mb-4 border-b pb-4">
                     <h3 className="text-lg font-bold">🏷️ 资产分类管理</h3>
-                    <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-gray-600"/></button>
+                    <button onClick={onClose}><X size={20} className="text-gray-400 hover:text-gray-600" /></button>
                 </div>
 
                 {/* 列表展示 (简单版) */}
@@ -436,11 +447,11 @@ function ManageTypesModal({ token, types, onClose, onSuccess }: any) {
                 <form onSubmit={handleAddType} className="space-y-3 border-t pt-4">
                     <div>
                         <label className="text-xs font-bold text-gray-500 block mb-1">新分类名称</label>
-                        <input required value={name} onChange={e=>setName(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="例如: 航模器材"/>
+                        <input required value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded text-sm" placeholder="例如: 航模器材" />
                     </div>
                     <div>
                         <label className="text-xs font-bold text-gray-500 block mb-1">描述 (可选)</label>
-                        <input value={desc} onChange={e=>setDesc(e.target.value)} className="w-full p-2 border rounded text-sm"/>
+                        <input value={desc} onChange={e => setDesc(e.target.value)} className="w-full p-2 border rounded text-sm" />
                     </div>
                     <button type="submit" disabled={loading} className="w-full py-2 bg-indigo-600 text-white rounded font-medium hover:bg-indigo-700 text-sm">
                         {loading ? '添加中...' : '确认添加'}

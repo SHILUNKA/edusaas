@@ -2,13 +2,13 @@
  * 总部管理: 中央课程库 (V16.2 - 集成海报生成器)
  * 路径: /hq/courses/page.tsx
  */
-'use client'; 
+'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import { API_BASE_URL } from '@/lib/config';
-import { 
-    LayoutGrid, Plus, Search, Clock, Award, MoreHorizontal, 
+import {
+    LayoutGrid, Plus, Search, Clock, Award, MoreHorizontal,
     Power, Edit, Image as ImageIcon, FileText, X
 } from 'lucide-react';
 import PosterGeneratorModal from './PosterGeneratorModal'; // (★ 引入海报生成器)
@@ -31,7 +31,7 @@ export default function CoursesPage() {
 
     const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     // 编辑弹窗状态
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCourse, setEditingCourse] = useState<Course | null>(null);
@@ -45,17 +45,17 @@ export default function CoursesPage() {
     const [duration, setDuration] = useState("60");
     const [points, setPoints] = useState("0");
     const [coverUrl, setCoverUrl] = useState("");
-    
+
     const fetchCourses = async () => {
-        if (!token) return; 
+        if (!token) return;
         try {
             const res = await fetch(`${API}/courses`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (res.ok) setCourses(await res.json());
-        } catch (e) { console.error(e); } 
+        } catch (e) { console.error(e); }
         finally { setIsLoading(false); }
     };
 
-    useEffect(() => { fetchCourses(); }, [token]); 
+    useEffect(() => { fetchCourses(); }, [token]);
 
     const openModal = (c?: Course) => {
         if (c) {
@@ -75,14 +75,14 @@ export default function CoursesPage() {
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!token) return;
-        
+
         const payload = {
             name_key: name,
             description_key: desc || null,
             default_duration_minutes: parseInt(duration),
             points_awarded: parseInt(points),
             cover_url: coverUrl || null,
-            introduction: null, 
+            introduction: null,
             target_audience_key: null,
             prerequisite_course_id: null
         };
@@ -102,7 +102,7 @@ export default function CoursesPage() {
                     body: JSON.stringify(payload)
                 });
             }
-            
+
             if (!res.ok) throw new Error("Failed");
             alert(editingCourse ? "修改成功" : "创建成功");
             setIsModalOpen(false);
@@ -122,64 +122,73 @@ export default function CoursesPage() {
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-6">
-            {/* Header */}
+            {/* Header - Soft UI */}
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                        <LayoutGrid className="text-indigo-600"/> 中央课程库
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center shadow-md shadow-indigo-200/40">
+                            <LayoutGrid className="text-indigo-600" size={24} />
+                        </div>
+                        中央课程库
                     </h1>
-                    <p className="text-gray-500 mt-2">管理所有标准课程、教案及营销素材。</p>
+                    <p className="text-slate-500 mt-2 ml-14 font-medium">管理所有标准课程、教案及营销素材</p>
                 </div>
-                <button onClick={() => openModal()} className="bg-indigo-600 text-white px-5 py-2.5 rounded-full font-medium hover:bg-indigo-700 flex items-center gap-2 shadow-sm transition-all hover:shadow-md">
-                    <Plus size={18}/> 定义新课程
+                <button onClick={() => openModal()} className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-2xl font-semibold hover:shadow-lg hover:shadow-indigo-300/50 flex items-center gap-2 shadow-md transition-all hover:scale-105">
+                    <Plus size={18} /> 定义新课程
                 </button>
             </div>
 
-            {/* Course Grid */}
+            {/* Course Grid - Soft UI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {courses.map(c => (
-                    <div key={c.id} className={`group bg-white rounded-2xl border transition-all overflow-hidden flex flex-col ${c.is_active ? 'border-gray-200 hover:shadow-lg hover:border-indigo-200' : 'border-gray-100 opacity-70 grayscale-[0.8] hover:grayscale-0'}`}>
-                        
-                        {/* 封面图 */}
-                        <div className="h-40 bg-gray-100 relative overflow-hidden">
+                    <div key={c.id} className={`group bg-gradient-to-br rounded-3xl border transition-all overflow-hidden flex flex-col shadow-lg hover:shadow-xl ${c.is_active ? 'from-white to-slate-50/30 border-slate-100/50 hover:border-indigo-200 shadow-slate-200/40 hover:shadow-indigo-200/40' : 'from-white to-gray-50/50 border-gray-100 opacity-60 grayscale-[0.7] hover:grayscale-0 hover:opacity-100'}`}>
+
+                        {/* 封面图 - Soft UI */}
+                        <div className="h-44 bg-gradient-to-br from-slate-100 to-gray-100 relative overflow-hidden">
                             {c.cover_url ? (
-                                <img src={c.cover_url} alt={c.name_key} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"/>
+                                <img src={c.cover_url} alt={c.name_key} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-300">
-                                    <ImageIcon size={48} strokeWidth={1}/>
+                                <div className="w-full h-full flex items-center justify-center">
+                                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-200 to-gray-200 flex items-center justify-center">
+                                        <ImageIcon size={32} className="text-slate-400" strokeWidth={1.5} />
+                                    </div>
                                 </div>
                             )}
                             <div className="absolute top-3 right-3">
-                                <span className={`px-2 py-1 rounded-md text-xs font-bold shadow-sm ${c.is_active ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                                <span className={`px-3 py-1.5 rounded-xl text-xs font-bold shadow-md ${c.is_active ? 'bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-emerald-300/50' : 'bg-gradient-to-r from-gray-200 to-slate-200 text-slate-600'}`}>
                                     {c.is_active ? '已上架' : '已下架'}
                                 </span>
                             </div>
                         </div>
 
-                        {/* 内容 */}
-                        <div className="p-5 flex-1 flex flex-col">
-                            <h3 className="text-lg font-bold text-gray-900 mb-1 line-clamp-1" title={c.name_key}>{c.name_key}</h3>
-                            <p className="text-xs text-gray-500 line-clamp-2 mb-4 h-8">{c.description_key || "暂无简介..."}</p>
-                            
-                            <div className="mt-auto flex items-center gap-4 text-xs text-gray-600 font-medium">
-                                <span className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded"><Clock size={12}/> {c.default_duration_minutes}分</span>
-                                <span className="flex items-center gap-1 bg-amber-50 text-amber-700 px-2 py-1 rounded"><Award size={12}/> +{c.points_awarded}分</span>
+                        {/* 内容 - Soft UI */}
+                        <div className="p-5 flex-1 flex flex-col bg-white/50 backdrop-blur-sm">
+                            <h3 className="text-lg font-bold text-slate-800 mb-2 line-clamp-1" title={c.name_key}>{c.name_key}</h3>
+                            <p className="text-xs text-slate-500 line-clamp-2 mb-4 h-8 leading-relaxed">{c.description_key || "暂无简介..."}</p>
+
+                            <div className="mt-auto flex items-center gap-3 text-xs font-semibold">
+                                <span className="flex items-center gap-1.5 bg-gradient-to-r from-slate-50 to-gray-50 px-3 py-1.5 rounded-xl border border-slate-200/50 shadow-sm">
+                                    <Clock size={12} className="text-slate-600" /> {c.default_duration_minutes}分
+                                </span>
+                                <span className="flex items-center gap-1.5 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-700 px-3 py-1.5 rounded-xl border border-amber-200/50 shadow-sm">
+                                    <Award size={12} /> +{c.points_awarded}分
+                                </span>
                             </div>
                         </div>
 
-                        {/* 底部操作栏 (★ 更新) */}
-                        <div className="p-3 border-t border-gray-50 flex justify-between bg-gray-50/50 items-center text-xs text-gray-600">
-                            <button onClick={() => openModal(c)} className="flex-1 flex items-center justify-center gap-1 hover:text-indigo-600 py-1.5 transition-colors">
-                                <Edit size={14}/> 编辑
+                        {/* 底部操作栏 - Soft UI */}
+                        <div className="p-3 border-t border-slate-100 flex justify-between bg-gradient-to-r from-slate-50/50 to-gray-50/30 backdrop-blur-sm items-center text-xs font-semibold text-slate-600">
+                            <button onClick={() => openModal(c)} className="flex-1 flex items-center justify-center gap-1.5 hover:text-indigo-600 py-2 transition-all hover:bg-indigo-50 rounded-xl">
+                                <Edit size={14} /> 编辑
                             </button>
-                            <div className="w-[1px] h-4 bg-gray-200"></div>
+                            <div className="w-[1px] h-4 bg-slate-200"></div>
                             {/* (★ 新增: 海报按钮) */}
-                            <button onClick={() => setPosterCourse(c)} className="flex-1 flex items-center justify-center gap-1 hover:text-indigo-600 py-1.5 transition-colors">
-                                <ImageIcon size={14}/> 海报
+                            <button onClick={() => setPosterCourse(c)} className="flex-1 flex items-center justify-center gap-1.5 hover:text-purple-600 py-2 transition-all hover:bg-purple-50 rounded-xl">
+                                <ImageIcon size={14} /> 海报
                             </button>
-                            <div className="w-[1px] h-4 bg-gray-200"></div>
-                            <button onClick={() => toggleStatus(c)} className={`flex-1 flex items-center justify-center gap-1 py-1.5 transition-colors ${c.is_active ? 'text-red-500 hover:text-red-600' : 'text-green-600 hover:text-green-700'}`}>
-                                <Power size={14}/> {c.is_active ? '下架' : '上架'}
+                            <div className="w-[1px] h-4 bg-slate-200"></div>
+                            <button onClick={() => toggleStatus(c)} className={`flex-1 flex items-center justify-center gap-1.5 py-2 transition-all rounded-xl ${c.is_active ? 'text-red-500 hover:text-red-600 hover:bg-red-50' : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'}`}>
+                                <Power size={14} /> {c.is_active ? '下架' : '上架'}
                             </button>
                         </div>
                     </div>
@@ -192,30 +201,30 @@ export default function CoursesPage() {
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
                         <div className="p-5 border-b bg-gray-50 flex justify-between items-center">
                             <h3 className="font-bold text-lg text-gray-800">{editingCourse ? '编辑课程' : '定义新课程'}</h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
+                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
                         </div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-4">
                             <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">课程名称</label>
-                                <input type="text" required value={name} onChange={e=>setName(e.target.value)} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"/>
+                                <input type="text" required value={name} onChange={e => setName(e.target.value)} className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">时长 (分钟)</label>
-                                    <input type="number" value={duration} onChange={e=>setDuration(e.target.value)} className="w-full p-2 border rounded-lg"/>
+                                    <input type="number" value={duration} onChange={e => setDuration(e.target.value)} className="w-full p-2 border rounded-lg" />
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">奖励积分</label>
-                                    <input type="number" value={points} onChange={e=>setPoints(e.target.value)} className="w-full p-2 border rounded-lg"/>
+                                    <input type="number" value={points} onChange={e => setPoints(e.target.value)} className="w-full p-2 border rounded-lg" />
                                 </div>
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">封面图片 URL</label>
-                                <input type="text" value={coverUrl} onChange={e=>setCoverUrl(e.target.value)} placeholder="https://..." className="w-full p-2 border rounded-lg text-sm text-gray-600"/>
+                                <input type="text" value={coverUrl} onChange={e => setCoverUrl(e.target.value)} placeholder="https://..." className="w-full p-2 border rounded-lg text-sm text-gray-600" />
                             </div>
                             <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">简介描述</label>
-                                <textarea rows={3} value={desc} onChange={e=>setDesc(e.target.value)} className="w-full p-2 border rounded-lg text-sm"/>
+                                <textarea rows={3} value={desc} onChange={e => setDesc(e.target.value)} className="w-full p-2 border rounded-lg text-sm" />
                             </div>
                             <div className="pt-2 flex justify-end gap-3">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-500 hover:bg-gray-100 rounded-lg">取消</button>
@@ -230,10 +239,10 @@ export default function CoursesPage() {
 
             {/* (★ 新增: 海报生成弹窗) */}
             {posterCourse && token && (
-                <PosterGeneratorModal 
-                    token={token} 
-                    course={posterCourse} 
-                    onClose={() => setPosterCourse(null)} 
+                <PosterGeneratorModal
+                    token={token}
+                    course={posterCourse}
+                    onClose={() => setPosterCourse(null)}
                 />
             )}
         </div>

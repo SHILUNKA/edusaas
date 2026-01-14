@@ -2,13 +2,13 @@
  * 总部后台: 学员总览 (V16.5 - 修复 TrendingUp 缺失)
  * 路径: /hq/participants/page.tsx
  */
-'use client'; 
+'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { API_BASE_URL } from '@/lib/config';
-import { 
-    Search, Filter, Users, ChevronRight, UserPlus, CreditCard, 
+import {
+    Search, Filter, Users, ChevronRight, UserPlus, CreditCard,
     Calendar, AlertCircle, X, Award, Baby, TrendingUp // (★ 修复: 补上 TrendingUp)
 } from 'lucide-react';
 import ParticipantDrawer from './ParticipantDrawer';
@@ -42,7 +42,7 @@ export default function TenantParticipantsPage() {
     const [ranks, setRanks] = useState<HonorRank[]>([]);
     const [stats, setStats] = useState<ParticipantStats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     // 筛选状态
     const [searchQuery, setSearchQuery] = useState("");
     const [filterBaseId, setFilterBaseId] = useState("all");
@@ -55,7 +55,7 @@ export default function TenantParticipantsPage() {
 
     // 1. 加载数据
     const fetchData = async () => {
-        if (!token) return; 
+        if (!token) return;
         setIsLoading(true);
         try {
             const headers = { 'Authorization': `Bearer ${token}` };
@@ -65,16 +65,16 @@ export default function TenantParticipantsPage() {
                 fetch(`${API}/honor-ranks`, { headers }),
                 fetch(`${API}/hq/participants/stats`, { headers })
             ]);
-            
+
             if (pRes.ok) setAllParticipants(await pRes.json());
             if (bRes.ok) setBases(await bRes.json());
             if (rRes.ok) setRanks(await rRes.json());
             if (sRes.ok) setStats(await sRes.json());
-        } catch (e) { console.error(e); } 
+        } catch (e) { console.error(e); }
         finally { setIsLoading(false); }
     };
 
-    useEffect(() => { fetchData(); }, [token]); 
+    useEffect(() => { fetchData(); }, [token]);
 
     // 辅助: 计算年龄
     const getAge = (dobStr: string | null) => {
@@ -97,14 +97,14 @@ export default function TenantParticipantsPage() {
         return allParticipants.filter(p => {
             // 基地
             if (filterBaseId !== 'all' && p.base_id !== filterBaseId) return false;
-            
+
             // 军衔
             if (filterRank !== 'all' && p.rank_name_key !== filterRank) return false;
-            
+
             // 年龄段
             if (filterAge !== 'all') {
                 const age = getAge(p.date_of_birth);
-                if (age === -1) return false; 
+                if (age === -1) return false;
                 if (filterAge === 'lt6' && age >= 6) return false;
                 if (filterAge === '6-8' && (age < 6 || age > 8)) return false;
                 if (filterAge === '9-12' && (age < 9 || age > 12)) return false;
@@ -115,7 +115,7 @@ export default function TenantParticipantsPage() {
             if (filterSleep !== 'all') {
                 const days = getSleepDays(p.last_class_time);
                 const limit = parseInt(filterSleep);
-                if (days < limit) return false; 
+                if (days < limit) return false;
             }
 
             // 搜索
@@ -139,32 +139,32 @@ export default function TenantParticipantsPage() {
 
     return (
         <div className="p-8 max-w-7xl mx-auto h-[calc(100vh-64px)] flex flex-col space-y-6">
-            
+
             {/* 统计卡片 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard label="全网学员总数" value={stats?.total_count || 0} icon={<Users className="text-indigo-600" size={24}/>} bg="bg-indigo-50 border-indigo-100"/>
-                <StatCard label="本月新增学员" value={stats?.new_this_month || 0} icon={<UserPlus className="text-green-600" size={24}/>} bg="bg-green-50 border-green-100" trend="招生活跃度"/>
-                <StatCard label="付费会员数" value={stats?.active_members || 0} icon={<CreditCard className="text-amber-600" size={24}/>} bg="bg-amber-50 border-amber-100" sub={`转化率: ${stats ? Math.round((stats.active_members / stats.total_count) * 100) : 0}%`}/>
+                <StatCard label="全网学员总数" value={stats?.total_count || 0} icon={<Users className="text-indigo-600" size={24} />} bg="bg-indigo-50 border-indigo-100" />
+                <StatCard label="本月新增学员" value={stats?.new_this_month || 0} icon={<UserPlus className="text-green-600" size={24} />} bg="bg-green-50 border-green-100" trend="招生活跃度" />
+                <StatCard label="付费会员数" value={stats?.active_members || 0} icon={<CreditCard className="text-amber-600" size={24} />} bg="bg-amber-50 border-amber-100" sub={`转化率: ${stats ? Math.round((stats.active_members / stats.total_count) * 100) : 0}%`} />
             </div>
 
-            {/* --- 高级筛选器 --- */}
-            <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 space-y-4">
+            {/* --- 高级筛选器 - Soft UI Card --- */}
+            <div className="bg-gradient-to-br from-white to-slate-50/30 p-6 rounded-3xl shadow-lg shadow-slate-200/40 border border-slate-100/50 backdrop-blur-sm space-y-4">
                 <div className="flex flex-wrap gap-4 items-center">
-                    
+
                     {/* 基地 */}
-                    <FilterSelect value={filterBaseId} onChange={setFilterBaseId} label="所属校区" icon={<Filter size={14}/>}>
+                    <FilterSelect value={filterBaseId} onChange={setFilterBaseId} label="所属校区" icon={<Filter size={14} />}>
                         <option value="all">全部校区</option>
                         {bases.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                     </FilterSelect>
 
                     {/* 军衔 */}
-                    <FilterSelect value={filterRank} onChange={setFilterRank} label="荣誉军衔" icon={<Award size={14} className="text-amber-500"/>}>
+                    <FilterSelect value={filterRank} onChange={setFilterRank} label="荣誉军衔" icon={<Award size={14} className="text-amber-500" />}>
                         <option value="all">全部军衔</option>
                         {ranks.map(r => <option key={r.id} value={r.name_key}>{r.name_key}</option>)}
                     </FilterSelect>
 
                     {/* 年龄 */}
-                    <FilterSelect value={filterAge} onChange={setFilterAge} label="年龄段" icon={<Baby size={14} className="text-pink-500"/>}>
+                    <FilterSelect value={filterAge} onChange={setFilterAge} label="年龄段" icon={<Baby size={14} className="text-pink-500" />}>
                         <option value="all">全部年龄</option>
                         <option value="lt6">&lt; 6 岁 (幼儿)</option>
                         <option value="6-8">6 - 8 岁 (低龄)</option>
@@ -173,39 +173,39 @@ export default function TenantParticipantsPage() {
                     </FilterSelect>
 
                     {/* 沉睡 (流失预警) */}
-                    <FilterSelect value={filterSleep} onChange={setFilterSleep} label="流失预警" icon={<AlertCircle size={14} className="text-red-500"/>} isWarning={filterSleep !== 'all'}>
+                    <FilterSelect value={filterSleep} onChange={setFilterSleep} label="流失预警" icon={<AlertCircle size={14} className="text-red-500" />} isWarning={filterSleep !== 'all'}>
                         <option value="all">所有状态</option>
                         <option value="30">超过 30 天未上课</option>
                         <option value="60">超过 60 天未上课</option>
                         <option value="90">超过 90 天 (深度沉睡)</option>
                     </FilterSelect>
 
-                    {/* 搜索框 */}
+                    {/* 搜索框 - Soft UI */}
                     <div className="relative flex-1 min-w-[200px]">
-                        <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                        <input 
-                            type="text" 
-                            placeholder="搜索姓名或手机..." 
+                        <Search className="absolute left-4 top-3 text-slate-400" size={18} />
+                        <input
+                            type="text"
+                            placeholder="搜索姓名或手机..."
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
-                            className="w-full pl-10 p-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                            className="w-full pl-11 pr-4 py-2.5 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-sky-400/50 focus:border-sky-400 outline-none bg-white/80 backdrop-blur-sm shadow-sm transition-all"
                         />
                     </div>
 
-                    {/* 重置 */}
+                    {/* 重置 - Soft Button */}
                     {isFiltering && (
-                        <button onClick={clearFilters} className="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-1 px-2">
-                            <X size={14}/> 重置
+                        <button onClick={clearFilters} className="text-sm text-slate-500 hover:text-sky-600 flex items-center gap-1 px-3 py-2 rounded-2xl hover:bg-sky-50 transition-all font-medium">
+                            <X size={14} /> 重置
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* 列表 */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex-1 overflow-hidden flex flex-col">
-                <div className="p-3 bg-gray-50 border-b border-gray-100 text-xs text-gray-500 flex justify-between">
+            {/* 列表 - Soft UI Card */}
+            <div className="bg-gradient-to-br from-white to-slate-50/20 rounded-3xl shadow-lg shadow-slate-200/40 border border-slate-100/50 backdrop-blur-sm flex-1 overflow-hidden flex flex-col">
+                <div className="px-6 py-4 bg-gradient-to-r from-slate-50 to-gray-50 border-b border-slate-100 text-xs text-slate-600 flex justify-between font-semibold">
                     <span>共找到 {filteredList.length} 名学员</span>
-                    {filterSleep !== 'all' && <span className="text-red-600 font-bold">⚠️ 正在查看流失风险用户</span>}
+                    {filterSleep !== 'all' && <span className="text-red-600 font-bold flex items-center gap-1"><AlertCircle size={14} /> 正在查看流失风险用户</span>}
                 </div>
                 <div className="overflow-auto flex-1">
                     <table className="w-full text-left">
@@ -223,7 +223,7 @@ export default function TenantParticipantsPage() {
                             {filteredList.map(p => {
                                 const sleepDays = getSleepDays(p.last_class_time);
                                 const isSleeping = sleepDays >= 30;
-                                
+
                                 return (
                                     <tr key={p.id} className={`hover:bg-indigo-50/30 transition-colors group cursor-pointer ${isSleeping ? 'bg-red-50/30' : ''}`} onClick={() => setSelectedParticipant(p)}>
                                         <td className="px-6 py-4">
@@ -254,7 +254,7 @@ export default function TenantParticipantsPage() {
                                             {p.last_class_time ? new Date(p.last_class_time).toLocaleDateString() : <span className="text-gray-300">从未上课</span>}
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <ChevronRight size={18} className="text-gray-300 group-hover:text-indigo-500 inline-block"/>
+                                            <ChevronRight size={18} className="text-gray-300 group-hover:text-indigo-500 inline-block" />
                                         </td>
                                     </tr>
                                 );
@@ -269,30 +269,37 @@ export default function TenantParticipantsPage() {
     );
 }
 
-// --- 子组件 ---
+// Soft UI StatCard Component
 function StatCard({ label, value, icon, bg, trend, sub }: any) {
+    // Determine color scheme based on icon type
+    const colorScheme = bg.includes('indigo')
+        ? { gradient: 'from-indigo-50 to-purple-50', shadow: 'shadow-indigo-200/40', border: 'border-indigo-100/50', iconBg: 'from-indigo-100 to-purple-100' }
+        : bg.includes('green')
+            ? { gradient: 'from-emerald-50 to-teal-50', shadow: 'shadow-emerald-200/40', border: 'border-emerald-100/50', iconBg: 'from-emerald-100 to-teal-100' }
+            : { gradient: 'from-amber-50 to-orange-50', shadow: 'shadow-amber-200/40', border: 'border-amber-100/50', iconBg: 'from-amber-100 to-orange-100' };
+
     return (
-        <div className={`p-6 rounded-xl border shadow-sm bg-white flex items-start justify-between hover:shadow-md transition-shadow`}>
+        <div className={`p-6 rounded-3xl border ${colorScheme.border} shadow-lg ${colorScheme.shadow} bg-gradient-to-br ${colorScheme.gradient} backdrop-blur-sm flex items-start justify-between hover:scale-[1.02] transition-all duration-300 group cursor-pointer`}>
             <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1">{label}</p>
-                <h3 className="text-3xl font-extrabold text-gray-900">{value}</h3>
-                {(trend || sub) && <div className="flex items-center gap-2 mt-2 text-xs">{trend && <span className="text-green-600 font-medium flex items-center gap-1"><TrendingUp size={12}/> {trend}</span>}{sub && <span className="text-gray-400">{sub}</span>}</div>}
+                <p className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-2">{label}</p>
+                <h3 className="text-4xl font-extrabold text-slate-800">{value}</h3>
+                {(trend || sub) && <div className="flex items-center gap-2 mt-3 text-xs">{trend && <span className="text-emerald-600 font-semibold flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded-lg"><TrendingUp size={12} /> {trend}</span>}{sub && <span className="text-slate-500 font-medium">{sub}</span>}</div>}
             </div>
-            <div className={`p-3 rounded-lg ${bg}`}>{icon}</div>
+            <div className={`p-4 rounded-2xl bg-gradient-to-br ${colorScheme.iconBg} shadow-md shadow-slate-300/30 group-hover:scale-110 transition-transform duration-300`}>{icon}</div>
         </div>
     );
 }
 
 function FilterSelect({ value, onChange, label, icon, children, isWarning }: any) {
     return (
-        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border min-w-[160px] transition-colors ${isWarning ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
+        <div className={`flex items-center gap-2.5 px-4 py-3 rounded-2xl border min-w-[170px] transition-all duration-200 shadow-sm ${isWarning ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200 shadow-red-200/30' : 'bg-white/90 border-slate-200 hover:border-sky-300 hover:shadow-md'}`}>
             {icon}
             <div className="flex-1">
-                <div className="text-[10px] text-gray-400 uppercase font-bold leading-none mb-0.5">{label}</div>
-                <select 
-                    value={value} 
+                <div className="text-[10px] text-slate-500 uppercase font-bold leading-none mb-1">{label}</div>
+                <select
+                    value={value}
                     onChange={e => onChange(e.target.value)}
-                    className={`bg-transparent outline-none text-sm font-medium w-full cursor-pointer appearance-none ${isWarning ? 'text-red-700' : 'text-gray-700'}`}
+                    className={`bg-transparent outline-none text-sm font-semibold w-full cursor-pointer appearance-none ${isWarning ? 'text-red-700' : 'text-slate-700'}`}
                 >
                     {children}
                 </select>

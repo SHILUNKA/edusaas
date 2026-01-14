@@ -6,14 +6,14 @@
  * 2. 交互升级: 支持上下架 (Toggle Status)。
  * 3. 字段完善: 显示有效期、次数、销量。
  */
-'use client'; 
+'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import { API_BASE_URL } from '@/lib/config';
-import { 
-    CreditCard, Plus, Clock, Hash, CheckCircle, 
-    XCircle, Edit, MoreHorizontal, Power 
+import {
+    CreditCard, Plus, Clock, Hash, CheckCircle,
+    XCircle, Edit, MoreHorizontal, Power
 } from 'lucide-react';
 
 interface Tier {
@@ -35,7 +35,7 @@ export default function MembershipTiersPage() {
     // 数据状态
     const [tiers, setTiers] = useState<Tier[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    
+
     // 表单状态 (抽屉/弹窗控制)
     const [isCreating, setIsCreating] = useState(false);
     const [name, setName] = useState("");
@@ -54,7 +54,7 @@ export default function MembershipTiersPage() {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) setTiers(await res.json());
-        } catch (e) { console.error(e); } 
+        } catch (e) { console.error(e); }
         finally { setIsLoading(false); }
     };
 
@@ -64,7 +64,7 @@ export default function MembershipTiersPage() {
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!token) return;
-        
+
         try {
             const payload = {
                 name_key: name,
@@ -93,8 +93,8 @@ export default function MembershipTiersPage() {
 
     // 3. 上下架切换 (Mock)
     const toggleStatus = async (tier: Tier) => {
-        if(!confirm(`确定要${tier.is_active ? '下架' : '上架'}该卡种吗？`)) return;
-        
+        if (!confirm(`确定要${tier.is_active ? '下架' : '上架'}该卡种吗？`)) return;
+
         // 假设后端有 PATCH /membership-tiers/:id/status
         try {
             await fetch(`${API}/membership-tiers/${tier.id}/status`, {
@@ -103,31 +103,34 @@ export default function MembershipTiersPage() {
                 body: JSON.stringify({ is_active: !tier.is_active })
             });
             fetchTiers();
-        } catch(e) { 
+        } catch (e) {
             // 临时前端模拟
-            const newTiers = tiers.map(t => t.id === tier.id ? {...t, is_active: !t.is_active} : t);
+            const newTiers = tiers.map(t => t.id === tier.id ? { ...t, is_active: !t.is_active } : t);
             setTiers(newTiers);
         }
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-8">
-            
-            {/* Header */}
+        <div className="p-8 max-w-7xl mx-auto space-y-8 min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-purple-50/20">
+
+            {/* Header - Soft UI */}
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                        <CreditCard className="text-indigo-600" size={32}/> 会员卡运营
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-3">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center shadow-md shadow-indigo-200/40">
+                            <CreditCard className="text-indigo-600" size={28} />
+                        </div>
+                        会员卡运营
                     </h1>
-                    <p className="text-gray-500 mt-2">
-                        管理所有付费权益卡种。已上架的卡种将在家长端小程序显示。
+                    <p className="text-slate-500 mt-2 font-medium ml-[4.5rem]">
+                        管理所有付费权益卡种。已上架的卡种将在家长端小程序显示
                     </p>
                 </div>
-                <button 
+                <button
                     onClick={() => setIsCreating(true)}
-                    className="bg-indigo-600 text-white px-6 py-2.5 rounded-full font-bold hover:bg-indigo-700 flex items-center gap-2 shadow-lg hover:scale-105 transition-all"
+                    className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-3 rounded-2xl font-bold hover:shadow-lg hover:shadow-indigo-300/50 shadow-md flex items-center gap-2 transition-all hover:scale-105"
                 >
-                    <Plus size={20}/> 发行新卡
+                    <Plus size={20} /> 发行新卡
                 </button>
             </div>
 
@@ -139,8 +142,8 @@ export default function MembershipTiersPage() {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {tiers.map((tier, idx) => (
-                        <div key={tier.id} className={`group relative bg-white rounded-2xl border transition-all duration-300 overflow-hidden flex flex-col ${tier.is_active ? 'border-gray-200 hover:shadow-xl hover:border-indigo-200' : 'border-gray-100 opacity-60 grayscale-[0.8] hover:grayscale-0'}`}>
-                            
+                        <div key={tier.id} className={`group relative bg-gradient-to-br from-white to-slate-50/30 rounded-3xl border transition-all duration-300 overflow-hidden flex flex-col shadow-lg backdrop-blur-sm ${tier.is_active ? 'border-slate-100 hover:shadow-2xl hover:border-indigo-200 shadow-slate-200/40' : 'border-slate-100 opacity-60 grayscale-[0.8] hover:grayscale-0'}`}>
+
                             {/* 1. 卡面模拟区 */}
                             <div className={`h-40 p-6 flex flex-col justify-between text-white relative overflow-hidden bg-gradient-to-br ${getGradient(idx, tier.tier_type)}`}>
                                 <div className="flex justify-between items-start z-10">
@@ -153,11 +156,11 @@ export default function MembershipTiersPage() {
                                     {/* 状态徽章 */}
                                     {tier.is_active ? (
                                         <span className="bg-green-500/80 backdrop-blur text-xs px-2 py-1 rounded font-bold flex items-center gap-1 shadow-sm">
-                                            <CheckCircle size={10}/> 上架中
+                                            <CheckCircle size={10} /> 上架中
                                         </span>
                                     ) : (
                                         <span className="bg-gray-800/80 backdrop-blur text-xs px-2 py-1 rounded font-bold flex items-center gap-1">
-                                            <XCircle size={10}/> 已下架
+                                            <XCircle size={10} /> 已下架
                                         </span>
                                     )}
                                 </div>
@@ -182,11 +185,11 @@ export default function MembershipTiersPage() {
                             <div className="p-5 flex-1 bg-white">
                                 <div className="space-y-3 text-sm text-gray-600">
                                     <div className="flex items-center justify-between">
-                                        <span className="flex items-center gap-2 text-gray-400"><Clock size={14}/> 有效期</span>
+                                        <span className="flex items-center gap-2 text-gray-400"><Clock size={14} /> 有效期</span>
                                         <span className="font-medium text-gray-900">{tier.duration_days ? `${tier.duration_days} 天` : '永久有效'}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="flex items-center gap-2 text-gray-400"><Hash size={14}/> 可用次数</span>
+                                        <span className="flex items-center gap-2 text-gray-400"><Hash size={14} /> 可用次数</span>
                                         <span className="font-medium text-gray-900">{tier.usage_count ? `${tier.usage_count} 次` : '不限次数'}</span>
                                     </div>
                                     <div className="pt-2 border-t border-gray-100 text-xs text-gray-400 line-clamp-2 min-h-[2.5em]">
@@ -195,21 +198,21 @@ export default function MembershipTiersPage() {
                                 </div>
                             </div>
 
-                            {/* 3. 底部操作栏 */}
-                            <div className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center opacity-80 group-hover:opacity-100 transition-opacity">
+                            {/* 3. 底部操作栏 - Soft UI */}
+                            <div className="px-5 py-3 bg-gradient-to-r from-slate-50 to-gray-50 border-t border-slate-100 flex justify-between items-center opacity-90 group-hover:opacity-100 transition-opacity">
                                 <div className="text-xs text-gray-400 font-medium">
                                     已售 <span className="text-indigo-600 font-bold">{Math.floor(Math.random() * 500)}</span> 张
                                 </div>
                                 <div className="flex gap-2">
-                                    <button 
+                                    <button
                                         onClick={() => toggleStatus(tier)}
-                                        className={`p-2 rounded-lg transition-colors ${tier.is_active ? 'hover:bg-red-100 text-gray-400 hover:text-red-600' : 'hover:bg-green-100 text-green-600'}`}
+                                        className={`p-2 rounded-xl transition-all hover:shadow-sm ${tier.is_active ? 'hover:bg-red-50 text-slate-400 hover:text-red-600' : 'hover:bg-emerald-50 text-emerald-600'}`}
                                         title={tier.is_active ? "下架" : "上架"}
                                     >
-                                        <Power size={16}/>
+                                        <Power size={16} />
                                     </button>
-                                    <button className="p-2 hover:bg-gray-200 rounded-lg text-gray-400 hover:text-indigo-600 transition-colors">
-                                        <Edit size={16}/>
+                                    <button className="p-2 hover:bg-indigo-50 rounded-xl text-slate-400 hover:text-indigo-600 transition-all hover:shadow-sm">
+                                        <Edit size={16} />
                                     </button>
                                 </div>
                             </div>
@@ -224,25 +227,25 @@ export default function MembershipTiersPage() {
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h3 className="text-lg font-bold text-gray-900">发行新卡种</h3>
-                            <button onClick={() => setIsCreating(false)} className="text-gray-400 hover:text-gray-600"><XCircle size={24}/></button>
+                            <button onClick={() => setIsCreating(false)} className="text-gray-400 hover:text-gray-600"><XCircle size={24} /></button>
                         </div>
                         <form onSubmit={handleSubmit} className="p-6 space-y-5">
                             <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">卡种名称</label>
-                                <input required value={name} onChange={e=>setName(e.target.value)} className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="例如: 2025全年畅学卡"/>
+                                <input required value={name} onChange={e => setName(e.target.value)} className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="例如: 2025全年畅学卡" />
                             </div>
-                            
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">卡种类型</label>
-                                    <select value={type} onChange={e=>setType(e.target.value)} className="w-full p-3 border rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    <select value={type} onChange={e => setType(e.target.value)} className="w-full p-3 border rounded-xl bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
                                         <option value="time_based">📅 期限卡 (年卡/季卡)</option>
                                         <option value="usage_based">🎟️ 次卡 (10次/50次)</option>
                                     </select>
                                 </div>
                                 <div>
                                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">售价 (元)</label>
-                                    <input type="number" required value={price} onChange={e=>setPrice(e.target.value)} className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="0.00"/>
+                                    <input type="number" required value={price} onChange={e => setPrice(e.target.value)} className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="0.00" />
                                 </div>
                             </div>
 
@@ -250,18 +253,18 @@ export default function MembershipTiersPage() {
                             {type === 'time_based' ? (
                                 <div>
                                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">有效期 (天)</label>
-                                    <input type="number" value={duration} onChange={e=>setDuration(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="例如: 365"/>
+                                    <input type="number" value={duration} onChange={e => setDuration(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="例如: 365" />
                                 </div>
                             ) : (
                                 <div>
                                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">包含次数</label>
-                                    <input type="number" value={usageCount} onChange={e=>setUsageCount(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="例如: 20"/>
+                                    <input type="number" value={usageCount} onChange={e => setUsageCount(e.target.value)} className="w-full p-3 border rounded-xl" placeholder="例如: 20" />
                                 </div>
                             )}
 
                             <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">权益描述</label>
-                                <textarea rows={3} value={desc} onChange={e=>setDesc(e.target.value)} className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="例如: 全门店通用，送教材一套..."/>
+                                <textarea rows={3} value={desc} onChange={e => setDesc(e.target.value)} className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="例如: 全门店通用，送教材一套..." />
                             </div>
 
                             <div className="pt-2">

@@ -30,14 +30,14 @@ export default function CreateClassModal({ token, isOpen, onClose, onSuccess, in
     const [courses, setCourses] = useState<Course[]>([]);
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [rooms, setRooms] = useState<Room[]>([]);
-    
+
     // --- 表单状态 ---
     const [courseId, setCourseId] = useState("");
     // (★ 修改: 多选老师)
-    const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]); 
+    const [selectedTeacherIds, setSelectedTeacherIds] = useState<string[]>([]);
     const [roomId, setRoomId] = useState("");
     const [capacity, setCapacity] = useState("10");
-    
+
     const [startTime, setStartTime] = useState("");
     const [endTime, setEndTime] = useState("");
 
@@ -79,7 +79,7 @@ export default function CreateClassModal({ token, isOpen, onClose, onSuccess, in
             } else {
                 // 情况 B: 用户直接点击按钮 -> 默认当前时间 + 1小时
                 const now = new Date();
-                now.setMinutes(0, 0, 0); 
+                now.setMinutes(0, 0, 0);
                 const nextHour = new Date(now.getTime() + 60 * 60000);
                 setStartTime(toLocalISOString(now));
                 setEndTime(toLocalISOString(nextHour));
@@ -92,7 +92,7 @@ export default function CreateClassModal({ token, isOpen, onClose, onSuccess, in
 
     // 3. 切换老师选择 (多选逻辑)
     const toggleTeacher = (id: string) => {
-        setSelectedTeacherIds(prev => 
+        setSelectedTeacherIds(prev =>
             prev.includes(id) ? prev.filter(pid => pid !== id) : [...prev, id]
         );
     };
@@ -138,11 +138,11 @@ export default function CreateClassModal({ token, isOpen, onClose, onSuccess, in
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-                <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-gray-50">
-                    <h3 className="text-lg font-bold text-gray-800">📅 新建排课</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md">
+            <div className="bg-gradient-to-br from-white to-slate-50/30 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] border border-slate-100">
+                <div className="flex justify-between items-center p-6 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-purple-50">
+                    <h3 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">📅 新建排课</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-white/80 rounded-2xl transition-all"><X size={24} /></button>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto">
@@ -158,14 +158,14 @@ export default function CreateClassModal({ token, isOpen, onClose, onSuccess, in
                     {/* (★ 修改: 多选老师区域) */}
                     <div>
                         <label className="block text-xs font-medium text-gray-500 mb-2 flex items-center gap-1">
-                            <Users size={14}/> 授课老师 (可多选) *
+                            <Users size={14} /> 授课老师 (可多选) *
                         </label>
                         <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto p-2 border rounded bg-gray-50">
                             {teachers.map(t => (
                                 <label key={t.user_id} className={`flex items-center gap-2 p-2 rounded cursor-pointer border transition-colors ${selectedTeacherIds.includes(t.user_id) ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-gray-200'}`}>
-                                    <input 
-                                        type="checkbox" 
-                                        checked={selectedTeacherIds.includes(t.user_id)} 
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedTeacherIds.includes(t.user_id)}
                                         onChange={() => toggleTeacher(t.user_id)}
                                         className="rounded text-indigo-600 focus:ring-indigo-500"
                                     />
@@ -195,7 +195,7 @@ export default function CreateClassModal({ token, isOpen, onClose, onSuccess, in
                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                         <div className="flex justify-between items-center mb-2">
                             <label className="text-xs font-bold text-gray-700 flex items-center gap-1">
-                                <Clock size={14}/> 上课时间 {initialRange && <span className="text-indigo-600 font-normal">(已自动填入框选时间)</span>}
+                                <Clock size={14} /> 上课时间 {initialRange && <span className="text-indigo-600 font-normal">(已自动填入框选时间)</span>}
                             </label>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -234,8 +234,8 @@ export default function CreateClassModal({ token, isOpen, onClose, onSuccess, in
                     </div>
 
                     <div className="pt-2 flex justify-end gap-3">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">取消</button>
-                        <button type="submit" disabled={loading} className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 font-medium disabled:opacity-50">
+                        <button type="button" onClick={onClose} className="px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-2xl font-bold transition-all">取消</button>
+                        <button type="submit" disabled={loading} className="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl hover:shadow-lg hover:shadow-indigo-300/50 shadow-md font-bold disabled:opacity-50 transition-all hover:scale-105">
                             {loading ? '处理中...' : (isRecurring ? `批量排 ${repeatCount} 节课` : '确认排课')}
                         </button>
                     </div>

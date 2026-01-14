@@ -73,15 +73,15 @@ export default function CreateLeadModal({ onClose, onSuccess }: Props) {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md" onClick={onClose}>
             <div
-                className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                className="bg-gradient-to-br from-white to-slate-50/30 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100"
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Header */}
-                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-                    <h2 className="text-xl font-bold text-gray-900">新增客户</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                {/* Header - Soft UI */}
+                <div className="sticky top-0 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-slate-100 px-6 py-5 flex justify-between items-center">
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">新增客户</h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-white/80 rounded-2xl transition-all">
                         <X size={24} />
                     </button>
                 </div>
@@ -244,14 +244,14 @@ export default function CreateLeadModal({ onClose, onSuccess }: Props) {
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="flex-1 bg-purple-600 text-white py-3 rounded-lg font-bold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-600 text-white py-3 rounded-2xl font-bold hover:shadow-lg hover:shadow-purple-300/50 shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-105"
                         >
                             {isSubmitting ? '创建中...' : '创建客户'}
                         </button>
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-8 py-3 bg-gray-200 text-gray-700 rounded-lg font-bold hover:bg-gray-300"
+                            className="px-8 py-3 bg-slate-100 text-slate-700 rounded-2xl font-bold hover:bg-slate-200 transition-all"
                         >
                             取消
                         </button>

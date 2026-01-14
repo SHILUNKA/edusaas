@@ -80,7 +80,7 @@ export default function MiniprogramCodesPage() {
     };
 
     return (
-        <div className="p-6 max-w-4xl mx-auto">
+        <div className="p-6 max-w-4xl mx-auto min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-blue-50/20">
             {/* Message Toast */}
             {message && (
                 <div className={`fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg ${message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'
@@ -89,19 +89,21 @@ export default function MiniprogramCodesPage() {
                 </div>
             )}
 
-            {/* Header */}
+            {/* Header - Soft UI */}
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                    <QrCode className="w-8 h-8 text-blue-600" />
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center shadow-md shadow-blue-200/40">
+                        <QrCode className="w-7 h-7 text-blue-600" />
+                    </div>
                     小程序码管理
                 </h1>
-                <p className="mt-2 text-gray-600">
+                <p className="mt-2 text-slate-600 ml-[4.5rem] font-medium">
                     生成用于用户扫码注册的小程序码，支持不同渠道追踪
                 </p>
             </div>
 
-            {/* Generator Section */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            {/* Generator Section - Soft UI */}
+            <div className="bg-gradient-to-br from-white to-slate-50/30 rounded-3xl shadow-lg shadow-slate-200/40 border border-slate-100 p-8 mb-6 backdrop-blur-sm">
                 <h2 className="text-lg font-semibold mb-4">生成新的小程序码</h2>
 
                 <div className="flex items-end gap-4">
@@ -113,7 +115,7 @@ export default function MiniprogramCodesPage() {
                         <select
                             value={selectedChannel}
                             onChange={(e) => setSelectedChannel(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-400 focus:border-transparent shadow-sm bg-white transition-all"
                         >
                             {channels.map((channel) => (
                                 <option key={channel.value} value={channel.value}>
@@ -127,7 +129,7 @@ export default function MiniprogramCodesPage() {
                     <button
                         onClick={handleGenerate}
                         disabled={loading}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors font-medium"
+                        className="px-8 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-2xl hover:shadow-lg hover:shadow-blue-300/50 shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold hover:scale-105"
                     >
                         {loading ? '生成中...' : '生成'}
                     </button>
@@ -136,7 +138,7 @@ export default function MiniprogramCodesPage() {
 
             {/* QR Code Display */}
             {qrcodeData && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="bg-gradient-to-br from-white to-slate-50/30 rounded-3xl shadow-lg shadow-slate-200/40 border border-slate-100 p-8 backdrop-blur-sm">
                     <h2 className="text-lg font-semibold mb-4">小程序码</h2>
 
                     <div className="flex flex-col md:flex-row gap-6">
@@ -176,7 +178,7 @@ export default function MiniprogramCodesPage() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         渠道
                                     </label>
-                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                    <span className="inline-flex items-center px-4 py-1.5 rounded-2xl text-sm font-bold bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 border border-blue-200/50 shadow-sm">
                                         {channels.find(c => c.value === selectedChannel)?.label}
                                     </span>
                                 </div>
@@ -193,7 +195,7 @@ export default function MiniprogramCodesPage() {
                             <div className="mt-6">
                                 <button
                                     onClick={handleDownload}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl hover:shadow-lg hover:shadow-emerald-300/50 shadow-md transition-all font-bold hover:scale-105"
                                 >
                                     <Download className="w-5 h-5" />
                                     下载小程序码

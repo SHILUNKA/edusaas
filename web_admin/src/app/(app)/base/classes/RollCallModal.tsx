@@ -5,9 +5,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-    X, CheckCircle, XCircle, Loader2, Lock, 
-    Clock, MoreHorizontal, Undo2, CheckSquare 
+import {
+    X, CheckCircle, XCircle, Loader2, Lock,
+    Clock, MoreHorizontal, Undo2, CheckSquare
 } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/config';
 
@@ -32,7 +32,7 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
     const [loading, setLoading] = useState(true);
     const [batchLoading, setBatchLoading] = useState(false);
     const [processingId, setProcessingId] = useState<string | null>(null);
-    
+
     // 选中的学员ID，用于显示修改菜单
     const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
@@ -45,7 +45,7 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) setStudents(await res.json());
-        } catch (e) { console.error(e); } 
+        } catch (e) { console.error(e); }
         finally { setLoading(false); }
     };
 
@@ -54,7 +54,7 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
     // 提交状态更新
     const submitStatus = async (enrollment: EnrollmentDetail, newStatus: string) => {
         setProcessingId(enrollment.id);
-        setActiveMenuId(null); 
+        setActiveMenuId(null);
 
         try {
             const res = await fetch(`${API}/enrollments/${enrollment.id}/complete`, {
@@ -64,13 +64,13 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
             });
 
             if (!res.ok) throw new Error("操作失败");
-            
+
             setStudents(prev => prev.map(s => s.id === enrollment.id ? { ...s, status: newStatus } : s));
-            onSuccess(); 
-        } catch (e) { 
-            alert("操作失败"); 
-        } finally { 
-            setProcessingId(null); 
+            onSuccess();
+        } catch (e) {
+            alert("操作失败");
+        } finally {
+            setProcessingId(null);
         }
     };
 
@@ -78,7 +78,7 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
     const handleProcessedCardClick = (student: EnrollmentDetail) => {
         if (isExpired) return;
         if (processingId) return;
-        
+
         if (activeMenuId === student.id) {
             setActiveMenuId(null);
         } else {
@@ -90,7 +90,7 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
     const handleBatchCheckIn = async () => {
         // 找出所有还没点名的学生 (enrolled)
         const pendingStudents = students.filter(s => s.status === 'enrolled');
-        
+
         if (pendingStudents.length === 0) return alert("所有学员都已处理完毕！");
         if (isExpired) return alert("课程已结束");
 
@@ -99,7 +99,7 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
 
         setBatchLoading(true);
         try {
-            await Promise.all(pendingStudents.map(s => 
+            await Promise.all(pendingStudents.map(s =>
                 fetch(`${API}/enrollments/${s.id}/complete`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
@@ -117,18 +117,18 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'completed': return 'bg-green-50 border-green-500 text-green-700';
-            case 'absent':    return 'bg-red-50 border-red-500 text-red-700 opacity-80'; 
-            case 'leave':     return 'bg-yellow-50 border-yellow-500 text-yellow-700 opacity-80'; 
-            default:          return 'bg-white border-gray-200 shadow-sm'; 
+            case 'absent': return 'bg-red-50 border-red-500 text-red-700 opacity-80';
+            case 'leave': return 'bg-yellow-50 border-yellow-500 text-yellow-700 opacity-80';
+            default: return 'bg-white border-gray-200 shadow-sm';
         }
     };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'completed': return <span className="flex items-center gap-1 text-green-600 text-sm font-bold"><CheckCircle size={16}/> 已实到</span>;
-            case 'absent':    return <span className="flex items-center gap-1 text-red-600 text-sm font-bold"><XCircle size={16}/> 旷课</span>;
-            case 'leave':     return <span className="flex items-center gap-1 text-yellow-600 text-sm font-bold"><Clock size={16}/> 请假</span>;
-            default:          return <span className="text-gray-400 text-xs">待点名</span>;
+            case 'completed': return <span className="flex items-center gap-1 text-green-600 text-sm font-bold"><CheckCircle size={16} /> 已实到</span>;
+            case 'absent': return <span className="flex items-center gap-1 text-red-600 text-sm font-bold"><XCircle size={16} /> 旷课</span>;
+            case 'leave': return <span className="flex items-center gap-1 text-yellow-600 text-sm font-bold"><Clock size={16} /> 请假</span>;
+            default: return <span className="text-gray-400 text-xs">待点名</span>;
         }
     };
 
@@ -136,23 +136,23 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
     const arrivedCount = students.filter(s => s.status === 'completed').length;
 
     return (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-in fade-in" onClick={() => setActiveMenuId(null)}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                
-                {/* Header */}
-                <div className="p-5 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md animate-in fade-in" onClick={() => setActiveMenuId(null)}>
+            <div className="bg-gradient-to-br from-white to-slate-50/30 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-100" onClick={e => e.stopPropagation()}>
+
+                {/* Header - Soft UI */}
+                <div className="p-6 border-b border-slate-100 bg-gradient-to-r from-indigo-50 to-purple-50 flex justify-between items-center">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-900">{classData.course_name_key}</h2>
-                        <p className="text-gray-500 mt-1 text-sm flex gap-3">
+                        <h2 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">{classData.course_name_key}</h2>
+                        <p className="text-slate-600 mt-2 text-sm flex gap-4 font-medium">
                             <span>应到 {students.length}</span>
-                            <span className="text-green-600 font-bold">实到 {arrivedCount}</span>
+                            <span className="text-emerald-600 font-bold">实到 {arrivedCount}</span>
                             <span className="text-indigo-600 font-bold">待处理 {pendingCount}</span>
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={24} className="text-gray-500"/></button>
+                    <button onClick={onClose} className="p-2.5 hover:bg-white/80 rounded-2xl transition-all hover:shadow-sm"><X size={24} className="text-slate-500" /></button>
                 </div>
 
-                {isExpired && <div className="bg-amber-50 px-6 py-2 text-xs text-amber-800 border-b border-amber-100 flex items-center gap-2"><Lock size={14}/> 课程已结束，操作已锁定。</div>}
+                {isExpired && <div className="bg-amber-50 px-6 py-2 text-xs text-amber-800 border-b border-amber-100 flex items-center gap-2"><Lock size={14} /> 课程已结束，操作已锁定。</div>}
 
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto p-6 bg-gray-100">
@@ -169,7 +169,7 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
                                 const isMenuOpen = activeMenuId === student.id;
 
                                 return (
-                                    <div 
+                                    <div
                                         key={student.id}
                                         onClick={() => isDone ? handleProcessedCardClick(student) : null}
                                         className={`
@@ -180,28 +180,28 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
                                     >
                                         {/* 头像 */}
                                         <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold mb-2 overflow-hidden bg-white/80`}>
-                                            {student.participant_avatar ? <img src={student.participant_avatar} className="w-full h-full object-cover"/> : student.participant_name[0]}
+                                            {student.participant_avatar ? <img src={student.participant_avatar} className="w-full h-full object-cover" /> : student.participant_name[0]}
                                         </div>
 
                                         {/* 姓名 */}
                                         <h3 className="font-bold text-base mb-1">{student.participant_name}</h3>
-                                        
+
                                         {/* 状态显示 */}
                                         <div className="h-8 flex items-center justify-center w-full">
                                             {isProcessing ? (
-                                                <Loader2 className="animate-spin text-indigo-600" size={16}/>
+                                                <Loader2 className="animate-spin text-indigo-600" size={16} />
                                             ) : isDone ? (
                                                 getStatusBadge(status)
                                             ) : !isExpired ? (
                                                 <div className="flex gap-2 w-full justify-center px-2">
-                                                    <button 
-                                                        onClick={(e) => { e.stopPropagation(); submitStatus(student, 'leave'); }} 
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); submitStatus(student, 'leave'); }}
                                                         className="flex-1 py-1.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded text-xs hover:bg-yellow-100 transition-colors"
                                                     >
                                                         请假
                                                     </button>
-                                                    <button 
-                                                        onClick={(e) => { e.stopPropagation(); submitStatus(student, 'absent'); }} 
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); submitStatus(student, 'absent'); }}
                                                         className="flex-1 py-1.5 bg-red-50 text-red-700 border border-red-200 rounded text-xs hover:bg-red-100 transition-colors"
                                                     >
                                                         旷课
@@ -222,14 +222,14 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
                                                     <button onClick={() => submitStatus(student, 'completed')} className="col-span-2 py-2 bg-green-50 text-green-700 rounded hover:bg-green-100 text-xs font-bold">实到</button>
                                                 </div>
                                                 <button onClick={() => submitStatus(student, 'enrolled')} className="mt-1 w-full py-1 text-xs text-gray-400 hover:text-gray-600 flex items-center justify-center gap-1">
-                                                    <Undo2 size={12}/> 撤销操作 (重置)
+                                                    <Undo2 size={12} /> 撤销操作 (重置)
                                                 </button>
                                             </div>
                                         )}
-                                        
+
                                         {isDone && !isMenuOpen && !isExpired && (
                                             <div className="absolute top-2 right-2 text-gray-400 opacity-50">
-                                                <MoreHorizontal size={16}/>
+                                                <MoreHorizontal size={16} />
                                             </div>
                                         )}
                                     </div>
@@ -242,21 +242,21 @@ export default function RollCallModal({ token, classData, onClose, onSuccess }: 
                 {/* Footer */}
                 <div className="p-4 bg-white border-t border-gray-200 flex justify-between items-center">
                     <div className="text-sm text-gray-500">
-                        {pendingCount > 0 
-                            ? "👉 先标记请假/旷课学员，最后点击右侧按钮一键结课。" 
+                        {pendingCount > 0
+                            ? "👉 先标记请假/旷课学员，最后点击右侧按钮一键结课。"
                             : "✅ 所有学员已处理完毕。"}
                     </div>
-                    
+
                     <div className="flex gap-3">
-                        <button onClick={onClose} className="px-6 py-2.5 text-gray-500 hover:bg-gray-100 rounded-xl font-medium">关 闭</button>
-                        
+                        <button onClick={onClose} className="px-6 py-3 text-slate-600 hover:bg-slate-100 rounded-2xl font-bold transition-all">关 闭</button>
+
                         {!isExpired && pendingCount > 0 && (
-                            <button 
+                            <button
                                 onClick={handleBatchCheckIn}
                                 disabled={batchLoading}
-                                className="px-6 py-2.5 bg-gray-900 text-white rounded-xl font-bold hover:bg-black shadow-md flex items-center gap-2 disabled:opacity-50 transition-all"
+                                className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl font-bold hover:shadow-lg hover:shadow-indigo-300/50 shadow-md flex items-center gap-2 disabled:opacity-50 transition-all hover:scale-105"
                             >
-                                {batchLoading ? <Loader2 className="animate-spin"/> : <CheckSquare size={18}/>}
+                                {batchLoading ? <Loader2 className="animate-spin" /> : <CheckSquare size={18} />}
                                 下课：其余 {pendingCount} 人全员实到
                             </button>
                         )}

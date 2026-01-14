@@ -77,18 +77,18 @@ export default function CreateTrialClassModal({ onClose, onSuccess, leadId, init
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-md">
             <div
-                className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                className="bg-gradient-to-br from-white to-slate-50/30 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-100"
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* Header */}
-                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center rounded-t-2xl">
-                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                {/* Header - Soft UI */}
+                <div className="sticky top-0 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-slate-100 px-6 py-5 flex justify-between items-center rounded-t-3xl">
+                    <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
                         <Calendar className="text-indigo-600" size={24} />
                         安排试听课
                     </h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-white/80 rounded-2xl transition-all">
                         <X size={24} />
                     </button>
                 </div>
@@ -284,14 +284,14 @@ export default function CreateTrialClassModal({ onClose, onSuccess, leadId, init
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                            className="flex-1 px-4 py-3 border-2 border-slate-200 text-slate-700 rounded-2xl hover:bg-slate-50 font-bold transition-all"
                         >
                             取消
                         </button>
                         <button
                             type="submit"
                             disabled={loading}
-                            className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-2xl hover:shadow-lg hover:shadow-indigo-300/50 shadow-md font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105"
                         >
                             {loading ? '创建中...' : '创建试听课'}
                         </button>
